@@ -166,7 +166,7 @@ test('Owner inbox can list all threads and reply to a general customer message',
   assert.equal(update.args[0], 'Your delivery is scheduled for tomorrow.');
   const notification = env.calls.filter(call => /INSERT INTO notification_events/i.test(call.sql));
   assert.ok(notification.length >= 1);
-  assert.equal(notification.at(-1).args[6], 'Open FreshWay to read your reply.');
+  assert.equal(notification.at(-1).args[6], 'Open WaterNow to read your reply.');
 });
 
 test('Owner can reply to an order-help request but cannot reply for a deleted customer', async () => {
