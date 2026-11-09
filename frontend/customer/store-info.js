@@ -157,5 +157,7 @@
     return profile;
   }
 
-  const storeInfo=Object.freeze({show,renderAbout,renderContact,mapHref,validShopCoordinates,get lastProfile(){return lastProfile;}});\n  window.FreshWayCustomerStoreInfo=storeInfo;\n  window.WaterNowCustomerStoreInfo=storeInfo;
+  const storeInfo=Object.freeze({show,renderAbout,renderContact,mapHref,validShopCoordinates,get lastProfile(){return lastProfile;}});
+  window.FreshWayCustomerStoreInfo=storeInfo;
+  window.WaterNowCustomerStoreInfo=storeInfo;
 })();
