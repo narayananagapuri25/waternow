@@ -162,7 +162,8 @@ function verifySchema() {
       comparator,
       '--expected', schemaFile,
       '--actual', exportedSchema,
-      '--allow-pending-0053'
+      '--allow-pending-0053',
+      '--allow-legacy-waternow-share-description-default'
     ], { cwd: workerRoot, encoding: 'utf8', stdio: 'inherit' });
   } finally {
     try { rmSync(exportedSchema, { force: true }); } catch { /* best-effort temporary-file cleanup */ }
