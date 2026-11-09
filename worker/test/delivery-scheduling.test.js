@@ -200,7 +200,7 @@ test('Owner delivery UI edits dates directly on orders without a separate reques
   assert.ok(ownerHtml.includes('frontend/admin/delivery-management.js?v=20261106-store-reconciliation-v1'));
   assert.ok(ownerHtml.includes('admin.css?v=waternow-v1'));
   assert.ok(!ownerHtml.includes('delivery-management.js?v=20261026-date-only-v2'));
-  assert.ok(ownerSw.includes("const CACHE = 'waternow-owner-v1';"));
+  assert.ok(ownerSw.includes("const CACHE = 'fw-owner-v75';"));
   assert.ok(ownerSw.includes(deliveryAsset) && ownerSw.includes(cssAsset));
   assert.ok(ownerHtml.includes('frontend/admin/water-network.js?v=waternow-v1'));
   assert.ok(ownerSw.includes('/admin/frontend/admin/water-network.js?v=waternow-v1'));
