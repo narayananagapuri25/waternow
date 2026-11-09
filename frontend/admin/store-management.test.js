@@ -7,6 +7,8 @@ const mapPickerSource = fs.readFileSync('frontend/admin/store-map-picker.js', 'u
 assert.ok(source.includes('data-waternow-store-map-picker'),'store forms include an interactive map selector');
 assert.ok(source.includes('data-store-map-canvas'),'store forms render the map canvas');
 assert.ok(source.includes('data-map-current-location'),'the owner can use current location to set the shop pin');
+assert.ok(source.includes('name="confirmExactLocation"'),'activating a store requires explicit confirmation of the exact shop entrance');
+assert.ok(source.includes("confirmExactLocation:f.get('confirmExactLocation')==='1'"),'the exact-location confirmation must be sent to the server');
 assert.ok(mapPickerSource.includes('L.tileLayer'),'the picker displays a tiled map');
 assert.ok(mapPickerSource.includes("map.on('click'"),'tapping the map places the store pin');
 assert.ok(mapPickerSource.includes("marker.on('dragend'"),'the marker can be dragged for precision');
