@@ -89,6 +89,46 @@ test('new Owner stores start inactive with zero stock when another store already
   } finally { db.close(); }
 });
 
+test('Owner saves store location edits but keeps activation blocked until exact pin and positive stock are verified', async () => {
+  const db=new SQLiteD1();
+  try {
+    const createdResponse=await handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/stores',{
+      method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({name:'Provisional Boduppal Store',address:'Brindavan Colony, Boduppal',latitude:17.415,longitude:78.585,serviceRadiusKm:5})
+    }),{DB:db});
+    assert.equal(createdResponse.status,201);
+    const storeId=(await createdResponse.json()).store.id;
+    const save=body=>handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/stores/'+encodeURIComponent(storeId),{
+      method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)
+    }),{DB:db});
+    const blockedResponse=await save({
+      name:'WaterNow Boduppal',address:'Brindavan Colony, Boduppal, Telangana 500092',
+      latitude:17.416,longitude:78.586,serviceRadiusKm:5,isActive:true,confirmExactLocation:true
+    });
+    assert.equal(blockedResponse.status,200,'location edits must save instead of failing when stock is pending');
+    const blocked=await blockedResponse.json();
+    assert.equal(blocked.ok,true);
+    assert.match(blocked.activationBlocked,/positive physical stock/i);
+    assert.equal(blocked.store.is_active,0,'zero-stock locations must remain inactive');
+    const persisted=db.db.prepare('SELECT name,address,latitude,longitude,is_active FROM delivery_stores WHERE id=?').get(storeId);
+    assert.equal(persisted.name,'WaterNow Boduppal');
+    assert.equal(persisted.latitude,17.416);
+    assert.equal(persisted.longitude,78.586);
+    assert.equal(persisted.is_active,0);
+
+    db.db.prepare("UPDATE delivery_store_inventory SET stock_quantity=6 WHERE store_id=? AND product_id='product-1'").run(storeId);
+    const readyResponse=await save({
+      name:'WaterNow Boduppal',address:'Brindavan Colony, Boduppal, Telangana 500092',
+      latitude:17.416,longitude:78.586,serviceRadiusKm:5,isActive:true,confirmExactLocation:true
+    });
+    assert.equal(readyResponse.status,200);
+    const ready=await readyResponse.json();
+    assert.equal(ready.activationBlocked,null);
+    assert.equal(ready.store.is_active,1,'a confirmed pin and positive physical stock allow activation');
+  } finally { db.close(); }
+});
+
+
 test('first Owner store also starts with zero physical stock instead of copying central catalogue quantities', async () => {
   const db=new SQLiteD1();
   try {
