@@ -215,9 +215,9 @@ jobs:
               database.uuid === productionId || database.uuid === fakeLocalId) {
             throw new Error('Refusing to use a missing or non-isolated D1 database for Preview.');
           }
-          appendFileSync(process.env.GITHUB_OUTPUT, `database_id=${database.uuid}\\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `database_id=${database.uuid}\n`);
           appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-            `## WaterNow Preview database\\n\\n- Database: ${database.name}\\n- UUID: ${database.uuid}\\n- Created by this run: ${created ? 'yes' : 'no'}\\n- Region hint: Asia-Pacific\\n- Production database: not used\\n`);
+            `## WaterNow Preview database\n\n- Database: ${database.name}\n- UUID: ${database.uuid}\n- Created by this run: ${created ? 'yes' : 'no'}\n- Region hint: Asia-Pacific\n- Production database: not used\n`);
           console.log(`Isolated WaterNow Preview D1 is ready (${created ? 'created' : 'reused'}): ${database.name} / ${database.uuid}`);
           NODE
       - name: Apply repository migrations to isolated Preview D1 only
