@@ -806,7 +806,7 @@ export async function handleAdminDeliveryRequest(request, env) {
     statements.push(env.DB.prepare(
       "INSERT INTO order_audit_events (id,order_id,actor_type,actor_id,action,reason,before_json,after_json) " +
       "VALUES (?,?,'owner',?,?,?,?,?)"
-    ).bind(id('audit'),orderId,clean(request.headers.get('X-Freshway-Owner-Id'))||'owner',
+    ).bind(id('audit'),orderId,clean(request.headers.get('X-WaterNow-Owner-Id'))||'owner',
       'unassigned_order_reconciled',reason,enc(order),enc({
         storeId,storeName:store.name,deliveryDate,deliveryPlan:plan,
         customerConfirmed:true
@@ -1086,7 +1086,7 @@ export async function handleAdminDeliveryRequest(request, env) {
     }
     const action=sameStore?'fulfilment_store_stock_reconfirmed':'fulfilment_store_reassigned';
     const reason=clean(body.reason).slice(0,500)||(sameStore?'Owner re-confirmed stock at the current fulfilment store':'Owner reassigned fulfilment store');
-    statements.push(env.DB.prepare("INSERT INTO order_audit_events (id,order_id,actor_type,actor_id,action,reason,before_json,after_json) VALUES (?,?,'owner',?,?,?,?,?)").bind(id('audit'),orderId,clean(request.headers.get('X-Freshway-Owner-Id'))||'owner',action,reason,enc(before),enc({storeId,storeName:store.name,reconfirmed:sameStore})));
+    statements.push(env.DB.prepare("INSERT INTO order_audit_events (id,order_id,actor_type,actor_id,action,reason,before_json,after_json) VALUES (?,?,'owner',?,?,?,?,?)").bind(id('audit'),orderId,clean(request.headers.get('X-WaterNow-Owner-Id'))||'owner',action,reason,enc(before),enc({storeId,storeName:store.name,reconfirmed:sameStore})));
     try{await env.DB.batch(statements);}catch(error){
       if(/DELIVERY_STORE_INACTIVE/i.test(String(error?.message||'')))throw new Error('Choose an active store. Store availability changed; refresh and try again.');
       if(/DELIVERY_ORDER_CLOSED/i.test(String(error?.message||'')))throw new Error('This order was completed or cancelled while you were updating its store. Refresh the order.');
@@ -1121,7 +1121,7 @@ export async function handleAdminDeliveryRequest(request, env) {
       }
       dateStatements.push(env.DB.prepare("UPDATE orders SET scheduled_delivery_date=?,scheduled_slot_id=NULL,scheduled_start_minute=NULL,scheduled_end_minute=NULL,schedule_status='confirmed',delivery_plan=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(date,plan,orderId));
       await env.DB.batch(dateStatements);
-      await writeAudit(env,orderId,'owner',clean(request.headers.get('X-Freshway-Owner-Id'))||'owner','delivery_date_changed',clean(body.reason),before,{date});
+      await writeAudit(env,orderId,'owner',clean(request.headers.get('X-WaterNow-Owner-Id'))||'owner','delivery_date_changed',clean(body.reason),before,{date});
       await notifyCustomerAndOwner(env,orderId,{customer_id:order.customer_id,delivery_status:order.delivery_status,payment_status:order.payment_status,delivery_plan:order.delivery_plan,is_test_order:order.is_test_order},'delivery_date_changed','Delivery date updated to '+date);
       return response({ok:true,orderId,scheduledDelivery:{date}});
     }
@@ -1141,7 +1141,7 @@ export async function handleAdminDeliveryRequest(request, env) {
       target = { delivery_date: date, start_minute: start, end_minute: end, id: null, store_id: clean(body.storeId) || order.assigned_store_id || null, is_active: 1, store_active: 1, capacity: 0, occupied: 0 };
       if (target.store_id && !await env.DB.prepare('SELECT id FROM delivery_stores WHERE id=?').bind(target.store_id).first()) throw new Error('Choose a valid delivery store.');
     }
-    const result = await moveOrderSchedule(env, order, target, 'owner', clean(request.headers.get('X-Freshway-Owner-Id')) || 'owner', { override: body.override === true, reason: clean(body.reason), address: body.address || {} });
+    const result = await moveOrderSchedule(env, order, target, 'owner', clean(request.headers.get('X-WaterNow-Owner-Id')) || 'owner', { override: body.override === true, reason: clean(body.reason), address: body.address || {} });
     return response(result);
   }
   if (path === '/api/admin/delivery/requests' && request.method === 'GET') {
@@ -1237,7 +1237,7 @@ export async function handleAdminDeliveryRequest(request, env) {
     if (!flag) throw new Error('Delivery exception not found.');
     if (flag.status === 'resolved') return response({ok:true,alreadyResolved:true,status:'resolved'});
     await env.DB.prepare('UPDATE order_operational_flags SET status=\'resolved\',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status=\'open\'').bind(flagId).run();
-    await writeAudit(env, flag.order_id, 'owner', clean(request.headers.get('X-Freshway-Owner-Id')) || 'owner', 'operational_flag_resolved', note, flag, {...flag,status:'resolved'});
+    await writeAudit(env, flag.order_id, 'owner', clean(request.headers.get('X-WaterNow-Owner-Id')) || 'owner', 'operational_flag_resolved', note, flag, {...flag,status:'resolved'});
     return response({ok:true,status:'resolved',flagId});
   }
   return null;
