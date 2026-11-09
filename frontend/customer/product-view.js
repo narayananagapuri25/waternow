@@ -3,7 +3,9 @@
 (function(){
   const media=window.FreshWayCatalogueMedia;
   const displayName=product=>String(product?.name??'').trim().replace(/\\s+/g,' ');
-  const render=(products,state,filter,{esc,money,changeQty,updateCartBar})=>{
+  const render=(products,state,filter,options)=>{
+    const {esc,money,changeQty,updateCartBar}=options;
+    const orderDisabled=options.orderDisabled===true;
     const grid=document.querySelector('#productGrid');
     if(!grid)return;
     const q=String(filter||'').trim().toLowerCase();
@@ -16,11 +18,12 @@
       const stock=String(p.stock_status||'not_tracked');
       const out=stock==='out_of_stock';
       const pricePending=!Number.isFinite(Number(p.price))||Number(p.price)<=0;
-      const stockLabel=pricePending?'Price being confirmed':stock==='out_of_stock'?'Out of stock':stock==='low_stock'?'Low stock':stock==='in_stock'?'In stock':'Available';
+      const stockLabel=orderDisabled?'Delivery setup pending':pricePending?'Price being confirmed':stock==='out_of_stock'?'Out of stock':stock==='low_stock'?'Low stock':stock==='in_stock'?'In stock':'Available';
       const stockClass=out?'stock-out':stock==='low_stock'?'stock-low':'stock-ok';
       const action=qty
-        ? `<div class="qty-control"><button data-minus="${esc(p.id)}" aria-label="Remove one ${esc(name)}">−</button><span>${qty}</span>${out?'<span class="stock-cart-warning">Unavailable</span>':'<button data-plus="'+esc(p.id)+'" aria-label="Add one '+esc(name)+'">+</button>'}</div>`
-        : `<button class="add-btn" data-add="${esc(p.id)}" ${(out||pricePending)?'disabled aria-disabled="true"':''}>${out?'OUT OF STOCK':pricePending?'PRICE SOON':'ADD'}</button>`;
+        ? `<div class="qty-control"><button data-minus="${esc(p.id)}" aria-label="Remove one ${esc(name)}">−</button><span>${qty}</span>${orderDisabled?'<span class="stock-cart-warning">Ordering unavailable</span>':out?'<span class="stock-cart-warning">Unavailable</span>':'<button data-plus="'+esc(p.id)+'" aria-label="Add one '+esc(name)+'">+</button>'}</div>`
+        : orderDisabled?'<button class="add-btn" disabled aria-disabled="true">DELIVERY SETUP PENDING</button>'
+          : `<button class="add-btn" data-add="${esc(p.id)}" ${(out||pricePending)?'disabled aria-disabled="true"':''}>${out?'OUT OF STOCK':pricePending?'PRICE SOON':'ADD'}</button>`;
       const legacyImage=p.image_data&&p.image_mime_type?'data:'+p.image_mime_type+';base64,'+p.image_data:'';
       const image=p.image_url||legacyImage||media?.image('products',p.id,p);
       const visual=image?`<img src="${esc(image)}" alt="${esc(name)}" loading="lazy" decoding="async">`:`<span class="product-image-fallback" aria-hidden="true">${esc(p.emoji||'🛍️')}</span>`;
