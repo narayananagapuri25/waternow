@@ -20,7 +20,7 @@ WaterNow is a local drinking-water ordering PWA and supplier operations starter,
 8. Run unit and isolated Playwright tests before configuring deployment.
 
 ## Source snapshot
-Imported from nagapurinarayana-ship-it/freshway, branch main, during 2026-11-07. This is a snapshot, not a fork; future changes do not synchronize automatically.
+Initial WaterNow repository snapshot created on 2026-11-07. This repository is maintained independently.
 
 
 ## WaterNow product direction
