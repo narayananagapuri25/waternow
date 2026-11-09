@@ -98,6 +98,7 @@ jobs:
       - name: Validate Cloudflare deployment credentials
         run: |
           test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "::error::Add the CLOUDFLARE_ACCOUNT_ID GitHub Actions secret."; exit 1; }
+          test "${CLOUDFLARE_ACCOUNT_ID}" = "17f1561ed0052cf9d484cb4becbf8810" || { echo "::error::CLOUDFLARE_ACCOUNT_ID does not match the account pinned in the WaterNow production config."; exit 1; }
           test -n "${CLOUDFLARE_API_TOKEN}" || { echo "::error::Add the CLOUDFLARE_API_TOKEN GitHub Actions secret."; exit 1; }
       - name: Install Worker and Wrangler dependencies
         run: npm install --no-audit --no-fund
