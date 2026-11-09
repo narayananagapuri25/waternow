@@ -1,7 +1,6 @@
 (function(){
   const $=s=>document.querySelector(s);
   const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
-  const WATER_PRODUCT_IDS=new Set(['water-20l','water-10l-pair']);
   const STORE_STORAGE_KEY='waternow-selected-store-v1';
   const readStoreId=()=>{try{return window.localStorage.getItem(STORE_STORAGE_KEY)||''}catch(_){return''}};
   let selectedStoreIdValue=readStoreId(),selectedStore=null,pendingStore=null;
@@ -49,7 +48,7 @@
     const storeId=String(store.id);
     const productResult=await request('/api/products?storeId='+encodeURIComponent(storeId));
     if(!Array.isArray(productResult?.products))throw new Error('We could not load the catalogue for '+String(store.name||'the selected store')+'. Please retry.');
-    const nextProducts=productResult.products.filter(product=>WATER_PRODUCT_IDS.has(String(product.id)));
+    const nextProducts=productResult.products;
     const changes=cartChangesForStore(nextProducts);
     const cartState=window.FreshWayCustomerCatalogue?.getCart?.()||{};
     const hasCart=Object.keys(cartState.cart||{}).length>0;
@@ -136,7 +135,7 @@
     let notice='';
     if(loading)notice='<p class="fw-location-needed" role="status">Checking delivery availability for your address…</p>';
     else if(errorCode==='AREA_UNAVAILABLE')notice='<div class="fw-location-needed" role="status">Delivery is not available at this address yet. Ask us about a nearby RTC bus stand handover or postal delivery options. <button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
-    else if(errorMessage)notice='<div class="fw-location-needed" role="status">Add or update your delivery address to check the two WaterNow packs available in your area.<button type="button" data-fw-needs-location="address">Add delivery address</button><button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';
+    else if(errorMessage)notice='<div class="fw-location-needed" role="status">Add or update your delivery address to check WaterNow products available in your area.<button type="button" data-fw-needs-location="address">Add delivery address</button><button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';
     c.innerHTML=notice;
     c.hidden=!notice;
     const grid=$('#productGrid');

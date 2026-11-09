@@ -61,7 +61,7 @@ assert.match(app,/customerOrderData\.load\(\)/);
 assert.match(app,/customerOrderData\.stop\(\)/);
 
 const serviceWorker=fs.readFileSync('sw.js','utf8');
-assert.match(serviceWorker,/const CACHE = 'freshway-v\d+'/);
+assert.match(serviceWorker,/const CACHE = 'waternow-customer-v2'/);
 assert.match(serviceWorker,/const REQUIRED_SHELL\s*=\s*\[\s*'\/'\s*,\s*'\/index\.html'\s*\]/);
 assert.doesNotMatch(serviceWorker,/index\.html\?v=20261007-seo-v1/);
 console.log('PWA service worker install contract OK');
@@ -72,15 +72,39 @@ const cartView=fs.readFileSync('frontend/customer/cart-view.js','utf8');
 assert.match(cartView,/image_data&&x\.product\.image_mime_type/);
 assert.match(cartView,/cart-product-media/);
 const productView=fs.readFileSync('frontend/customer/product-view.js','utf8');
+const productGrid={innerHTML:''};
+const productCount={textContent:''};
+const productViewContext={
+  window:{FreshWayCatalogueMedia:null},
+  document:{querySelector(selector){
+    if(selector==='#productGrid')return productGrid;
+    if(selector==='.count-pill')return productCount;
+    return null;
+  }}
+};
+vm.createContext(productViewContext);
+vm.runInContext(productView,productViewContext);
+productViewContext.window.FreshWayCustomerProductView.render(
+  [{id:'water-10l',name:'10L Drinking Water Can',unit:'bottle',price:0,emoji:'💧',active:1,stock_status:'in_stock'}],
+  {cart:{}},
+  '',
+  {esc:value=>String(value??''),money:value=>'₹'+Number(value||0),changeQty(){},updateCartBar(){}}
+);
+assert.match(productGrid.innerHTML,/class="product-card"/,'a catalogue product with a zero price must still render');
+assert.ok(productGrid.innerHTML.includes('<h3>10L Drinking Water Can</h3>'),'the saved catalogue product name must be displayed without hard-coded aliases');
+assert.doesNotMatch(productView,/productNameAliases/,'product names are configured in the catalogue, not hard-coded in the UI');
+assert.match(productGrid.innerHTML,/class="product-price">₹0<small> \/ bottle<\/small>/,'a zero price must be displayed as ₹0 rather than Price soon');
+assert.equal(productCount.textContent,'1 item');
+
 assert.match(productView,/stock_status/);
 assert.match(productView,/OUT OF STOCK/);
 assert.match(productView,/data-plus/);
 assert.match(productView,/stock-cart-warning/);
 
 const media=fs.readFileSync('frontend/catalogue-media.js','utf8');
-assert.match(media,/cat-oils/);
-assert.match(media,/p-1788808795819-x0yy/);
-assert.match(media,/groundnut-oil\.svg/);
+assert.match(media,/'water-20l'\s*:/,'the 20L WaterNow catalogue image is mapped');
+assert.match(media,/'water-10l-pair'\s*:/,'the 10L pair WaterNow catalogue image is mapped');
+assert.match(media,/water-20l\.svg/);
 assert.doesNotMatch(media, new RegExp('api/admin|r2|D1', 'i'));
 assert.match(productView,/FreshWayCatalogueMedia/);
 assert.match(productView,/image_data&&p\.image_mime_type/);
@@ -128,21 +152,23 @@ assert.match(adminSource,/async function refreshOwnerAfterOrderMutation/);
 assert.match(adminSource,/if\(id==='overview'\)await Promise\.all\(\[loadSummary\(\),loadBusiness\(\),loadHome\(\)\]\)/);
 assert.match(adminSource,/else if\(id==='orders'\)await Promise\.all\(\[loadSummary\(\),loadBusiness\(\),loadOrders\(true\)\]\)/);
 
-assert.ok(source.includes("const WATER_PRODUCT_IDS=new Set(['water-20l','water-10l-pair'])"),'only the two WaterNow water packs are eligible for customer display');
-assert.ok(source.includes("productResult.products.filter(product=>WATER_PRODUCT_IDS.has"),'the store catalogue is restricted to the 20L and 2 × 10L products');
+
+
 assert.ok(!source.includes('class="fw-category-card"'),'category tiles are not shown on the customer home');
+assert.ok(!source.includes("const WATER_PRODUCT_IDS=new Set(['water-20l','water-10l-pair'])"),'customer display is driven by the selected store catalogue, not a fixed product-ID whitelist');
+assert.ok(source.includes('const nextProducts=productResult.products;'),'all products returned by the selected store catalogue are displayed');
 assert.ok(source.includes('Available water products'),'the customer home displays its product heading directly');
 assert.ok(source.includes("c.hidden=!notice"),'the extra category area collapses when it has no delivery message');
 assert.ok(!source.includes('data-fw-category'),'there are no category-selection controls in the WaterNow home');
-assert.ok(source.includes('window.freshWayCustomerCatalogueGoHome=()=>setMode(null'),'Home navigation always restores the two-product list');
-assert.match(productView,/Organic Groundnut Oil/);
-assert.match(productView,/Organic Sunflower Oil/);
-assert.match(productView,/productNameAliases/);
+assert.ok(source.includes('window.freshWayCustomerCatalogueGoHome=()=>setMode(null'),'Home navigation restores the catalogue product list');
+
+
+
 console.log('premium category selection, navigation and customer-facing product naming contracts OK');
 
 assert.ok(!source.includes("classList.toggle('fw-category-selected'"),'the category-only compact layout is disabled');
 assert.match(categoryFoldStyles,/\.product-image img\{[^}]*width:auto!important;height:100%!important;aspect-ratio:1\/1[^}]*max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center!important/,'water pack images remain contained without distortion');
-console.log('two-product customer home contract OK');
+console.log('catalogue-driven customer home contract OK');
 
 
 // Repeated catalogue refreshes with unchanged cart contents must not rebuild the

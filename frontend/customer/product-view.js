@@ -2,19 +2,7 @@
 // Owns only product-grid DOM rendering; cart state and quantity behavior remain in app.js.
 (function(){
   const media=window.FreshWayCatalogueMedia;
-  const productNameAliases=Object.freeze({
-    'oil ground nut organic':'Organic Groundnut Oil',
-    'ground nut oil organic':'Organic Groundnut Oil',
-    'groundnut oil organic':'Organic Groundnut Oil',
-    'sunflower oil organic':'Organic Sunflower Oil',
-    'hmt rice':'HMT Rice',
-    'sona masuri':'Sona Masuri Rice',
-    'sona masuri rice':'Sona Masuri Rice'
-  });
-  const displayName=product=>{
-    const name=String(product?.name??'').trim().replace(/\s+/g,' ');
-    return productNameAliases[name.toLocaleLowerCase('en-IN')]||name;
-  };
+  const displayName=product=>String(product?.name??'').trim().replace(/\\s+/g,' ');
   const render=(products,state,filter,{esc,money,changeQty,updateCartBar})=>{
     const grid=document.querySelector('#productGrid');
     if(!grid)return;
@@ -36,7 +24,7 @@
       const legacyImage=p.image_data&&p.image_mime_type?'data:'+p.image_mime_type+';base64,'+p.image_data:'';
       const image=p.image_url||legacyImage||media?.image('products',p.id,p);
       const visual=image?`<img src="${esc(image)}" alt="${esc(name)}" loading="lazy" decoding="async">`:`<span class="product-image-fallback" aria-hidden="true">${esc(p.emoji||'🛍️')}</span>`;
-      return `<article class="product-card"><div class="product-image" aria-label="${esc(name)} product image">${visual}</div><h3>${esc(name)}</h3><div class="product-actions"><div class="product-action-info"><span class="product-price">${pricePending?"Price soon":money(p.price)}<small>${pricePending?"":" / "+esc(p.unit)}</small></span><span class="stock-pill ${stockClass}">${stockLabel}</span></div><div class="product-action-control">${action}</div></div></article>`;
+      return `<article class="product-card"><div class="product-image" aria-label="${esc(name)} product image">${visual}</div><h3>${esc(name)}</h3><div class="product-actions"><div class="product-action-info"><span class="product-price">${money(p.price)}<small>${p.unit?" / "+esc(p.unit):""}</small></span><span class="stock-pill ${stockClass}">${stockLabel}</span></div><div class="product-action-control">${action}</div></div></article>`;
     }).join('')||'<div class="empty" style="grid-column:1/-1"><strong>No products found</strong><br>Try another search.</div>';
     updateCartBar();
   };
