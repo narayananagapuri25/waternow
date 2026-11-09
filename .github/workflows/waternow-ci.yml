@@ -45,6 +45,21 @@ jobs:
       - name: Validate production baseline bootstrap script syntax
         working-directory: worker
         run: node --check ./scripts/bootstrap-production-d1-baseline.mjs
+      - name: Verify production baseline migration inventory
+        working-directory: worker
+        run: |
+          node --input-type=module <<'NODE'
+          import { expectedBaseline } from './scripts/bootstrap-production-d1-baseline.mjs';
+          const names = expectedBaseline();
+          for (const required of ['0051_waternow_supplier_network.sql', '0052_waternow_catalogue_seed.sql']) {
+            if (!names.includes(required)) throw new Error('Baseline is missing ' + required);
+          }
+          if (names.includes('0053_delivery_store_supplier_partner_guards.sql')) {
+            throw new Error('Pending migration 0053 must not be marked as baseline-applied.');
+          }
+          if (names.length < 40) throw new Error('Unexpectedly small migration inventory: ' + names.length);
+          console.log('Verified ' + names.length + ' historical migrations through 0052; 0053 remains pending.');
+          NODE
       - name: Build production Worker bundle without deploying
         working-directory: worker
         run: npx wrangler deploy --dry-run --config wrangler.production.jsonc
