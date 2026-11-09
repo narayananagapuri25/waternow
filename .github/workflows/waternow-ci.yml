@@ -209,6 +209,12 @@ jobs:
           npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT id,name,price,active,stock_managed,stock_quantity FROM products WHERE id IN ('water-20l','water-10l-pair') ORDER BY id" --json
           npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT id,name,slug,active FROM categories WHERE id IN ('water-20l','water-10l-pair') ORDER BY id" --json
           npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT id,series_prefix FROM invoice_settings WHERE id=1" --json
+      - name: Dry-run production D1 baseline bootstrap (read only)
+        if: always()
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node ./scripts/bootstrap-production-d1-baseline.mjs --dry-run
 
   production-deploy:
     name: Deploy production D1 and WaterNow API
