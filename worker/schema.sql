@@ -348,6 +348,9 @@ CREATE TABLE IF NOT EXISTS delivery_stores (
   longitude REAL NOT NULL CHECK(longitude BETWEEN -180 AND 180),
   service_radius_km REAL NOT NULL DEFAULT 10 CHECK(service_radius_km BETWEEN 0.1 AND 100),
   is_active INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0,1)),
+  supplier_id TEXT REFERENCES water_suppliers(id) ON DELETE SET NULL,
+  delivery_partner_id TEXT REFERENCES water_delivery_partners(id) ON DELETE SET NULL,
+  delivery_model TEXT NOT NULL DEFAULT 'owner_managed' CHECK(delivery_model IN ('owner_managed','supplier_delivery','platform_delivery')),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
