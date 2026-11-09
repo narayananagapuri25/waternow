@@ -1,4 +1,4 @@
-const CACHE = 'waternow-owner-v1';
+const CACHE = 'waternow-owner-v2';
 const SHELL = [
   '/admin/',
   '/admin/manifest.webmanifest',
@@ -9,7 +9,6 @@ const SHELL = [
   '/admin/admin.css?v=waternow-v1',
   '/admin/admin.js?v=waternow-v1',
   '/admin/frontend/admin/invoice-settings.js?v=20261105-auto-non-gst-disclosure-v1',
-  '/admin/frontend/admin/water-network.js?v=waternow-v1',
   '/admin/frontend/admin/delivery-offers.js?v=20261027-coupon-buttons-v5',
   '/admin/frontend/admin/account-deletions.js?v=20261106-account-deletion-form-v1',
   '/admin/frontend/admin/order-alerts.js?v=20261105-history-empty-actions-v1',
@@ -39,7 +38,6 @@ const REQUIRED_SHELL = [
   '/admin/frontend/admin/store-management.js?v=20261107-store-nav-guard-v1',
   '/admin/frontend/admin/customer-messages.js?v=20261027-customer-messages-v1',
   '/admin/frontend/admin/invoice-settings.js?v=20261105-auto-non-gst-disclosure-v1',
-  '/admin/frontend/admin/water-network.js?v=waternow-v1',
   '/admin/owner-lifecycle.js?v=20261103-assigned-store-lifecycle-v1'
 ];
 

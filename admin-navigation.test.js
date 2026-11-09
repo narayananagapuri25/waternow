@@ -3,6 +3,8 @@ const fs=require('node:fs');
 const source=fs.readFileSync('admin.js','utf8');
 const html=fs.readFileSync('admin.html','utf8');
 const css=fs.readFileSync('admin.css','utf8');
+assert.ok(!html.includes('data-screen="suppliers"')&&!html.includes('id="suppliers"')&&!html.includes('water-network.js'),'WaterNow Owner must use its direct catalogue/store flow without a supplier onboarding screen');
+assert.doesNotMatch(source,/FreshWayOwnerWaterNetwork|id==='suppliers'/,'Owner navigation must not load a supplier workflow');
 assert.match(css,/--muted:#647169/,'secondary Owner text must meet WCAG AA contrast against white');
 assert.match(css,/\.login-card p,\.login-card small\{font-size:12px;line-height:1\.6\}/,'sign-in helper text must be readable on mobile');
 assert.match(css,/\.toast\{font-size:12px;z-index:1101;background:#123b2b;color:#fff\}/,'Owner toast must remain readable above the startup overlay');

@@ -277,7 +277,7 @@ CREATE TABLE IF NOT EXISTS store_profile (
   business_hours TEXT NOT NULL DEFAULT '',
   delivery_info TEXT NOT NULL DEFAULT '',
   share_title TEXT NOT NULL DEFAULT 'WaterNow | Drinking Water Delivered Locally',
-  share_description TEXT NOT NULL DEFAULT 'Order 20L drinking water cans or packs of two 10L cans from local suppliers with convenient home delivery.',
+  share_description TEXT NOT NULL DEFAULT 'Order 20L drinking water cans or packs of two 10L cans directly from WaterNow with convenient home delivery.',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -805,9 +805,9 @@ CREATE INDEX IF NOT EXISTS idx_water_delivery_partners_city_status ON water_deli
 CREATE INDEX IF NOT EXISTS idx_water_fulfilments_supplier_status ON water_order_fulfilments(supplier_id,status,assigned_at DESC);
 
 INSERT OR IGNORE INTO store_profile (id,store_name,share_title,share_description) VALUES
-  (1,'WaterNow','WaterNow | Drinking Water Delivered Locally','Order 20L drinking water cans or packs of two 10L cans from local suppliers with convenient home delivery.');
+  (1,'WaterNow','WaterNow | Drinking Water Delivered Locally','Order 20L drinking water cans or packs of two 10L cans directly from WaterNow with convenient home delivery.');
 UPDATE store_profile SET store_name='WaterNow',share_title='WaterNow | Drinking Water Delivered Locally',
-  share_description='Order 20L drinking water cans or packs of two 10L cans from local suppliers with convenient home delivery.' WHERE id=1;
+  share_description='Order 20L drinking water cans or packs of two 10L cans directly from WaterNow with convenient home delivery.' WHERE id=1;
 
 -- Additive equivalents for delivery_stores supplier/partner references in
 -- databases whose historical ALTER TABLE path did not retain FK clauses.
