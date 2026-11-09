@@ -3,6 +3,15 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const source = fs.readFileSync('frontend/admin/store-management.js', 'utf8');
+const mapPickerSource = fs.readFileSync('frontend/admin/store-map-picker.js', 'utf8');
+assert.ok(source.includes('data-waternow-store-map-picker'),'store forms include an interactive map selector');
+assert.ok(source.includes('data-store-map-canvas'),'store forms render the map canvas');
+assert.ok(source.includes('data-map-current-location'),'the owner can use current location to set the shop pin');
+assert.ok(mapPickerSource.includes('L.tileLayer'),'the picker displays a tiled map');
+assert.ok(mapPickerSource.includes("map.on('click'"),'tapping the map places the store pin');
+assert.ok(mapPickerSource.includes("marker.on('dragend'"),'the marker can be dragged for precision');
+assert.ok(mapPickerSource.includes('navigator.geolocation'),'the owner can use current location');
+assert.ok(mapPickerSource.includes('circle.setRadius(radiusMetres())'),'the delivery radius is drawn on the map');
 
 function response(data, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => data };
@@ -176,6 +185,8 @@ async function run() {
   // If an editing form is missing during a render edge, fail safely rather
   // than assuming the draft is clean and dropping it.
   await click({ target: { closest: selector => selector.includes('[data-edit-store]') ? { dataset: { editStore: 'store-one' } } : null } });
+  assert.ok(root.innerHTML.includes('data-waternow-store-map-picker'), 'Add/Edit store must show a map instead of manual coordinate fields');
+  assert.ok(root.innerHTML.includes('data-map-current-location'));
   confirmResult = false;
   assert.equal(manager.beforeNavigate(), false, 'an active Store form must be treated as dirty when its DOM is unexpectedly unavailable');
   await manager.load();

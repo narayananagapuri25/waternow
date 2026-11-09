@@ -5,15 +5,27 @@ let deliveryAvailabilityOverride = null;
 let deliveryAvailabilityCalls = [];
 
 const products = [{
-  id: 'p1',
+  id: 'water-20l',
   name: '20L Drinking Water Can',
   unit: 'can',
   price: 120,
-  emoji: '🍚',
+  emoji: '💧',
   active: 1,
   category_id: 'water-20l',
   category_name: '20L Water Can',
-  category_slug: 'rice'
+  category_slug: '20l-water-can',
+  stock_status: 'in_stock'
+}, {
+  id: 'water-10l-pair',
+  name: '2 × 10L Drinking Water Cans',
+  unit: 'pack',
+  price: 90,
+  emoji: '🚰',
+  active: 1,
+  category_id: 'water-10l-pair',
+  category_name: '2 × 10L Water Cans',
+  category_slug: 'two-10l-water-cans',
+  stock_status: 'in_stock'
 }];
 
 test.beforeEach(async ({ page }) => {
@@ -212,7 +224,7 @@ test.beforeEach(async ({ page }) => {
           qualifiesForFreeDelivery: itemsSubtotal >= 800, amountToFreeDelivery: Math.max(0, 800 - itemsSubtotal),
           standardDeliveryFee: 30, deliveryFee, couponDiscount: discount, finalTotal: itemsSubtotal - discount + deliveryFee,
           coupon: discount > 0 ? { code: couponCode, eligibilityPending: false } : null,
-          items: [{ id: 'p1', name: '20L Drinking Water Can', unit: 'can', qty, price: 120, lineTotal: 120 * qty }]
+          items: [{ id: 'water-20l', name: '20L Drinking Water Can', unit: 'can', qty, price: 120, lineTotal: 120 * qty }]
         } })
       });
     }
@@ -260,7 +272,7 @@ test.beforeEach(async ({ page }) => {
           updatedAt: '2026-10-07T10:00:00.000Z',
           address: payload.address,
           items: [{
-            id: 'p1',
+            id: 'water-20l',
             name: '20L Drinking Water Can',
             unit: 'can',
             qty: 1,
@@ -314,14 +326,13 @@ test.beforeEach(async ({ page }) => {
 test('customer can browse, add a product, checkout, and receive confirmation', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
-  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('20L Water Can');
+  await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
+  await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
 
-  await page.locator('[data-fw-category="water-20l"]').click();
   await expect(page.locator('#productGrid')).toBeVisible();
-  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
+  await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
 
-  await page.locator('#productGrid .add-btn').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await expect(page.locator('#cartCount')).toHaveText('1 item');
   await expect(page.locator('#cartTotal')).toHaveText('₹120');
 
@@ -428,17 +439,16 @@ test('checkout button shows the final payable total, not the item subtotal', asy
         couponDiscount,
         finalTotal: itemsSubtotal - couponDiscount + deliveryFee,
         coupon: couponDiscount ? { code: couponCode, eligibilityPending: false } : null,
-        items: [{ id: 'p1', name: '20L Drinking Water Can', unit: 'can', qty, price: 799, lineTotal: itemsSubtotal }]
+        items: [{ id: 'water-20l', name: '20L Drinking Water Can', unit: 'can', qty, price: 799, lineTotal: itemsSubtotal }]
       } })
     });
   });
 
   await page.goto('/');
-  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('20L Water Can');
-  await page.locator('[data-fw-category="water-20l"]').click();
+  await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
   await expect(page.locator('#productGrid')).toBeVisible();
-  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
-  await page.locator('#productGrid .add-btn').click();
+  await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await expect(page.locator('#cartTotal')).toHaveText('₹799');
   await page.locator('#viewCartBtn').click();
 
@@ -468,7 +478,7 @@ test('₹1,850 WaterNow can persists through checkout navigation and page refres
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({ products: [{
-      id: 42,
+      id: 'water-20l',
       name: '20L Drinking Water Can',
       unit: 'can',
       price: 1850,
@@ -484,7 +494,7 @@ test('₹1,850 WaterNow can persists through checkout navigation and page refres
     const payload = JSON.parse(route.request().postData() || '{}');
     quotePayloads.push(payload);
     const item = payload.items?.[0] || {};
-    if (String(item.id) !== '42') {
+    if (String(item.id) !== 'water-20l') {
       return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'Cart item changed unexpectedly.' }) });
     }
     const qty = Number(item.qty || 1);
@@ -503,16 +513,15 @@ test('₹1,850 WaterNow can persists through checkout navigation and page refres
         couponDiscount: 0,
         finalTotal: itemsSubtotal,
         coupon: null,
-        items: [{ id: 42, name: '20L Drinking Water Can', unit: 'can', qty, price: 1850, lineTotal: itemsSubtotal }]
+        items: [{ id: 'water-20l', name: '20L Drinking Water Can', unit: 'can', qty, price: 1850, lineTotal: itemsSubtotal }]
       } })
     });
   });
 
   await page.goto('/');
-  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('20L Water Can');
-  await page.locator('[data-fw-category="water-20l"]').click();
-  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
-  await page.locator('#productGrid .add-btn').click();
+  await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
+  await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await expect(page.locator('#cartTotal')).toHaveText('₹1,850');
   await page.locator('#viewCartBtn').click();
   await expect(page.locator('#cartItems')).toContainText('20L Drinking Water Can');
@@ -522,8 +531,8 @@ test('₹1,850 WaterNow can persists through checkout navigation and page refres
   await expect(page.locator('#checkoutForm button[type="submit"]')).toContainText('₹1,850');
 
   const savedBeforeReload = await page.evaluate(() => JSON.parse(localStorage.getItem('freshway-state-v2') || '{}'));
-  expect(savedBeforeReload.cart['42']).toBe(1);
-  expect(savedBeforeReload.cartProducts['42'].price).toBe(1850);
+  expect(savedBeforeReload.cart['water-20l']).toBe(1);
+  expect(savedBeforeReload.cartProducts['water-20l'].price).toBe(1850);
   // Emulate a cart saved by the older app version, which stored only IDs and quantities.
   await page.evaluate(() => {
     const state = JSON.parse(localStorage.getItem('freshway-state-v2') || '{}');
@@ -535,10 +544,10 @@ test('₹1,850 WaterNow can persists through checkout navigation and page refres
   await expect(page.locator('#fwCheckoutPricing')).toContainText('₹1,850');
   await expect(page.locator('#checkoutForm button[type="submit"]')).toContainText('₹1,850');
   const savedAfterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('freshway-state-v2') || '{}'));
-  expect(savedAfterReload.cart['42']).toBe(1);
-  expect(savedAfterReload.cartProducts['42'].name).toBe('20L Drinking Water Can');
+  expect(savedAfterReload.cart['water-20l']).toBe(1);
+  expect(savedAfterReload.cartProducts['water-20l'].name).toBe('20L Drinking Water Can');
   expect(quotePayloads.length).toBeGreaterThanOrEqual(2);
-  expect(quotePayloads.every(payload => String(payload.items?.[0]?.id) === '42')).toBe(true);
+  expect(quotePayloads.every(payload => String(payload.items?.[0]?.id) === 'water-20l')).toBe(true);
 });
 
 test('checkout refuses a quote for a different cart item instead of showing a mismatched price', async ({ page }) => {
@@ -546,7 +555,7 @@ test('checkout refuses a quote for a different cart item instead of showing a mi
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({ products: [{
-      id: 42,
+      id: 'water-20l',
       name: '20L Drinking Water Can',
       unit: 'can',
       price: 1850,
@@ -573,14 +582,13 @@ test('checkout refuses a quote for a different cart item instead of showing a mi
         couponDiscount: 0,
         finalTotal: 899,
         coupon: null,
-        items: [{ id: 'p1', name: 'Different item', unit: 'can', qty: Number(payload.items?.[0]?.qty || 1), price: 799, lineTotal: 799 }]
+        items: [{ id: 'different-water-product', name: 'Different item', unit: 'can', qty: Number(payload.items?.[0]?.qty || 1), price: 799, lineTotal: 799 }]
       } })
     });
   });
 
   await page.goto('/');
-  await page.locator('[data-fw-category="water-20l"]').click();
-  await page.locator('#productGrid .add-btn').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await page.locator('#viewCartBtn').click();
   await expect(page.locator('#fwCouponStatus')).toContainText('We could not verify every cart item');
   await page.locator('#checkoutBtn').click();
@@ -589,8 +597,8 @@ test('checkout refuses a quote for a different cart item instead of showing a mi
   await expect(placeOrder).toContainText('Total unavailable');
   await expect(page.locator('#fwCheckoutPricing')).toContainText('Could not refresh your order total');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('freshway-state-v2') || '{}'));
-  expect(saved.cart['42']).toBe(1);
-  expect(saved.cartProducts['42'].name).toBe('20L Drinking Water Can');
+  expect(saved.cart['water-20l']).toBe(1);
+  expect(saved.cartProducts['water-20l'].name).toBe('20L Drinking Water Can');
   await expect(placeOrder).not.toContainText('₹799');
   await expect(placeOrder).not.toContainText('₹0');
 });
@@ -631,8 +639,7 @@ test('selected delivery day survives checkout page refresh', async ({ page }) =>
   });
 
   await page.goto('/');
-  await page.locator('[data-fw-category="water-20l"]').click();
-  await page.locator('#productGrid .add-btn').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await page.locator('#viewCartBtn').click();
   await page.locator('#checkoutBtn').click();
   await expect(page.locator('#checkoutView')).toHaveClass(/active-view/);
@@ -903,12 +910,11 @@ test('captures responsive customer visual review snapshots', async ({ page }) =>
   // Mobile-first review: actual customer shell, product cards, cart, and checkout.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
+  await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
   await expect(page.locator('#cartBar')).toBeHidden();
   await capture('mobile-home');
 
-  await page.locator('[data-fw-category="water-20l"]').click();
-  await page.locator('#productGrid .add-btn').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await expect(page.locator('#cartCount')).toHaveText('1 item');
   const compactCardLayout = await page.locator('#productGrid .product-card').first().evaluate(card => {
     const cardRect = card.getBoundingClientRect();
@@ -1012,8 +1018,7 @@ test('captures responsive customer visual review snapshots', async ({ page }) =>
 
   await page.evaluate(() => window.setView('home'));
   await expect(page.locator('#homeView')).toHaveClass(/active-view/);
-  await page.locator('[data-fw-category="water-20l"]').click();
-  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
+  await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
   const desktopCardLayout = await page.locator('#productGrid .product-card').first().evaluate(card => {
     const cardRect = card.getBoundingClientRect();
     const controls = card.querySelector('.product-action-control .qty-control');
@@ -1030,7 +1035,6 @@ test('captures responsive customer visual review snapshots', async ({ page }) =>
   expect(desktopCardLayout.controlVisible, 'desktop quantity control should be visible').toBe(true);
   expect(desktopCardLayout.controlBottom, 'desktop quantity control should not be clipped').toBeLessThanOrEqual(desktopCardLayout.cardBottom + 1);
   await capture('desktop-products');
-  await page.locator('[data-fw-category="water-20l"]').click();
 
   await page.evaluate(() => window.setView('cart'));
   await expect(page.locator('#cartView')).toHaveClass(/active-view/);
@@ -1317,7 +1321,7 @@ test('captures populated orders, delivery rescheduling, order help, invoice down
     deliveryFee: 30,
     couponCode: null,
     couponDiscount: 0,
-    items: [{ id: 'p1', name: '20L Drinking Water Can', unit: 'can', qty: 1, price: 120, lineTotal: 120 }],
+    items: [{ id: 'water-20l', name: '20L Drinking Water Can', unit: 'can', qty: 1, price: 120, lineTotal: 120 }],
     address: { house: '12', area: 'Test Colony', city: 'Hyderabad', pincode: '500001', landmark: 'Test market', note: 'Call before delivery' },
     scheduledDelivery: { date: scheduledDate, startTime: '10:00', endTime: '12:00', status: 'scheduled' },
     invoice: { number: 'INV-QA-1001' }
@@ -1541,7 +1545,7 @@ test('Buy Again merges a delivered order into the cart using current store catal
           createdAt: '2026-10-28T10:00:00.000Z',
           deliveredAt: '2026-10-29T10:00:00.000Z',
           total: 100,
-          items: [{ id: 'p1', name: '20L Drinking Water Can', unit: 'can', qty: 2, price: 50, lineTotal: 100 }],
+          items: [{ id: 'water-20l', name: '20L Drinking Water Can', unit: 'can', qty: 2, price: 50, lineTotal: 100 }],
           address: { house: '12', area: 'Test Colony', city: 'Hyderabad', pincode: '500001' }
         }] })
       });
@@ -1551,10 +1555,10 @@ test('Buy Again merges a delivered order into the cart using current store catal
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await expect(page.locator('#fwCategoryCatalogue')).toContainText('Choose your water pack');
+  await expect(page.locator('#productGrid .product-card')).toHaveCount(2);
   await page.evaluate(() => {
     window.FreshWayNotifications.setCustomerId('e2e-customer-1');
-    window.state.cart = { p1: 1 };
+    window.state.cart = { 'water-20l': 1 };
     window.state.cartProducts = {};
     window.setView('orders');
   });
@@ -1601,11 +1605,10 @@ test('customer sees helpful out-of-area options and can contact WaterNow from ch
   )).toBe(17.385044);
   // Home initially shows water packs; open the 20L can before using its product card,
   // matching the real customer navigation path.
-  await expect(page.locator('[data-fw-category="water-20l"]')).toBeVisible();
-  await page.locator('[data-fw-category="water-20l"]').click();
+  await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
   await expect(page.locator('#productGrid')).toBeVisible();
-  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
-  await page.locator('#productGrid .add-btn').click();
+  await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await page.locator('#viewCartBtn').click();
   await expect(page.locator('#checkoutBtn')).toBeVisible();
 
@@ -1623,7 +1626,7 @@ test('customer sees helpful out-of-area options and can contact WaterNow from ch
   const payload = deliveryAvailabilityCalls[deliveryAvailabilityCalls.length - 1];
   expect(payload.address.latitude).toBe(17.385044);
   expect(payload.address.longitude).toBe(78.486671);
-  expect(payload.items).toEqual([{ id: 'p1', qty: 1 }]);
+  expect(payload.items).toEqual([{ id: 'water-20l', qty: 1 }]);
 
   const help = page.locator('.fw-delivery-area-help');
   await expect(help).toBeVisible();

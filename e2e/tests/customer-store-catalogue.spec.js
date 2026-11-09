@@ -2,10 +2,6 @@ import { test, expect } from '@playwright/test';
 
 test('WaterNow storefront resolves a local supplier and displays its water-pack prices',async({page})=>{
   const quoteStoreIds=[];
-  const categories=[
-    {id:'water-20l',name:'20L Water Can',slug:'20l-water-can',icon:'💧',description:'Reusable 20-litre drinking water can',product_count:1,display_order:1},
-    {id:'water-10l-pair',name:'2 × 10L Water Cans',slug:'two-10l-water-cans',icon:'🚰',description:'Two 10-litre drinking water cans',product_count:1,display_order:2}
-  ];
   const products=[
     {id:'water-20l',name:'20L Drinking Water Can',unit:'can',price:189,emoji:'💧',active:1,category_id:'water-20l',category_name:'20L Water Can',category_slug:'20l-water-can',stock_status:'in_stock'},
     {id:'water-10l-pair',name:'2 × 10L Drinking Water Cans',unit:'pack',price:149,emoji:'🚰',active:1,category_id:'water-10l-pair',category_name:'2 × 10L Water Cans',category_slug:'two-10l-water-cans',stock_status:'in_stock'}
@@ -21,7 +17,6 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
     if(url.pathname==='/api/delivery/store'&&method==='POST')return send({
       available:true,code:'AVAILABLE',store:{id:'store-a',name:'Store A',distanceKm:1}
     });
-    if(url.pathname==='/api/categories'&&method==='GET')return send({categories});
     if(url.pathname==='/api/products'&&method==='GET')return send({products});
     if(url.pathname==='/api/delivery-offers'&&method==='GET')return send({settings:{
       freeDeliveryEnabled:true,freeDeliveryThreshold:800,standardDeliveryFee:30
@@ -53,10 +48,11 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   expect(response?.status()).toBe(200);
   await expect(page.locator('#searchInput')).toHaveCount(0);
   await expect(page.locator('.search-wrap')).toHaveCount(0);
-  await expect(page.locator('[data-fw-category="water-20l"]')).toBeVisible({timeout:20000});
+  await expect(page.locator('#productGrid .product-card')).toHaveCount(2,{timeout:20000});
+  await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
+  await expect(page.locator('#productGrid [data-add="water-10l-pair"]')).toBeVisible();
   expect(await page.evaluate(()=>window.FreshWayCustomerStoreCatalogue?.selectedStore()?.name)).toBe('Store A');
 
-  await page.locator('[data-fw-category="water-20l"]').click();
   const add=page.locator('#productGrid [data-add="water-20l"]');
   await expect(add).toBeVisible();
   await expect(page.locator('#productGrid .product-price').first()).toContainText('₹189');

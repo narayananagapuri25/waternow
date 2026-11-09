@@ -28,12 +28,8 @@ assert.match(fs.readFileSync('frontend/customer/cart-persistence.js','utf8'),/co
 
 
 assert.match(source,/window\.FreshWayCustomerAPI\?\.request/);
-assert.match(source,/selected=\(window\.history\.state\?\.__freshwayCustomer&&window\.history\.state\.view==='home'\?window\.history\.state\.category:null\)\|\|getStoredCategory\(\)\|\|null/,'refresh restores the selected category from history or session storage');
-assert.match(source,/sessionStorage\.setItem\(CATEGORY_STORAGE_KEY,String\(selected\)\)/,'selected category is persisted for reload restoration');
-assert.match(source,/sessionStorage\.removeItem\(CATEGORY_STORAGE_KEY\)/,'explicitly returning to Home clears the persisted category');
-assert.match(source,/history==='none'&&state\.view==='home'&&state\.category!==selected/,'restored category selection is synchronized back into browser history');
-assert.match(source,/history:selected\?'replace':'none'/,'a deleted category clears stale selection from history instead of restoring it on every refresh');
-assert.match(source,/Promise\.allSettled\(\[/);
+assert.match(source,/request\('\/api\/products\?storeId='/,'customer catalogue loads the selected store products directly');
+assert.doesNotMatch(source,/request\('\/api\/categories\?storeId='/,'customer home no longer makes a separate category request');
 assert.doesNotMatch(source,/fetch\(['"]\/api\/(categories|products)/);
 assert.match(source,/window\.FreshWayCustomerCatalogue\?\.setProducts/);
 assert.match(source,/loadToken/);
@@ -41,14 +37,14 @@ assert.match(source,/hadData/);
 assert.match(source,/freshWayCustomerCatalogueRefresh/);
 assert.doesNotMatch(source,/productOk\)window\.FreshWayCustomerCatalogue\?\.clear/);
 assert.match(source,/window\.FreshWayCustomerCatalogue\?\.clear/);
-assert.match(source,/role="alert"/);
+assert.match(source,/role="status"/);
 assert.match(source,/fwCatalogueRetry/);
 assert.match(source,/errorCode==='AREA_UNAVAILABLE'/,'a real out-of-area Worker response must have a dedicated customer home state');
 assert.match(source,/nearby RTC bus stand/,'out-of-area customers must see the possible nearby handover option');
 assert.match(source,/postal delivery options/,'out-of-area customers must see the possible postal delivery option');
 assert.match(source,/data-fw-delivery-contact/,'out-of-area customers must have a working contact action');
 assert.match(source,/window\.setView\?\.\('contact'\)/,'the home-screen delivery contact action must navigate to Contact Us');
-assert.match(source,/x\.image_url\|\|media\?\.image\('categories'/);
+assert.ok(!source.includes('class="fw-category-card"'),'category cards are intentionally absent from the WaterNow customer home');
 assert.doesNotMatch(source,/data:'\+x\.image_mime_type/,'the public category list must not inline image payloads');
 assert.doesNotMatch(app,/FALLBACK_PRODUCTS/);
 assert.match(app,/window\.FreshWayCustomerCatalogue/);
@@ -123,10 +119,6 @@ console.log('catalogue UI-only media mapping OK');
 
 const navigation=fs.readFileSync('frontend/customer/navigation.js','utf8');
 assert.match(navigation,/__freshwayCustomer/);
-assert.match(source,/history\.pushState/);
-assert.match(source,/history\.back\(\)/);
-assert.match(source,/category:selected/);
-console.log('customer category back navigation contract OK');
 
 const ownerLifecycle=fs.readFileSync('owner-lifecycle.js','utf8');
 const adminSource=fs.readFileSync('admin.js','utf8');
@@ -136,32 +128,21 @@ assert.match(adminSource,/async function refreshOwnerAfterOrderMutation/);
 assert.match(adminSource,/if\(id==='overview'\)await Promise\.all\(\[loadSummary\(\),loadBusiness\(\),loadHome\(\)\]\)/);
 assert.match(adminSource,/else if\(id==='orders'\)await Promise\.all\(\[loadSummary\(\),loadBusiness\(\),loadOrders\(true\)\]\)/);
 
-assert.match(source,/All categories/);
-assert.match(source,/heading\.classList\.remove\('fw-category-home-hidden'\)/);
-assert.match(source,/const hero=\$\('\.hero-banner'\)/,'the promotional banner remains the stable category anchor after customer search is removed');
-assert.match(source,/home\.insertBefore\(c,\s*hero\.nextSibling\)/,'category tiles stay below the promotional banner so adding categories cannot move it');
-assert.doesNotMatch(source,/search-wrap|searchInput/,'category placement no longer depends on the removed customer search control');
-assert.match(source,/heading\.classList\.add\('fw-category-home-hidden'\)/,'product heading stays hidden before selecting a category');
-assert.match(source,/if\(!selected\)\{grid\.classList\.add\('fw-category-home-hidden'\);return\}/,'products stay hidden until category selection');
-assert.match(source,/fw-category-grid'\+\(usable\.length===1\?' is-single':''\)/,'single category uses a compact full-width tile');
-assert.match(source,/\.fw-category-back button\{[^}]*flex:0 0 auto/,'All categories control must size to its label instead of wrapping into a narrow icon width');
-assert.match(source,/\.fw-category-grid\.is-single \.fw-category-card/,'single category card styling is defined');
-assert.match(source,/window\.freshWayCustomerCatalogueGoHome=\(\)=>\{const state=window\.history\.state;if\(state\?\.__freshwayCustomer&&state\.category\)window\.history\.replaceState\(\{\.\.\.state,category:null\},'',window\.location\.href\);setMode\(null,\{history:'none'\}\)\}/,'explicit Home navigation clears selected category without replacing the current view state');
-assert.doesNotMatch(source,/querySelectorAll\('\[data-nav\]'\).*setMode\(null/,'category reset is centralized rather than duplicated in the Home-tab handler');
-assert.match(source,/hero\.classList\.add\('fw-category-home-hidden'\)/);
-assert.match(source,/label\.textContent='CATALOGUE'/);
-assert.doesNotMatch(source,/search\.classList\.add\('fw-category-home-hidden'\)/);
+assert.ok(source.includes("const WATER_PRODUCT_IDS=new Set(['water-20l','water-10l-pair'])"),'only the two WaterNow water packs are eligible for customer display');
+assert.ok(source.includes("productResult.products.filter(product=>WATER_PRODUCT_IDS.has"),'the store catalogue is restricted to the 20L and 2 × 10L products');
+assert.ok(!source.includes('class="fw-category-card"'),'category tiles are not shown on the customer home');
+assert.ok(source.includes('Available water products'),'the customer home displays its product heading directly');
+assert.ok(source.includes("c.hidden=!notice"),'the extra category area collapses when it has no delivery message');
+assert.ok(!source.includes('data-fw-category'),'there are no category-selection controls in the WaterNow home');
+assert.ok(source.includes('window.freshWayCustomerCatalogueGoHome=()=>setMode(null'),'Home navigation always restores the two-product list');
 assert.match(productView,/Organic Groundnut Oil/);
 assert.match(productView,/Organic Sunflower Oil/);
 assert.match(productView,/productNameAliases/);
 console.log('premium category selection, navigation and customer-facing product naming contracts OK');
 
-assert.match(source,/fw-category-selected/,'selected category applies a scoped compact layout');
-assert.ok(categoryFoldStyles.includes('body.fw-category-selected .product-card{height:196px'),'category product cards are compact enough for a four-item first view');
-assert.ok(categoryFoldStyles.includes('body.fw-category-selected .product-image{height:76px'),'category product images use a compact height');
-assert.match(categoryFoldStyles,/max-height:800px/,'short mobile screens receive an additional compact layout');
-assert.match(categoryFoldStyles,/\.product-image img\{[^}]*width:auto!important;height:100%!important;aspect-ratio:1\/1[^}]*max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center!important/,'category product images render as centered square artwork without stretching/cropping');
-console.log('four-product category fold-fit contract OK');
+assert.ok(!source.includes("classList.toggle('fw-category-selected'"),'the category-only compact layout is disabled');
+assert.match(categoryFoldStyles,/\.product-image img\{[^}]*width:auto!important;height:100%!important;aspect-ratio:1\/1[^}]*max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center!important/,'water pack images remain contained without distortion');
+console.log('two-product customer home contract OK');
 
 
 // Repeated catalogue refreshes with unchanged cart contents must not rebuild the

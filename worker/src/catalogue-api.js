@@ -51,8 +51,7 @@ async function publicProducts(env, storeId = '') {
   if (storeId) {
     await assertActiveStore(env,storeId);
     const rows=await getStoreCatalogueRows(env,storeId);
-    const visible=rows.filter(p=>Number(p.active)===1&&Number(p.category_active)===1&&Number(p.is_available)===1&&
-      (Number(p.stock_managed)!==1||Number(p.on_hand||0)-Number(p.reserved_qty||0)>0));
+    const visible=rows.filter(p=>Number(p.active)===1&&Number(p.category_active)===1&&Number(p.is_available)===1);
     return {products:await Promise.all(visible.map(async p=>{
       const availableStock=Math.max(0,Number(p.on_hand||0)-Number(p.reserved_qty||0));
       const product={
