@@ -198,7 +198,7 @@ export async function handleWaterNetworkRequest(request,env){
     try{return json({supplier:await createSupplier(env,await readBody(request))},201)}
     catch(error){return json({error:error.message||'Could not add the water supplier.'},400)}
   }
-  const storeLink=path.match(/^\\/api\\/admin\\/water-suppliers\\/([^/]+)\\/link-store$/);
+  const storeLink=path.match(/^\/api\/admin\/water-suppliers\/([^/]+)\/link-store$/);
   if(storeLink&&method==='POST'){
     try{return json(await linkSupplierStore(env,decodeURIComponent(storeLink[1]),await readBody(request)))}
     catch(error){return json({error:error.message||'Could not link supplier to this delivery location.'},400)}
