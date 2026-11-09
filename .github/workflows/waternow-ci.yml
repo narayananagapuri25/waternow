@@ -7,13 +7,15 @@ on:
     branches:
       - main
       - 'feature/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: waternow-ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel a production deployment midway through a D1 migration.
+  cancel-in-progress: false
 
 jobs:
   worker-tests:
@@ -70,3 +72,77 @@ jobs:
       - name: Run isolated delivery and store fallback tests
         working-directory: e2e
         run: npx playwright test --config=playwright.store-fallback.config.js
+
+  production-deploy:
+    name: Deploy production D1 and WaterNow API
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - worker-tests
+      - owner-ui-regression
+      - browser-tests
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    defaults:
+      run:
+        working-directory: worker
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate Cloudflare deployment credentials
+        run: |
+          test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "::error::Add the CLOUDFLARE_ACCOUNT_ID GitHub Actions secret."; exit 1; }
+          test -n "${CLOUDFLARE_API_TOKEN}" || { echo "::error::Add the CLOUDFLARE_API_TOKEN GitHub Actions secret."; exit 1; }
+      - name: Install Worker and Wrangler dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify production D1 migration baseline
+        run: node ./scripts/require-production-d1-baseline.mjs
+      - name: Apply pending production D1 migrations
+        run: npx wrangler d1 migrations apply waternow-production --remote --config wrangler.production.jsonc
+      - name: Deploy WaterNow API Worker
+        run: npx wrangler deploy --config wrangler.production.jsonc
+      - name: Verify Worker API and Pages service-binding proxy
+        working-directory: .
+        run: |
+          node --input-type=module <<'NODE'
+          const workerBase = 'https://waternow-api.narayana-nagapuri25-17f.workers.dev';
+          const pagesProducts = 'https://waternow.pages.dev/api/products';
+
+          async function getJson(url) {
+            const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+            const body = await response.json().catch(() => null);
+            if (!response.ok) {
+              throw new Error(url + ' returned HTTP ' + response.status + ': ' + JSON.stringify(body));
+            }
+            if (!body || typeof body !== 'object' || body.error) {
+              throw new Error(url + ' returned an invalid API response: ' + JSON.stringify(body));
+            }
+            return body;
+          }
+
+          const status = await getJson(workerBase + '/api/admin/status');
+          if (status.ok !== true) throw new Error('WaterNow Worker health endpoint did not report ok=true');
+
+          let lastError;
+          for (let attempt = 1; attempt <= 24; attempt += 1) {
+            try {
+              const body = await getJson(pagesProducts);
+              const ids = new Set((body.products || []).map(product => product.id));
+              for (const id of ['water-20l', 'water-10l-pair']) {
+                if (!ids.has(id)) throw new Error('Pages API response is missing product ' + id);
+              }
+              console.log('Production smoke test passed: Worker health is OK and Pages reaches the WaterNow API through its WATERNOW_API binding.');
+              process.exit(0);
+            } catch (error) {
+              lastError = error;
+              if (attempt < 24) await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+          }
+          throw lastError || new Error('Pages API smoke test failed.');
+          NODE
