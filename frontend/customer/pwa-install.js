@@ -1,4 +1,4 @@
-const FreshWayPwaInstall=(()=>{
+const WaterNowPwaInstall=(()=>{
   let deferredPrompt=null;
   let installNudgeShown=false;
 
@@ -13,9 +13,9 @@ const FreshWayPwaInstall=(()=>{
     const small=row.querySelector('small');
     if(small){
       small.textContent=deferredPrompt
-        ?'Tap here to install FreshWay as an app.'
+        ?'Tap here to install WaterNow as an app.'
         :isIos()
-          ?'Use Share → Add to Home Screen to install FreshWay.'
+          ?'Use Share → Add to Home Screen to install WaterNow.'
           :'Open Chrome menu → Install app (not Create shortcut).';
     }
   };
@@ -37,7 +37,7 @@ const FreshWayPwaInstall=(()=>{
       }
       return{accepted,cancelled:!accepted};
     }catch(error){
-      console.error('FreshWay native install prompt failed:',error);
+      console.error('WaterNow native install prompt failed:',error);
       setAvailable();
       return{accepted:false,error:true};
     }
@@ -49,17 +49,17 @@ const FreshWayPwaInstall=(()=>{
 
     const nativeAvailable=Boolean(deferredPrompt);
     const instruction=nativeAvailable
-      ?'Install FreshWay to add an app icon and open it in its own app window.'
+      ?'Install WaterNow to add an app icon and open it in its own app window.'
       :isIos()
         ?'In Safari, tap <strong>Share</strong>, then choose <strong>Add to Home Screen</strong>.'
         :'Open the Chrome menu <strong>⋮</strong> and choose <strong>Install app</strong>. If Chrome offers both <strong>Install</strong> and <strong>Create shortcut</strong>, choose <strong>Install</strong>.';
-    const actionLabel=nativeAvailable?'Install FreshWay':'Got it';
+    const actionLabel=nativeAvailable?'Install WaterNow':'Got it';
     const modal=document.createElement('div');
     modal.className='modal';
     modal.setAttribute('role','dialog');
     modal.setAttribute('aria-modal','true');
     modal.setAttribute('aria-labelledby','pwaInstallHelpTitle');
-    modal.innerHTML='<div class="modal-sheet pwa-help"><div class="modal-head"><div><span class="eyebrow">FRESHWAY APP</span><h2 id="pwaInstallHelpTitle">Install FreshWay</h2></div><button class="icon-btn" type="button" aria-label="Close">×</button></div><p>'+instruction+'</p><button class="primary-btn full pwa-install-action" type="button">'+actionLabel+'</button><button class="secondary-btn full pwa-install-later" type="button">Not now</button></div>';
+    modal.innerHTML='<div class="modal-sheet pwa-help"><div class="modal-head"><div><span class="eyebrow">WATERNOW APP</span><h2 id="pwaInstallHelpTitle">Install WaterNow</h2></div><button class="icon-btn" type="button" aria-label="Close">×</button></div><p>'+instruction+'</p><button class="primary-btn full pwa-install-action" type="button">'+actionLabel+'</button><button class="secondary-btn full pwa-install-later" type="button">Not now</button></div>';
 
     const close=()=>{
       modal.remove();
@@ -102,7 +102,7 @@ const FreshWayPwaInstall=(()=>{
     try{
       return await navigator.serviceWorker.register('/sw.js',{scope:'/',updateViaCache:'none'});
     }catch(error){
-      console.error('FreshWay service-worker registration failed:',error);
+      console.error('WaterNow service-worker registration failed:',error);
       return null;
     }
   };
@@ -114,7 +114,7 @@ const FreshWayPwaInstall=(()=>{
     row.id='pwaInstallRow';
     row.className='pwa-install-row';
     row.type='button';
-    row.innerHTML='<span aria-hidden="true">⬇</span><div><strong>Install FreshWay</strong><small>Install FreshWay on this device for faster access.</small></div><b aria-hidden="true">›</b>';
+    row.innerHTML='<span aria-hidden="true">⬇</span><div><strong>Install WaterNow</strong><small>Install WaterNow on this device for faster access.</small></div><b aria-hidden="true">›</b>';
     row.addEventListener('click',install);
     const notifications=document.querySelector('#enableNotifications');
     if(notifications?.parentNode===menu)menu.insertBefore(row,notifications);else menu.appendChild(row);
@@ -147,5 +147,5 @@ const FreshWayPwaInstall=(()=>{
   return{init,install,showInstallHelp};
 })();
 
-window.FreshWayPwaInstall=FreshWayPwaInstall;
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>FreshWayPwaInstall.init(),{once:true});else FreshWayPwaInstall.init();
+window.WaterNowPwaInstall=WaterNowPwaInstall;
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>WaterNowPwaInstall.init(),{once:true});else WaterNowPwaInstall.init();
