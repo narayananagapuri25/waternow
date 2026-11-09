@@ -115,7 +115,7 @@ test('central customer catalogue query and response omit all global stock column
     prepare(sql){
       queries.push(sql);
       return {
-        async all(){return{results:[{id:'p1',name:'Water Can',unit:'can',price:30,emoji:'💧',active:1}]}};
+        async all(){return{results:[{id:'p1',name:'Water Can',unit:'can',price:30,emoji:'💧',active:1}]}}
       };
     }
   };
