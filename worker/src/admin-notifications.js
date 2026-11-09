@@ -39,7 +39,7 @@ export function buildOrderChangeAlerts(id, before, after, nonce = String(Date.no
   const nextStatus = text(after.delivery_status);
   if (nextStatus && previousStatus !== nextStatus) {
     addPair(
-      'status_changed', 'FreshWay order update',
+      'status_changed', 'WaterNow order update',
       `Your order ${orderId} ${statusText(nextStatus)}.`,
       'Order status updated',
       `${orderId}: ${previousStatus || 'Unknown'} → ${nextStatus}.`
@@ -50,7 +50,7 @@ export function buildOrderChangeAlerts(id, before, after, nonce = String(Date.no
   const nextPayment = text(after.payment_status);
   if (nextPayment && previousPayment !== nextPayment) {
     addPair(
-      'payment_changed', 'FreshWay payment update',
+      'payment_changed', 'WaterNow payment update',
       `For order ${orderId}, ${paymentText(nextPayment)}.`,
       'Order payment updated',
       `${orderId}: ${previousPayment || 'Unknown'} → ${nextPayment}.`
@@ -61,7 +61,7 @@ export function buildOrderChangeAlerts(id, before, after, nonce = String(Date.no
   const nextPlan = text(after.delivery_plan);
   if (nextPlan && previousPlan !== nextPlan) {
     addPair(
-      'delivery_plan_changed', 'FreshWay delivery update',
+      'delivery_plan_changed', 'WaterNow delivery update',
       `The delivery plan for order ${orderId} is now ${nextPlan}.`,
       'Order delivery plan updated',
       `${orderId}: delivery plan changed from ${previousPlan || 'Unscheduled'} to ${nextPlan}.`
@@ -81,11 +81,11 @@ export async function notifyOrderChange(request, env, before) {
     if (!after) return;
     const alerts = buildOrderChangeAlerts(id, before, after, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
     await Promise.all(alerts.map(alert => dispatchOrderAlert(env, alert).catch(error => {
-      console.error('FreshWay order status alert failed:', error?.message || error);
+      console.error('WaterNow order status alert failed:', error?.message || error);
       return { status: 'failed' };
     })));
   } catch (error) {
     // Order writes must not fail because a push provider or alert log is unavailable.
-    console.error('FreshWay Owner order alert processing failed:', error?.message || error);
+    console.error('WaterNow Owner order alert processing failed:', error?.message || error);
   }
 }
