@@ -91,6 +91,8 @@ productViewContext.window.FreshWayCustomerProductView.render(
   {esc:value=>String(value??''),money:value=>'₹'+Number(value||0),changeQty(){},updateCartBar(){}}
 );
 assert.match(productGrid.innerHTML,/class="product-card"/,'a catalogue product with a zero price must still render');
+assert.match(productGrid.innerHTML,/<h3>10L Drinking Water Can<\\/h3>/,'the saved catalogue product name must be displayed without hard-coded aliases');
+assert.doesNotMatch(productView,/productNameAliases/,'product names are configured in the catalogue, not hard-coded in the UI');
 assert.match(productGrid.innerHTML,/class="product-price">₹0<small> \/ bottle<\/small>/,'a zero price must be displayed as ₹0 rather than Price soon');
 assert.equal(productCount.textContent,'1 item');
 
@@ -159,9 +161,9 @@ assert.ok(source.includes('Available water products'),'the customer home display
 assert.ok(source.includes("c.hidden=!notice"),'the extra category area collapses when it has no delivery message');
 assert.ok(!source.includes('data-fw-category'),'there are no category-selection controls in the WaterNow home');
 assert.ok(source.includes('window.freshWayCustomerCatalogueGoHome=()=>setMode(null'),'Home navigation restores the catalogue product list');
-assert.match(productView,/Organic Groundnut Oil/);
-assert.match(productView,/Organic Sunflower Oil/);
-assert.match(productView,/productNameAliases/);
+
+
+
 console.log('premium category selection, navigation and customer-facing product naming contracts OK');
 
 assert.ok(!source.includes("classList.toggle('fw-category-selected'"),'the category-only compact layout is disabled');
