@@ -260,7 +260,7 @@ jobs:
           }, null, 2));
           NODE
           echo "Initializing the isolated Preview D1 from the repository's canonical current schema."
-          npx wrangler d1 execute DB --remote --config "${config_file}" --file schema.sql
+          npx wrangler d1 execute DB --remote --yes --config "${config_file}" --file schema.sql
           PREVIEW_D1_DATABASE_ID="${PREVIEW_D1_DATABASE_ID}" node --input-type=module <<'NODE'
           import { readdirSync, writeFileSync } from 'node:fs';
           const baseline = readdirSync('migrations')
@@ -278,7 +278,7 @@ jobs:
           writeFileSync('.waternow-preview-baseline.sql', sql);
           console.log('Prepared ' + baseline.length + ' baseline history rows through 0051; WaterNow migrations 0052–0056 will execute normally.');
           NODE
-          npx wrangler d1 execute DB --remote --config "${config_file}" --file .waternow-preview-baseline.sql
+          npx wrangler d1 execute DB --remote --yes --config "${config_file}" --file .waternow-preview-baseline.sql
           npx wrangler d1 migrations apply DB --remote --config "${config_file}"
           preview_state="$(npx wrangler d1 execute DB --remote --config "${config_file}" --command "SELECT (SELECT COUNT(*) FROM products WHERE active=1) AS active_product_count, (SELECT COUNT(*) FROM products WHERE id='water-20l' AND active=1 AND price=30) AS water20_ok, (SELECT COUNT(*) FROM products WHERE id='water-10l-pair' AND active=1 AND price=20) AS water10_ok, (SELECT COUNT(*) FROM delivery_stores WHERE id='waternow-boduppal' AND is_active=0 AND service_radius_km=5) AS boduppal_placeholder_ok, (SELECT COUNT(*) FROM delivery_store_inventory WHERE store_id='waternow-boduppal' AND stock_quantity=0) AS zero_stock_rows" --json)"
           echo "${preview_state}"
