@@ -75,7 +75,7 @@
         activeHistoryState=window.history.state;
       }
 
-      window.FreshWayCustomerViewState?.saveView(name);
+      window.WaterNowCustomerViewState?.saveView(name);
       onView(name);
       afterView(name);
       window.scrollTo({top:0,behavior:'smooth'});
@@ -105,7 +105,7 @@
       const state=event.state;
       const nextView=state?.[HISTORY_FLAG]&&validViews.has(state.view)?state.view:'home';
       activeHistoryState=state?.[HISTORY_FLAG]?state:{[HISTORY_FLAG]:true,view:nextView};
-      window.FreshWayCustomerViewState?.saveView(nextView);
+      window.WaterNowCustomerViewState?.saveView(nextView);
       setView(nextView,{history:'none'});
     });
     return Object.freeze({setView,goBack});
