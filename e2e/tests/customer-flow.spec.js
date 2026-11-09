@@ -332,7 +332,7 @@ test('customer can browse, add a product, checkout, and receive confirmation', a
   await expect(page.locator('#productGrid')).toBeVisible();
   await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
 
-  await page.locator('#productGrid .add-btn').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await expect(page.locator('#cartCount')).toHaveText('1 item');
   await expect(page.locator('#cartTotal')).toHaveText('₹120');
 
@@ -448,7 +448,7 @@ test('checkout button shows the final payable total, not the item subtotal', asy
   await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
   await expect(page.locator('#productGrid')).toBeVisible();
   await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
-  await page.locator('#productGrid .add-btn').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await expect(page.locator('#cartTotal')).toHaveText('₹799');
   await page.locator('#viewCartBtn').click();
 
@@ -521,7 +521,7 @@ test('₹1,850 WaterNow can persists through checkout navigation and page refres
   await page.goto('/');
   await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
   await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
-  await page.locator('#productGrid .add-btn').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await expect(page.locator('#cartTotal')).toHaveText('₹1,850');
   await page.locator('#viewCartBtn').click();
   await expect(page.locator('#cartItems')).toContainText('20L Drinking Water Can');
@@ -588,7 +588,7 @@ test('checkout refuses a quote for a different cart item instead of showing a mi
   });
 
   await page.goto('/');
-  await page.locator('#productGrid .add-btn').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await page.locator('#viewCartBtn').click();
   await expect(page.locator('#fwCouponStatus')).toContainText('We could not verify every cart item');
   await page.locator('#checkoutBtn').click();
@@ -639,7 +639,7 @@ test('selected delivery day survives checkout page refresh', async ({ page }) =>
   });
 
   await page.goto('/');
-  await page.locator('#productGrid .add-btn').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await page.locator('#viewCartBtn').click();
   await page.locator('#checkoutBtn').click();
   await expect(page.locator('#checkoutView')).toHaveClass(/active-view/);
@@ -914,7 +914,7 @@ test('captures responsive customer visual review snapshots', async ({ page }) =>
   await expect(page.locator('#cartBar')).toBeHidden();
   await capture('mobile-home');
 
-  await page.locator('#productGrid .add-btn').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await expect(page.locator('#cartCount')).toHaveText('1 item');
   const compactCardLayout = await page.locator('#productGrid .product-card').first().evaluate(card => {
     const cardRect = card.getBoundingClientRect();
@@ -1608,7 +1608,7 @@ test('customer sees helpful out-of-area options and can contact WaterNow from ch
   await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
   await expect(page.locator('#productGrid')).toBeVisible();
   await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
-  await page.locator('#productGrid .add-btn').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click();
   await page.locator('#viewCartBtn').click();
   await expect(page.locator('#checkoutBtn')).toBeVisible();
 
