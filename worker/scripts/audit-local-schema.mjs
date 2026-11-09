@@ -34,6 +34,7 @@ const required={
 
 const requiredIndexes=[
   'idx_orders_test_created',
+  'idx_customers_active_phone',
   'idx_account_deletion_requests_one_active',
   'idx_account_deletion_requests_status_created',
   'idx_account_deletion_requests_customer_created',
