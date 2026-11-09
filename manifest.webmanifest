@@ -1,31 +1,12 @@
 {
-  "id": "/freshway",
-  "name": "FreshWay",
-  "short_name": "FreshWay",
-  "description": "FreshWay local ordering app for groceries and everyday essentials.",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0f7a4b",
-  "icons": [
-    {
-      "src": "/icons/icon-192-brand-v2.png?v=20261026-brand-v2",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-512-brand-v2.png?v=20261026-brand-v2",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-512-maskable-v2.png?v=20261026-brand-v2",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ]
+ "id":"/waternow",
+ "name":"WaterNow",
+ "short_name":"WaterNow",
+ "description":"Order drinking water cans from trusted local suppliers.",
+ "start_url":"/",
+ "scope":"/",
+ "display":"standalone",
+ "background_color":"#ffffff",
+ "theme_color":"#075b78",
+ "icons":[{"src":"/waternow-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
 }
