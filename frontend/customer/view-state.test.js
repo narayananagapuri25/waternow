@@ -2,11 +2,11 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const source=require('node:fs').readFileSync('frontend/customer/view-state.js','utf8');
 const stored={value:'orders'};
-const storage={getItem:key=>key==='freshway-current-view-v1'?stored.value:null,setItem:(key,value)=>{if(key==='freshway-current-view-v1')stored.value=value}};
+const storage={getItem:key=>key==='waternow-current-view-v1'?stored.value:null,setItem:(key,value)=>{if(key==='waternow-current-view-v1')stored.value=value}};
 const context={window:{},sessionStorage:storage};
 vm.runInNewContext(source,context);
-const api=context.window.FreshWayCustomerViewState;
-assert.equal(api.KEY,'freshway-current-view-v1');
+const api=context.window.WaterNowCustomerViewState;
+assert.equal(api.KEY,'waternow-current-view-v1');
 assert.equal(api.clickedView({closest:s=>s==='[data-nav]'?{dataset:{nav:'orders'}}:null}),'orders');
 assert.equal(api.clickedView({closest:s=>s==='.back-btn'?{dataset:{back:'home'}}:null}),'home');
 assert.equal(api.clickedView({closest:s=>s==='#viewCartBtn'?{}:null}),'cart');
@@ -18,7 +18,7 @@ assert.equal(stored.value,'messages');
 const removed=[];
 const calls=[];
 const restoreWindow={
-  history:{state:{__freshwayCustomer:true,view:'cart'}},
+  history:{state:{__waterNowCustomer:true,view:'cart'}},
   location:{hash:'#orders'},
   setView:(name,options)=>calls.push({name,options}),
   state:{orders:[]}
