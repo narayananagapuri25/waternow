@@ -160,8 +160,8 @@ export async function updateOrder(env,id,payload,actor={}){
   // Cancelling releases unfulfilled store and slot reservations in the same D1 batch.
   if(cancelling){
     const reserved=(await env.DB.prepare('SELECT product_id,SUM(stock_reserved_qty) AS reserved_qty FROM order_items WHERE order_id=? AND stock_reserved_qty>0 GROUP BY product_id').bind(id).all()).results||[];
-    // Older orders without a store assignment still use the legacy aggregate counter.
-    // Store reservations are released below; there is no global stock counter.
+    // Legacy orders without a store assignment have no local inventory ledger.
+    // Clear their reservation marker without adjusting any global product quantity.
     if(reserved.length)statements.push(env.DB.prepare('UPDATE order_items SET stock_reserved_qty=0 WHERE order_id=? AND stock_reserved_qty>0 AND EXISTS(SELECT 1 FROM orders o WHERE o.id=? AND o.delivery_status IS ?)').bind(id,id,current.delivery_status));
     if(current.assigned_store_id||current.scheduled_slot_id)statements.push(...releaseStoreAndSlotStatements());
     statements.push(orderUpdate,auditStatement());
