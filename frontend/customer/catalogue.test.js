@@ -91,7 +91,7 @@ productViewContext.window.FreshWayCustomerProductView.render(
   {esc:value=>String(value??''),money:value=>'₹'+Number(value||0),changeQty(){},updateCartBar(){}}
 );
 assert.match(productGrid.innerHTML,/class="product-card"/,'a catalogue product with a zero price must still render');
-assert.match(productGrid.innerHTML,/<h3>10L Drinking Water Can<\\/h3>/,'the saved catalogue product name must be displayed without hard-coded aliases');
+assert.ok(productGrid.innerHTML.includes('<h3>10L Drinking Water Can</h3>'),'the saved catalogue product name must be displayed without hard-coded aliases');
 assert.doesNotMatch(productView,/productNameAliases/,'product names are configured in the catalogue, not hard-coded in the UI');
 assert.match(productGrid.innerHTML,/class="product-price">₹0<small> \/ bottle<\/small>/,'a zero price must be displayed as ₹0 rather than Price soon');
 assert.equal(productCount.textContent,'1 item');
