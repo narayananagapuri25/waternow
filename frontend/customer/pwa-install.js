@@ -147,5 +147,6 @@ const WaterNowPwaInstall=(()=>{
   return{init,install,showInstallHelp};
 })();
 
-window.FreshWayPwaInstall=WaterNowPwaInstall;\nwindow.WaterNowPwaInstall=WaterNowPwaInstall;
+window.FreshWayPwaInstall=WaterNowPwaInstall;
+window.WaterNowPwaInstall=WaterNowPwaInstall;
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>WaterNowPwaInstall.init(),{once:true});else WaterNowPwaInstall.init();
