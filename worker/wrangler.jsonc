@@ -19,6 +19,12 @@
       "APP_ORIGIN": "https://waternow.pages.dev",
       "APP_ORIGINS": "https://waternow.pages.dev",
       "APP_ORIGIN_SUFFIXES": ".waternow.pages.dev"
-    }
+    },
+    "d1_databases": [{
+      "binding": "DB",
+      "database_name": "waternow-preview",
+      "database_id": "62531d65-a4f0-45aa-b89a-d7d94cff177c",
+      "migrations_dir": "migrations"
+    }]
   }
 }
