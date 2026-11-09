@@ -10,7 +10,7 @@ function renderStores(){
  if(!storeRoot)return;
  if(storeRoot.__waterNowMapDestroy){storeRoot.__waterNowMapDestroy();storeRoot.__waterNowMapDestroy=null;}
  let form='';
- if(editing!==null){form='<form class="panel fw-store-form" id="fwStoreForm"><div class="section-head"><div><h2>'+(editing.id?'Edit store':'Add store')+'</h2><p>Set this store's delivery radius and choose its exact location on the map.</p></div></div><div class="settings-form-grid">'+
+ if(editing!==null){form='<form class="panel fw-store-form" id="fwStoreForm"><div class="section-head"><div><h2>'+(editing.id?'Edit store':'Add store')+'</h2><p>Set the delivery radius for this store and choose its exact location on the map.</p></div></div><div class="settings-form-grid">'+
  '<label class="settings-field"><span>Store name</span><input name="name" maxlength="120" required value="'+esc(editing.name)+'" placeholder="Enter store name"></label>'+
  '<label class="settings-field"><span>Address</span><input name="address" maxlength="300" value="'+esc(editing.address)+'" placeholder="Street, area, city"></label>'+
  '<label class="settings-field"><span>Delivery radius (km)</span><input name="radius" type="number" step="0.1" min="0.1" max="100" required value="'+esc(editing.radius)+'" placeholder="Enter radius in km"></label>'+
