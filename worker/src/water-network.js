@@ -21,8 +21,9 @@ async function listNetwork(env){
       FROM water_delivery_partners p ORDER BY p.city,p.name`).all()
   ]);
   const [supplierProducts,deliveryStores]=await Promise.all([
-    env.DB.prepare(`SELECT sp.supplier_id,sp.product_id,p.name AS product_name,
-      sp.selling_price,sp.stock_quantity,sp.is_available
+    env.DB.prepare(`SELECT sp.supplier_id,sp.product_id,p.name AS product_name,sp.selling_price,
+      COALESCE((SELECT i.stock_quantity FROM delivery_store_inventory i JOIN delivery_stores d ON d.id=i.store_id WHERE d.supplier_id=sp.supplier_id AND i.product_id=sp.product_id LIMIT 1),sp.stock_quantity) AS stock_quantity,
+      CASE WHEN sp.selling_price>0 AND COALESCE((SELECT i.stock_quantity FROM delivery_store_inventory i JOIN delivery_stores d ON d.id=i.store_id WHERE d.supplier_id=sp.supplier_id AND i.product_id=sp.product_id LIMIT 1),sp.stock_quantity)>0 THEN 1 ELSE 0 END AS is_available
       FROM water_supplier_products sp JOIN products p ON p.id=sp.product_id
       ORDER BY p.display_order,p.name`).all(),
     env.DB.prepare(`SELECT id,name,address,service_radius_km,is_active,supplier_id,delivery_model,delivery_partner_id FROM delivery_stores ORDER BY name`).all()
@@ -139,6 +140,8 @@ async function linkSupplierStore(env,supplierId,payload){
   if(!storeId)throw new Error('Choose a delivery location to link.');
   if(!validType(model,['supplier_delivery','platform_delivery']))throw new Error('Choose a valid fulfilment model.');
   const store=await env.DB.prepare('SELECT id FROM delivery_stores WHERE id=?').bind(storeId).first();
+  const otherLinkedStore=await env.DB.prepare('SELECT id,name FROM delivery_stores WHERE supplier_id=? AND id<>? LIMIT 1').bind(supplierId,storeId).first();
+  if(otherLinkedStore)throw new Error('This supplier is already linked to '+otherLinkedStore.name+'. Use one dispatch location per supplier; expand its service radius or register a separate dispatch location as another supplier.');
   if(!store)throw new Error('Delivery location not found. Add it in the Stores screen first.');
   if(model==='platform_delivery'){
     if(!partnerId)throw new Error('Choose a verified WaterNow delivery partner for platform delivery.');
