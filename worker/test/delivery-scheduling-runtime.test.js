@@ -118,6 +118,18 @@ test('approximate Boduppal locality pin cannot be activated until address and ma
     await assert.rejects(() => send({isActive:true}), /exact shop location/i,
       'the direct handler must reject an unconfirmed approximate shop pin');
     assert.equal(db.db.prepare("SELECT is_active FROM delivery_stores WHERE id='waternow-boduppal'").get().is_active,0);
+    db.db.prepare("INSERT INTO delivery_store_catalogue (store_id,product_id,is_available,price_override) VALUES ('waternow-boduppal','product-1',1,NULL)").run();
+    const correctedPinButNoStock=await send({
+      name:'WaterNow Boduppal',
+      address:'Brindavan Colony, Boduppal, Telangana 500092',
+      latitude:17.4151,longitude:78.5852,serviceRadiusKm:5,isActive:true
+    });
+    assert.equal(correctedPinButNoStock.status,400);
+    assert.match((await correctedPinButNoStock.json()).error,/positive physical stock/i);
+    assert.equal(db.db.prepare("SELECT is_active FROM delivery_stores WHERE id='waternow-boduppal'").get().is_active,0,
+      'a corrected address and pin are not enough while the store has no verified stock');
+
+    db.db.prepare("INSERT INTO delivery_store_inventory (store_id,product_id,stock_quantity) VALUES ('waternow-boduppal','product-1',5)").run();
     const activated=await send({
       name:'WaterNow Boduppal',
       address:'Brindavan Colony, Boduppal, Telangana 500092',
