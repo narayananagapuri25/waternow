@@ -1,4 +1,4 @@
-import webpush from 'web-push';
+import * as webpush from 'web-push';
 import { validatePushEndpoint } from './push-endpoint.js';
 
 const pushConfigured = env => Boolean(
