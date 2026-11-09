@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 170" role="img" aria-labelledby="title desc">
+<title id="title">WaterNow</title><desc id="desc">WaterNow — pure water, right on time.</desc>
+<defs>
+ <linearGradient id="drop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38c9f4"/><stop offset=".52" stop-color="#087da8"/><stop offset="1" stop-color="#07516c"/></linearGradient>
+ <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#47d8ee"/><stop offset="1" stop-color="#0799c4"/></linearGradient>
+ <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a5df45"/><stop offset="1" stop-color="#1a9e63"/></linearGradient>
+</defs>
+<g transform="translate(10 8)">
+ <path d="M76 8C63 31 24 75 24 105a52 52 0 0 0 104 0C128 75 89 31 76 8Z" fill="url(#drop)"/>
+ <path d="M54 83c7-15 18-29 27-43" fill="none" stroke="#d9faff" stroke-width="8" stroke-linecap="round" opacity=".75"/>
+ <path d="M9 120c24 25 67 32 111 7 10-6 19-14 27-22-22 47-76 64-118 43-10-5-17-14-20-28Z" fill="url(#wave)"/>
+ <path d="M90 151c22-28 50-40 81-34-13 25-40 41-81 34Z" fill="url(#leaf)"/>
+ <path d="M8 53h27M0 71h20M14 89h20" stroke="#12a8d1" stroke-width="7" stroke-linecap="round"/>
+</g>
+<text x="185" y="108" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="82" font-weight="800" letter-spacing="-4" fill="#07516c">Water<tspan fill="#10a978">Now</tspan></text>
+<text x="190" y="145" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="4" fill="#4d6b76">PURE WATER. RIGHT ON TIME.</text>
+</svg>
