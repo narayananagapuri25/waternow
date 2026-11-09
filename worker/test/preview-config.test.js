@@ -16,11 +16,16 @@ test('Worker Previews define the required environment variables explicitly', () 
   assert.equal(workerConfig.previews.vars.WATERNOW_ENVIRONMENT, 'preview');
 });
 
-test('Worker Preview configuration cannot point at the production D1 database', () => {
+test('Worker Previews use only the dedicated migrated WaterNow Preview D1 database', () => {
   assert.ok(productionConfig.d1_databases?.length, 'production D1 binding must remain defined');
-  assert.equal(
-    JSON.stringify(workerConfig.previews || {}).includes(productionConfig.d1_databases[0].database_id),
-    false,
-    'Preview settings must never reuse the production D1 database ID'
-  );
+  assert.deepEqual(workerConfig.previews?.d1_databases, [{
+    binding: 'DB',
+    database_name: 'waternow-preview',
+    database_id: '62531d65-a4f0-45aa-b89a-d7d94cff177c',
+    migrations_dir: 'migrations'
+  }]);
+  assert.notEqual(workerConfig.previews.d1_databases[0].database_id, productionConfig.d1_databases[0].database_id,
+    'Preview settings must never reuse the production D1 database ID');
+  assert.notEqual(workerConfig.previews.d1_databases[0].database_id, '00000000-0000-4000-8000-000000000001',
+    'Preview must never use the fake local development database ID');
 });
