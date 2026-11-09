@@ -70,9 +70,8 @@ async function validateOrderItems(env, rawItems, storeId = '') {
     dbProducts = result.results || [];
     if (dbProducts.length !== ids.length) throw new Error('One or more products are no longer available. Please refresh and try again.');
   }
-  // Store-level stock is authoritative. The aggregate products.stock_quantity is
-  // maintained for catalogue compatibility, but checkout validates against the
-  // chosen active store and its live reservations in prepareCheckoutDelivery().
+  // Store-level stock is authoritative. The legacy products.stock_quantity
+  // column remains only for schema compatibility and is never used for availability.
   const items = dbProducts.map(p => { const qty=unique.get(p.id); return { ...p, qty, lineTotal:Number(p.price)*qty, stockReservedQty:Number(p.stock_managed)===1?qty:0 }; });
   return { items, total: items.reduce((sum, item) => sum + item.lineTotal, 0) };
 }
