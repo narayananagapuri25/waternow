@@ -51,7 +51,7 @@
     const currentButton=root.querySelector('[data-map-current-location]');
     const status=root.querySelector('[data-map-status]');
     const setStatus=message=>{if(status)status.textContent=message;};
-    const radiusMetres=()=>Math.max(100,Math.min(100000,Number(radius?.value||5)*1000));
+    const radiusMetres=()=>{const raw=String(radius?.value??'').trim(),km=Number(raw);return raw!==''&&Number.isFinite(km)&&km>0?Math.max(100,Math.min(100000,km*1000)):0};
     const cleanup=()=>{
       disposed=true;
       if(map){map.off();map.remove();map=null;}
@@ -68,11 +68,11 @@
       if(!circle)circle=window.L.circle(point,{radius:radiusMetres(),color:'#087b52',weight:2,fillColor:'#13a36c',fillOpacity:.12}).addTo(map);
       else{circle.setLatLng(point);circle.setRadius(radiusMetres());}
       if(pan)map.setView(point,Math.max(map.getZoom(),16));
-      setStatus('Store pin selected. Drag the marker to fine-tune the exact location. The delivery circle shows the current '+(radius?.value||5)+' km radius.');
+      setStatus(radiusMetres()>0?'Store pin selected. Drag the marker to fine-tune the exact location. The delivery circle shows the current '+radius.value+' km radius.':'Store pin selected. Enter this store delivery radius to show its eligibility circle.');
     }
     function updateRadius(){
       if(circle)circle.setRadius(radiusMetres());
-      if(marker)setStatus('Store pin selected. Delivery eligibility radius: '+(radius?.value||5)+' km.');
+      if(marker)setStatus(radiusMetres()>0?'Store pin selected. Delivery eligibility radius: '+radius.value+' km.':'Store pin selected. Enter a delivery radius to show the eligibility circle.');
     }
     function pinFromMarker(){
       if(!marker)return;
