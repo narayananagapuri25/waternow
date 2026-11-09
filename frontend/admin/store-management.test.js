@@ -11,6 +11,8 @@ assert.ok(mapPickerSource.includes('L.tileLayer'),'the picker displays a tiled m
 assert.ok(mapPickerSource.includes("map.on('click'"),'tapping the map places the store pin');
 assert.ok(mapPickerSource.includes("marker.on('dragend'"),'the marker can be dragged for precision');
 assert.ok(mapPickerSource.includes('navigator.geolocation'),'the owner can use current location');
+assert.ok(mapPickerSource.includes('approximate locality-centre pin'), 'an approximate locality pin must be explicitly identified before activation');
+assert.ok(source.includes('Approximate pin — needs confirmation'), 'the store card must distinguish an approximate map pin from a verified pin');
 assert.ok(mapPickerSource.includes('circle.setRadius(radiusMetres())'),'the delivery radius is drawn on the map');
 
 function response(data, status = 200) {
