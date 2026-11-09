@@ -230,6 +230,30 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: node ./scripts/bootstrap-production-d1-baseline.mjs --dry-run
+      - name: Compare direct Worker and Pages catalogue responses (read only)
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          const endpoints = [
+            ['worker', 'https://waternow-api.narayana-nagapuri25-17f.workers.dev/api/products'],
+            ['pages', 'https://waternow.pages.dev/api/products']
+          ];
+          for (const [source, url] of endpoints) {
+            try {
+              const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+              const body = await response.json().catch(() => null);
+              const products = Array.isArray(body?.products) ? body.products : [];
+              console.log(JSON.stringify({
+                source,
+                status: response.status,
+                validJson: Boolean(body && typeof body === 'object'),
+                products: products.map(({ id, name, price, active }) => ({ id, name, price, active }))
+              }));
+            } catch (error) {
+              console.log(JSON.stringify({ source, error: error?.message || String(error) }));
+            }
+          }
+          NODE
 
   production-deploy:
     name: Deploy production D1 and WaterNow API
