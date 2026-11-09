@@ -67,18 +67,16 @@ async function publicProducts(env, storeId = '') {
   }
   const query = "SELECT p.id,p.name,p.unit,p.price,p.emoji,p.active,p.category_id,p.display_order," +
     "CASE WHEN p.image_data IS NOT NULL AND p.image_data <> '' THEN 1 ELSE 0 END AS has_custom_image," +
-    "LENGTH(p.image_data) AS image_length,p.image_data,p.updated_at,p.stock_managed,p.stock_quantity,p.low_stock_threshold," +
+    "LENGTH(p.image_data) AS image_length,p.image_data,p.updated_at," +
     "c.name AS category_name,c.slug AS category_slug " +
     "FROM products p LEFT JOIN categories c ON c.id=p.category_id " +
     "WHERE p.active=1 AND c.active=1 ORDER BY c.display_order,c.name,p.display_order,p.name";
   const { results } = await env.DB.prepare(query).all();
   return { products: await Promise.all((results || []).map(async p => {
-    const { has_custom_image, image_length, image_data, updated_at,
-      stock_managed, stock_quantity, low_stock_threshold, ...product } = p;
+    const { has_custom_image, image_length, image_data, updated_at, ...product } = p;
     return {
       ...product,
-      image_url: await publicImageUrl('products', { id: p.id, has_custom_image, image_length, image_data, updated_at }),
-      stock_status: stockStatus(stock_managed, stock_quantity, low_stock_threshold)
+      image_url: await publicImageUrl('products', { id: p.id, has_custom_image, image_length, image_data, updated_at })
     };
   })) };
 }
@@ -157,9 +155,8 @@ async function publicCatalogueImage(request, env, type, entityId) {
 }
 async function adminCatalogue(env){
   const {results}=await env.DB.prepare(`SELECT c.id,c.name,c.slug,c.icon,c.image_data,c.image_mime_type,c.description,c.display_order,c.active,COUNT(p.id) product_count,COALESCE(SUM(CASE WHEN p.active=1 THEN 1 ELSE 0 END),0) active_product_count,COALESCE(SUM(CASE WHEN p.active=0 THEN 1 ELSE 0 END),0) hidden_product_count FROM categories c LEFT JOIN products p ON p.category_id=c.id GROUP BY c.id,c.name,c.slug,c.icon,c.image_data,c.image_mime_type,c.description,c.display_order,c.active ORDER BY c.display_order ASC,c.name ASC`).all();
-  const {results:products}=await env.DB.prepare(`SELECT p.id,p.name,p.unit,p.price,p.emoji,p.image_data,p.image_mime_type,p.active,p.category_id,p.display_order,p.stock_managed,p.stock_quantity,p.low_stock_threshold,p.hsn_code,p.gst_rate_bps,p.gst_rate_confirmed,c.name category_name FROM products p LEFT JOIN categories c ON c.id=p.category_id ORDER BY CASE WHEN c.display_order IS NULL THEN 999999 ELSE c.display_order END,c.name,p.display_order,p.name`).all();
-  const activeStoreCount=Number((await env.DB.prepare('SELECT COUNT(*) count FROM delivery_stores WHERE is_active=1').first())?.count||0);
-  return{categories:results||[],products:products||[],activeStoreCount};
+  const {results:products}=await env.DB.prepare(`SELECT p.id,p.name,p.unit,p.price,p.emoji,p.image_data,p.image_mime_type,p.active,p.category_id,p.display_order,p.stock_managed,p.low_stock_threshold,p.hsn_code,p.gst_rate_bps,p.gst_rate_confirmed,c.name category_name FROM products p LEFT JOIN categories c ON c.id=p.category_id ORDER BY CASE WHEN c.display_order IS NULL THEN 999999 ELSE c.display_order END,c.name,p.display_order,p.name`).all();
+  return{categories:results||[],products:products||[]};
 }
 function validCategoryPayload(p){const name=clean(p.name,80);if(!name)throw new Error('Category name is required.');const slug=slugify(p.slug||name);if(!slug)throw new Error('Category slug is invalid.');const image=imageFields(p,'Category');return{name,slug,icon:clean(p.icon||'🛒',8),imageData:image.imageData,imageMimeType:image.imageMimeType,description:clean(p.description,240),displayOrder:Number.isInteger(Number(p.displayOrder))?Number(p.displayOrder):999,active:p.active===false||p.active===0||p.active==='0'?0:1}}
 async function createCategory(env,p){const v=validCategoryPayload(p);const existing=await env.DB.prepare('SELECT id FROM categories WHERE slug=?').bind(v.slug).first();if(existing)throw new Error('A category with this name already exists.');const categoryId=id('cat');await env.DB.prepare('INSERT INTO categories (id,name,slug,icon,image_data,image_mime_type,description,display_order,active) VALUES (?,?,?,?,?,?,?,?,?)').bind(categoryId,v.name,v.slug,v.icon,v.imageData,v.imageMimeType,v.description,v.displayOrder,v.active).run();return{ok:true,category:{id:categoryId,...v,product_count:0,active_product_count:0,hidden_product_count:0}}}
@@ -167,17 +164,11 @@ async function updateCategory(env,categoryId,p){const current=await env.DB.prepa
 async function deleteCategory(env,categoryId){const current=await env.DB.prepare('SELECT id FROM categories WHERE id=?').bind(categoryId).first();if(!current)throw new Error('Category not found.');const used=Number((await env.DB.prepare('SELECT COUNT(*) count FROM products WHERE category_id=?').bind(categoryId).first())?.count||0);if(used)throw new Error('This category contains products. Hide the category instead of deleting it.');await env.DB.prepare('DELETE FROM categories WHERE id=?').bind(categoryId).run();return{ok:true}}
 async function requireCategory(env,categoryId){const c=await env.DB.prepare('SELECT id,name,active FROM categories WHERE id=?').bind(clean(categoryId,100)).first();if(!c)throw new Error('Select a valid category.');return c}
 const units=new Set(['kg','g','litre','ml','piece','packet','box','bottle','dozen']);
-async function activeStoreCount(env){
-  return Number((await env.DB.prepare('SELECT COUNT(*) count FROM delivery_stores WHERE is_active=1').first())?.count||0);
-}
-async function storeCount(env){
-  return Number((await env.DB.prepare('SELECT COUNT(*) count FROM delivery_stores').first())?.count||0);
-}
-function inventoryRowsForProduct(env,productId,stockQuantity,activeStores){
+function inventoryRowsForProduct(env,productId){
   return env.DB.prepare(
     'INSERT OR IGNORE INTO delivery_store_inventory (store_id,product_id,stock_quantity) '+
-    'SELECT s.id,?,CASE WHEN ?=1 AND s.is_active=1 THEN ? ELSE 0 END FROM delivery_stores s'
-  ).bind(productId,activeStores,stockQuantity);
+    'SELECT s.id,?,0 FROM delivery_stores s'
+  ).bind(productId);
 }
 function catalogueRowsForProduct(env,productId){
   return env.DB.prepare(
@@ -190,31 +181,25 @@ async function createProduct(env,p){
     hsnCode=clean(p.hsnCode??p.hsn_code??'',8),gstRateBps=Number(p.gstRateBps??p.gst_rate_bps??0),
     gstRateConfirmed=(p.gstRateConfirmed===true||p.gst_rate_confirmed===true)?1:0,
     categoryId=clean(p.categoryId,100),displayOrder=Number.isInteger(Number(p.displayOrder))?Number(p.displayOrder):999,
-    stockManaged=p.stockManaged!==false,requestedStock=Number(p.stockQuantity??0),lowStockThreshold=Number(p.lowStockThreshold??5);
+    stockManaged=p.stockManaged!==false,lowStockThreshold=Number(p.lowStockThreshold??5);
   const image=imageFields(p);
   if(!name||!unit||!Number.isFinite(price)||price<0)throw new Error('Product name, unit and valid price are required.');
   if(!units.has(unit))throw new Error('Select a valid unit.');
-  if(!Number.isInteger(requestedStock)||requestedStock<0||!Number.isInteger(lowStockThreshold)||lowStockThreshold<0)throw new Error('Enter valid stock values.');
+  if(!Number.isInteger(lowStockThreshold)||lowStockThreshold<0)throw new Error('Enter a valid low-stock threshold.');
   if(hsnCode&&!/^\d{4,8}$/.test(hsnCode))throw new Error('HSN code must contain 4 to 8 digits.');
   if(!Number.isInteger(gstRateBps)||gstRateBps<0||gstRateBps>4000)throw new Error('GST rate must be between 0% and 40%, in increments of 0.01%.');
   if(gstRateConfirmed&&!hsnCode)throw new Error('Enter the accountant-confirmed HSN code before confirming a GST rate.');
   await requireCategory(env,categoryId);
   const productId=id('p');
-  const activeStores=stockManaged?await activeStoreCount(env):0;
-  const allStores=stockManaged?await storeCount(env):0;
-  // Store stock is the source of truth once any active store exists. Never put
-  // unallocated stock into the global aggregate when there are multiple stores.
-  const stockQuantity=stockManaged&&activeStores>1?0:requestedStock;
   const statements=[env.DB.prepare(
     'INSERT INTO products (id,name,unit,price,emoji,image_data,image_mime_type,active,category_id,display_order,stock_managed,stock_quantity,low_stock_threshold,hsn_code,gst_rate_bps,gst_rate_confirmed) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
   ).bind(productId,name,unit,Math.round(price),emoji,image.imageData,image.imageMimeType,1,categoryId,displayOrder,
-    stockManaged?1:0,stockQuantity,lowStockThreshold,hsnCode,gstRateBps,gstRateConfirmed)];
+    stockManaged?1:0,0,lowStockThreshold,hsnCode,gstRateBps,gstRateConfirmed)];
   statements.push(catalogueRowsForProduct(env,productId));
-  if(stockManaged&&allStores>0)statements.push(inventoryRowsForProduct(env,productId,requestedStock,activeStores));
+  if(stockManaged)statements.push(inventoryRowsForProduct(env,productId));
   await env.DB.batch(statements);
-  const stockAllocationRequired=Boolean(stockManaged&&activeStores>1&&requestedStock>0);
-  return{ok:true,stockAllocationRequired,product:{id:productId,name,unit,price:Math.round(price),emoji,active:1,
-    category_id:categoryId,display_order:displayOrder,stock_managed:stockManaged?1:0,stock_quantity:stockQuantity,
+  return{ok:true,product:{id:productId,name,unit,price:Math.round(price),emoji,active:1,
+    category_id:categoryId,display_order:displayOrder,stock_managed:stockManaged?1:0,
     low_stock_threshold:lowStockThreshold,hsn_code:hsnCode,gst_rate_bps:gstRateBps,gst_rate_confirmed:gstRateConfirmed,
     image_data:image.imageData,image_mime_type:image.imageMimeType}};
 }
@@ -228,43 +213,26 @@ async function updateProduct(env,productId,p){
     categoryId=clean(next.categoryId||next.category_id,100),
     displayOrder=Number.isInteger(Number(next.displayOrder??next.display_order))?Number(next.displayOrder??next.display_order):999,
     stockManaged=next.stockManaged!==undefined?Boolean(next.stockManaged):Boolean(current.stock_managed),
-    requestedStock=Number(next.stockQuantity??current.stock_quantity??0),
     lowStockThreshold=Number(next.lowStockThreshold??current.low_stock_threshold??5);
   const image=imageFields({...p,imageData:p.imageData===undefined?current.image_data:p.imageData,imageMimeType:p.imageMimeType===undefined?current.image_mime_type:p.imageMimeType});
   if(!name||!unit||!Number.isFinite(price)||price<0)throw new Error('Enter a valid name, price and unit.');
   if(!units.has(unit))throw new Error('Select a valid unit.');
   if(Number(current.stock_managed)===1&&!stockManaged)throw new Error('Stock tracking cannot be disabled after it is enabled.');
-  if(!Number.isInteger(requestedStock)||requestedStock<0||!Number.isInteger(lowStockThreshold)||lowStockThreshold<0)throw new Error('Enter valid stock values.');
+  if(!Number.isInteger(lowStockThreshold)||lowStockThreshold<0)throw new Error('Enter a valid low-stock threshold.');
   if(hsnCode&&!/^\d{4,8}$/.test(hsnCode))throw new Error('HSN code must contain 4 to 8 digits.');
   if(!Number.isInteger(gstRateBps)||gstRateBps<0||gstRateBps>4000)throw new Error('GST rate must be between 0% and 40%, in increments of 0.01%.');
   if(gstRateConfirmed===1&&!hsnCode)throw new Error('Enter the accountant-confirmed HSN code before confirming a GST rate.');
   await requireCategory(env,categoryId);
-  const wasManaged=Number(current.stock_managed)===1;
-  const activeStores=stockManaged?await activeStoreCount(env):0;
-  const allStores=stockManaged?await storeCount(env):0;
-  // Once store-level stock is configured, quantity changes belong in the Store
-  // Inventory screen. Catalogue edits must not overwrite the aggregate with a
-  // stale quantity from the product form.
-  const changingToManaged=!wasManaged&&stockManaged;
-  const mayEditGlobalStock=!stockManaged||activeStores===0;
-  const stockQuantity=stockManaged&&activeStores>1&&changingToManaged?0:
-    (wasManaged&&stockManaged&&!mayEditGlobalStock?Number(current.stock_quantity||0):requestedStock);
   const statements=[env.DB.prepare(
-    'UPDATE products SET name=?,unit=?,price=?,emoji=?,image_data=?,image_mime_type=?,active=?,category_id=?,display_order=?,stock_managed=?,stock_quantity=?,low_stock_threshold=?,hsn_code=?,gst_rate_bps=?,gst_rate_confirmed=?,updated_at=CURRENT_TIMESTAMP WHERE id=?'
+    'UPDATE products SET name=?,unit=?,price=?,emoji=?,image_data=?,image_mime_type=?,active=?,category_id=?,display_order=?,stock_managed=?,stock_quantity=0,low_stock_threshold=?,hsn_code=?,gst_rate_bps=?,gst_rate_confirmed=?,updated_at=CURRENT_TIMESTAMP WHERE id=?'
   ).bind(name,unit,Math.round(price),emoji,image.imageData,image.imageMimeType,next.active?1:0,categoryId,displayOrder,
-    stockManaged?1:0,stockQuantity,lowStockThreshold,hsnCode,gstRateBps,gstRateConfirmed,productId)];
+    stockManaged?1:0,lowStockThreshold,hsnCode,gstRateBps,gstRateConfirmed,productId)];
   statements.push(catalogueRowsForProduct(env,productId));
-  if(changingToManaged&&allStores>0)statements.push(inventoryRowsForProduct(env,productId,requestedStock,activeStores));
-  else if(wasManaged&&stockManaged&&allStores>0){
-    statements.push(env.DB.prepare(
-      'INSERT OR IGNORE INTO delivery_store_inventory (store_id,product_id,stock_quantity) SELECT s.id,?,0 FROM delivery_stores s'
-    ).bind(productId));
-  }
+  if(stockManaged)statements.push(inventoryRowsForProduct(env,productId));
   const results=await env.DB.batch(statements);
   if(!results?.[0]?.meta?.changes)throw new Error('Product not found.');
-  const stockAllocationRequired=Boolean(changingToManaged&&activeStores>1&&requestedStock>0);
-  return{ok:true,stockAllocationRequired,stock_managed:stockManaged?1:0,stock_quantity:stockQuantity,
-    low_stock_threshold:lowStockThreshold,hsn_code:hsnCode,gst_rate_bps:gstRateBps,gst_rate_confirmed:gstRateConfirmed};
+  return{ok:true,stock_managed:stockManaged?1:0,low_stock_threshold:lowStockThreshold,
+    hsn_code:hsnCode,gst_rate_bps:gstRateBps,gst_rate_confirmed:gstRateConfirmed};
 }
 async function deleteProduct(env,productId){
   const current=await env.DB.prepare('SELECT id FROM products WHERE id=? LIMIT 1').bind(productId).first();
