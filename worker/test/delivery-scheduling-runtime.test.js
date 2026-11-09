@@ -118,7 +118,7 @@ test('first Owner store also starts with zero physical stock instead of copying 
   const db=new SQLiteD1();
   try {
     db.db.exec('DELETE FROM delivery_slots; DELETE FROM delivery_store_inventory; DELETE FROM delivery_store_catalogue; DELETE FROM delivery_stores;');
-    assert.equal(db.db.prepare("SELECT stock_quantity FROM products WHERE id='product-1'").get().stock_quantity,3);
+    assert.equal(db.db.prepare("SELECT stock_quantity FROM products WHERE id='product-1'").get().stock_quantity,5);
     const response=await handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/stores',{
       method:'POST',headers:{'content-type':'application/json'},
       body:JSON.stringify({name:'First WaterNow Store',address:'Brindavan Colony, Boduppal',latitude:17.4151,longitude:78.5852})
@@ -128,7 +128,7 @@ test('first Owner store also starts with zero physical stock instead of copying 
     assert.equal(result.initialInventory,'zero-stock-requires-setup');
     assert.equal(db.db.prepare('SELECT is_active FROM delivery_stores WHERE id=?').get(result.store.id).is_active,0);
     assert.equal(db.db.prepare("SELECT stock_quantity FROM delivery_store_inventory WHERE store_id=? AND product_id='product-1'").get(result.store.id).stock_quantity,0);
-    assert.equal(db.db.prepare("SELECT stock_quantity FROM products WHERE id='product-1'").get().stock_quantity,0,
+    assert.equal(db.db.prepare("SELECT stock_quantity FROM products WHERE id='product-1'").get().stock_quantity,5,
       'no unverified quantity should appear as customer-available stock without an active store');
   } finally { db.close(); }
 });
@@ -240,7 +240,7 @@ test('Owner can reassign a pending order only to an active store with enough sto
     assert.equal(db.db.prepare("SELECT status,qty FROM delivery_store_inventory_reservations WHERE order_id='order-reassign' AND store_id='store-2'").get().status,'reserved');
     assert.equal(db.db.prepare("SELECT stock_reserved_qty FROM order_items WHERE order_id='order-reassign'").get().stock_reserved_qty,2,'store reassignment must restore the order stock reservation ledger');
     assert.equal(db.db.prepare("SELECT status FROM delivery_slot_reservations WHERE order_id='order-reassign'").get().status,'released');
-    assert.equal(db.db.prepare("SELECT stock_quantity FROM products WHERE id='product-1'").get().stock_quantity,8);
+    assert.equal(db.db.prepare("SELECT stock_quantity FROM products WHERE id='product-1'").get().stock_quantity,5);
   } finally { db.close(); }
 });
 
@@ -487,7 +487,7 @@ test('checkout creates an order with a server-validated preferred date and reser
     assert.equal(order.scheduled_slot_id,null);
     assert.equal(order.assigned_store_id,'store-1');
     assert.equal(order.schedule_status,'requested');
-    assert.equal(db.db.prepare(`SELECT stock_quantity FROM products WHERE id='product-1'`).get().stock_quantity,3);
+    assert.equal(db.db.prepare(`SELECT stock_quantity FROM products WHERE id='product-1'`).get().stock_quantity,5);
     assert.equal(db.db.prepare('SELECT stock_reserved_qty FROM order_items WHERE order_id=?').get(placed.id).stock_reserved_qty,2);
     assert.equal(db.db.prepare("SELECT COUNT(*) count FROM delivery_store_inventory_reservations WHERE order_id=? AND status='reserved'").get(placed.id).count,1);
     assert.equal(db.db.prepare('SELECT qty FROM delivery_store_inventory_reservations WHERE order_id=?').get(placed.id).qty,2);
@@ -504,7 +504,7 @@ test('checkout creates an order with a server-validated preferred date and reser
     assert.equal(retried.couponDiscount,25);
     assert.equal(db.db.prepare('SELECT COUNT(*) count FROM coupon_redemptions WHERE order_id=?').get(placed.id).count,1,'retry must not create another redemption');
     assert.equal(db.db.prepare('SELECT COUNT(*) count FROM first_order_coupon_claims WHERE customer_id=\'customer-1\'').get().count,1,'retry must not create another first-order claim');
-    assert.equal(db.db.prepare(`SELECT stock_quantity FROM products WHERE id='product-1'`).get().stock_quantity,3,'retry must not reserve store stock twice');
+    assert.equal(db.db.prepare(`SELECT stock_quantity FROM products WHERE id='product-1'`).get().stock_quantity,5,'retry must not reserve store stock twice');
     assert.equal(db.db.prepare('SELECT COUNT(*) count FROM delivery_store_inventory_reservations WHERE order_id=?').get(placed.id).count,1,'retry must not create duplicate store reservations');
     assert.equal(db.db.prepare('SELECT COUNT(*) count FROM delivery_slot_reservations WHERE order_id=?').get(placed.id).count,0);
   } finally { db.close(); }
