@@ -1,42 +1,19 @@
 (function(){
-  const BASE='frontend/media/catalogue/';
-  const media=Object.freeze({
-    categories:Object.freeze({
-      'cat-oils':BASE+'groundnut-oil.svg',
-      'cat-rice':BASE+'hmt-rice.svg'
-    }),
-    products:Object.freeze({
-      'p-1788808795819-x0yy':BASE+'groundnut-oil.svg',
-      'p-mtsy8sib-wdsit':BASE+'sunflower-oil.svg',
-      'p-mtsy9yvt-ca3c5':BASE+'hmt-rice.svg',
-      'p-mtsyafsh-82by2':BASE+'sona-masuri.svg'
-    })
+  const catalogue=Object.freeze({
+    'water-20l':'https://www.aquacoolthrissur.com/images/products/packaged-mineral-water-20l-can-thrissur.png',
+    'water-10l-pair':'https://www.bbassets.com/media/uploads/p/l/40366456_1-bailley-bailley-packaged-drinking-water.jpg'
   });
   const normalize=value=>String(value??'').normalize('NFKC').toLocaleLowerCase('en-IN').replace(/[^a-z0-9]+/g,' ').trim();
-  const categoryByKey=Object.freeze({
-    'oil':BASE+'groundnut-oil.svg',
-    'oils':BASE+'groundnut-oil.svg',
-    'cooking oil':BASE+'groundnut-oil.svg',
-    'cooking oils':BASE+'groundnut-oil.svg',
-    'rice':BASE+'hmt-rice.svg'
-  });
-  const productByName=name=>{
-    const key=normalize(name).replace(/\bground\s+nut\b/g,'groundnut');
-    if(key.includes('groundnut'))return BASE+'groundnut-oil.svg';
-    if(key.includes('sunflower'))return BASE+'sunflower-oil.svg';
-    if(key.includes('hmt')&&key.includes('rice'))return BASE+'hmt-rice.svg';
-    if(key.includes('sona')&&key.includes('masuri'))return BASE+'sona-masuri.svg';
-    return '';
-  };
   const image=(type,id,entity)=>{
-    const known=media[type]?.[String(id)];
-    if(known)return known;
-    if(type==='categories'){
-      const slug=normalize(entity?.slug);
+    if(type==='products'&&catalogue[String(id)])return catalogue[String(id)];
+    const key=normalize(entity?.slug||'')+' '+normalize(entity?.name||'');
+    if(/20l|20 litre|20 liter/.test(key))return catalogue['water-20l'];
+    if(/10l|10 litre|10 liter/.test(key))return catalogue['water-10l-pair'];
+    if(type==='products'){
       const name=normalize(entity?.name);
-      return categoryByKey[slug]||categoryByKey[name]||'';
+      if(name.includes('20l'))return catalogue['water-20l'];
+      if(name.includes('10l'))return catalogue['water-10l-pair'];
     }
-    if(type==='products')return productByName(entity?.name);
     return '';
   };
   window.FreshWayCatalogueMedia=Object.freeze({image});
