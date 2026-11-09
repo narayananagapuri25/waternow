@@ -1,8 +1,7 @@
 (function(){
   const $=s=>document.querySelector(s);
   const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
-  const CATEGORY_STORAGE_KEY='waternow-customer-selected-category';
-  const getStoredCategory=()=>{try{return window.sessionStorage.getItem(CATEGORY_STORAGE_KEY)||null}catch(_){return null}};
+  const WATER_PRODUCT_IDS=new Set(['water-20l','water-10l-pair']);
   const STORE_STORAGE_KEY='waternow-selected-store-v1';
   const readStoreId=()=>{try{return window.localStorage.getItem(STORE_STORAGE_KEY)||''}catch(_){return''}};
   let selectedStoreIdValue=readStoreId(),selectedStore=null,pendingStore=null;
@@ -48,14 +47,9 @@
     const request=window.FreshWayCustomerAPI?.request;
     if(typeof request!=='function'||!store?.id)return {ok:false,reviewRequired:true};
     const storeId=String(store.id);
-    const [categoryResult,productResult]=await Promise.allSettled([
-      request('/api/categories?storeId='+encodeURIComponent(storeId)),
-      request('/api/products?storeId='+encodeURIComponent(storeId))
-    ]);
-    const categoryOk=categoryResult.status==='fulfilled'&&Array.isArray(categoryResult.value?.categories);
-    const productOk=productResult.status==='fulfilled'&&Array.isArray(productResult.value?.products);
-    if(!categoryOk||!productOk)throw new Error('We could not load the catalogue for '+String(store.name||'the selected store')+'. Please retry.');
-    const nextCategories=categoryResult.value.categories,nextProducts=productResult.value.products;
+    const productResult=await request('/api/products?storeId='+encodeURIComponent(storeId));
+    if(!Array.isArray(productResult?.products))throw new Error('We could not load the catalogue for '+String(store.name||'the selected store')+'. Please retry.');
+    const nextProducts=productResult.products.filter(product=>WATER_PRODUCT_IDS.has(String(product.id)));
     const changes=cartChangesForStore(nextProducts);
     const cartState=window.FreshWayCustomerCatalogue?.getCart?.()||{};
     const hasCart=Object.keys(cartState.cart||{}).length>0;
@@ -75,20 +69,20 @@
     selectedStoreIdValue=storeId;
     pendingStore=null;
     try{window.localStorage.setItem(STORE_STORAGE_KEY,storeId)}catch(_){}
-    categories=nextCategories;
+    categories=[];
     products=nextProducts;
+    selected=null;
     const sync=window.FreshWayCustomerCatalogue?.setProducts(products)||{};
     if(Number(sync.unavailable)>0)window.dispatchEvent(new CustomEvent('freshway:catalogue-sync',{detail:sync}));
     loading=false;ready=true;errorMessage='';errorCode='';
     renderHome();
-    if(selected&&categories.some(x=>String(x.id)===String(selected)))setMode(selected,{history:'none'});
-    else setMode(null,{history:selected?'replace':'none'});
+    setMode(null,{history:'none'});
     if(changes.length)window.dispatchEvent(new CustomEvent('freshway:store-catalogue-changed',{detail:{store,changes}}));
     return {ok:true,changed:changedStore||changes.length>0,store,changes};
   }
   async function load({reviewChange=true,preserveExisting=true}={}){
     const token=++loadToken;
-    const hadData=!!preserveExisting&&ready&&products.length>0&&categories.length>0;
+    const hadData=!!preserveExisting&&ready&&products.length>0;
     const request=window.FreshWayCustomerAPI?.request;
     loading=!hadData;errorMessage='';errorCode='';ready=hadData;
     if(!hadData)renderHome();
@@ -119,7 +113,7 @@
         // and cannot silently fulfil from the old store.
         loading=false;ready=products.length>0;errorMessage='';
         renderHome();
-        if(selected&&categories.some(x=>String(x.id)===String(selected)))setMode(selected,{history:'none'});
+        setMode(null,{history:'none'});
         applyMode();return;
       }
     }catch(error){
@@ -128,7 +122,7 @@
       if(hadData){
         ready=true;errorMessage='';
         renderHome();
-        if(selected&&categories.some(x=>String(x.id)===String(selected)))setMode(selected,{history:'none'});
+        setMode(null,{history:'none'});
         applyMode();return;
       }
       ready=false;
@@ -139,72 +133,48 @@
   }
   function renderHome(){
     const c=ensureUI();if(!c)return;
-    const fallback=[
-      {id:'water-20l',name:'20L Water Can',slug:'20l-water-can',icon:'💧'},
-      {id:'water-10l-pair',name:'2 × 10L Water Cans',slug:'two-10l-water-cans',icon:'🚰'}
-    ];
-    const needsLocation=loading||!!errorMessage;
-    const visible=needsLocation?fallback:categories.filter(x=>Number(x.product_count)>0);
-    const cards=visible.map(item=>{
-      const image=needsLocation?media?.image('categories',item.id,item):item.image_url||media?.image('categories',item.id,item);
-      const icon=image?'<span class="fw-category-icon fw-category-image"><img src="'+esc(image)+'" alt="" loading="lazy" decoding="async"></span>':'<span class="fw-category-icon" aria-hidden="true">'+esc(item.icon||'💧')+'</span>';
-      const label=needsLocation?'Check local availability':Number(item.product_count)+' '+(Number(item.product_count)===1?'product':'products');
-      return '<button type="button" class="fw-category-card" data-fw-'+(needsLocation?'needs-location':'category')+'="'+esc(item.id)+'" aria-pressed="'+(!needsLocation&&String(item.id)===String(selected))+'">'+icon+'<span><strong>'+esc(item.name)+'</strong><small>'+label+' <span class="fw-cat-arrow">View →</span></small></span></button>';
-    }).join('');
     let notice='';
-    if(loading)notice='<p class="fw-location-needed" role="status">Checking local supplier availability. Add your delivery address to see nearby options.</p>';
-    else if(errorCode==='AREA_UNAVAILABLE')notice='<div class="fw-location-needed" role="status">We do not have a confirmed supplier for this address yet. Contact WaterNow and we will check nearby delivery options.<button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
-    else if(errorMessage)notice='<div class="fw-location-needed" role="status">Add your delivery address to check prices and availability from nearby suppliers.<button type="button" data-fw-needs-location="address">Add delivery address</button><button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';
-    c.innerHTML='<div class="fw-cat-heading"><div><span class="eyebrow">WATER OPTIONS</span><h2>Choose your water pack</h2></div><span class="count-pill">2 water packs</span></div><div class="fw-category-grid">'+cards+'</div>'+notice;
+    if(loading)notice='<p class="fw-location-needed" role="status">Checking delivery availability for your address…</p>';
+    else if(errorCode==='AREA_UNAVAILABLE')notice='<div class="fw-location-needed" role="status">Delivery is not available at this address yet. Contact WaterNow and we will check nearby options.<button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
+    else if(errorMessage)notice='<div class="fw-location-needed" role="status">Add or update your delivery address to check the two WaterNow packs available in your area.<button type="button" data-fw-needs-location="address">Add delivery address</button><button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';
+    c.innerHTML=notice;
+    c.hidden=!notice;
   }
-  function setMode(categoryId,{history='none'}={}){
-    const requested=categoryId||null;
-    selected=requested&&String(requested)===String(selected)?null:requested;
-    if(selected&&!categories.some(x=>String(x.id)===String(selected)))selected=null;
-    try{if(selected)window.sessionStorage.setItem(CATEGORY_STORAGE_KEY,String(selected));else window.sessionStorage.removeItem(CATEGORY_STORAGE_KEY)}catch(_){}
+  function setMode(_categoryId,{history='none'}={}){
+    selected=null;
+    try{window.sessionStorage.removeItem('waternow-customer-selected-category')}catch(_){}
+    document.body.classList.remove('fw-category-selected');
     const grid=$('#productGrid'),heading=$('.section-heading'),hero=$('.hero-banner');
-    document.body.classList.toggle('fw-category-selected',!!selected);
-    document.querySelectorAll('[data-fw-category]').forEach(card=>card.setAttribute('aria-pressed',String(card.dataset.fwCategory)===String(selected)?'true':'false'));
     if(grid)grid.classList.remove('fw-category-home-hidden');
     if(heading){
       heading.classList.remove('fw-category-home-hidden');
       const label=heading.querySelector('.eyebrow'),title=heading.querySelector('h2');
-      if(label)label.textContent=selected?'SELECTED WATER PACK':'AVAILABLE WATER PACKS';
-      if(title)title.textContent=selected?(categories.find(x=>String(x.id)===String(selected))?.name||'Water pack'):'Available in your area';
+      if(label)label.textContent='WATER PRODUCTS';
+      if(title)title.textContent='Available water products';
     }
     if(hero)hero.classList.remove('fw-category-home-hidden');
     applyMode();
-    if(selected)grid?.scrollIntoView?.({behavior:'smooth',block:'start'});
   }
   function applyMode(){
     const grid=$('#productGrid');if(!grid)return;
     if(!ready||loading||errorMessage){grid.classList.add('fw-category-home-hidden');return}
     grid.classList.remove('fw-category-home-hidden');
-    const allowed=selected?new Set(products.filter(p=>String(p.category_id)===String(selected)).map(p=>String(p.id))):null;
-    const cards=[...grid.querySelectorAll('.product-card')];let visible=0;
-    cards.forEach(card=>{
-      const control=card.querySelector('[data-add],[data-plus],[data-minus]');
-      const id=control?.dataset.add||control?.dataset.plus||control?.dataset.minus||'';
-      const show=!allowed||allowed.has(String(id));
-      card.style.display=show?'':'none';if(show)visible++;
-    });
-    const pill=$('.section-heading .count-pill');if(pill)pill.textContent=visible+' '+(visible===1?'option':'options');
-    const title=$('.section-heading h2');
-    if(title)title.textContent=selected?(categories.find(x=>String(x.id)===String(selected))?.name||'Water pack'):'Available in your area';
-    const eyebrow=$('.section-heading .eyebrow');if(eyebrow)eyebrow.textContent=selected?'SELECTED WATER PACK':'AVAILABLE WATER PACKS';
-    document.querySelectorAll('[data-fw-category]').forEach(card=>card.setAttribute('aria-pressed',String(card.dataset.fwCategory)===String(selected)?'true':'false'));
+    const cards=[...grid.querySelectorAll('.product-card')];
+    cards.forEach(card=>{card.style.display='';});
+    const count=cards.length;
+    const pill=$('.section-heading .count-pill');if(pill)pill.textContent=count+' '+(count===1?'item':'items');
+    const title=$('.section-heading h2');if(title)title.textContent='Available water products';
+    const eyebrow=$('.section-heading .eyebrow');if(eyebrow)eyebrow.textContent='WATER PRODUCTS';
   }
   function install(){
     ensureUI();
-    document.addEventListener('click',e=>{if(e.target.closest('[data-fw-delivery-contact]')){e.preventDefault();window.setView?.('contact');return}if(e.target.closest('#fwCatalogueRetry')){e.preventDefault();load();return}const b=e.target.closest('[data-fw-category]');if(b){e.preventDefault();e.stopImmediatePropagation();setMode(b.dataset.fwCategory);return}if(e.target.closest('[data-fw-needs-location]')){e.preventDefault();e.stopImmediatePropagation();$('#addressBtn')?.click();return}},true);
-    const observer=new MutationObserver(()=>{if(selected)applyMode()});
-    const grid=$('#productGrid');if(grid)observer.observe(grid,{childList:true});
+    document.addEventListener('click',e=>{if(e.target.closest('[data-fw-delivery-contact]')){e.preventDefault();window.setView?.('contact');return}if(e.target.closest('#fwCatalogueRetry')){e.preventDefault();load();return}if(e.target.closest('[data-fw-needs-location]')){e.preventDefault();e.stopImmediatePropagation();$('#addressBtn')?.click();return}},true);
   }
   window.FreshWayCustomerStoreCatalogue=Object.freeze({selectedStoreId:()=>selectedStore?.id||selectedStoreIdValue||'',selectedStore:()=>selectedStore,switchToStore,refresh:load});
   window.addEventListener('freshway:address-changed',()=>{void load({reviewChange:true,preserveExisting:false})});
   window.freshWayCustomerCatalogueRefresh=load;
   window.freshWayCustomerCatalogueGoHome=()=>setMode(null,{history:'none'});
-  window.addEventListener('popstate',event=>{if(event.state?.__freshwayCustomer&&event.state.view==='home')setMode(event.state.category||null,{history:'none'})});
+  window.addEventListener('popstate',event=>{if(event.state?.__freshwayCustomer&&event.state.view==='home')setMode(null,{history:'none'})});
   install();load();
 })();
 const fwPushDestinationLoader=document.createElement('script');fwPushDestinationLoader.src='frontend/customer/push-destination.js?v=20260908-push-destination-v1';fwPushDestinationLoader.async=false;document.head.appendChild(fwPushDestinationLoader);
