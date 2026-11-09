@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const source=fs.readFileSync('frontend/customer/navigation.js','utf8');
-assert.match(source,/__freshwayCustomer/);
+assert.match(source,/__waterNowCustomer/);
 assert.match(source,/history\.pushState/);
 assert.match(source,/history\.back/);
 assert.match(source,/popstate/);
@@ -9,8 +9,8 @@ assert.ok(source.includes('window.FreshWayCustomerFeedback?.clear?.(document)'),
 assert.match(source,/history:'none'/);
 assert.match(source,/const preferredInitialView=\(\)=>/,'initial history setup must preserve valid hash or saved routes before seeding Home');
 assert.match(source,/if\(initialView==='home'\)window\.history\.pushState\(state,'',window\.location\.href\)/,'only the Home entry may receive a protective history sentinel; deep-link and restored entries must not be duplicated');
-assert.match(source,/sessionStorage\.getItem\('freshway-current-view-v1'\)/,'first load after an older app version must not overwrite a saved customer screen with Home');
-assert.match(source,/FreshWayCustomerViewState\?\.saveView\(name\)/,'navigation must persist every programmatic view change, not only clicks');
+assert.match(source,/sessionStorage\.getItem\('waternow-current-view-v1'\)/,'first load after an older app version must not overwrite a saved customer screen with Home');
+assert.match(source,/WaterNowCustomerViewState\?\.saveView\(name\)/,'navigation must persist every programmatic view change, not only clicks');
 assert.match(source,/const nextView=state\?\.\[HISTORY_FLAG\]&&validViews\.has\(state\.view\)\?state\.view:'home'/,'Back/Forward must render only a valid view stored on that exact browser-history entry');
 assert.match(source,/state\.previousView===target/,'a page Back button may use browser Back only when the previous in-app route matches its declared destination');
 assert.match(source,/setView\(target,\{history:'replace'\}\)/,'deep links without an in-app predecessor must still honour the explicit Back destination');
@@ -19,7 +19,7 @@ assert.match(app,/navigation\.goBack\(backButton\.dataset\.back\|\|'home'\)/,'in
 assert.match(app,/function setView\(name,options\)\{if\(name==='home'&&options\?\.history!=='none'\)window\.freshWayCustomerCatalogueGoHome\?\.\(\);navigation\.setView\(name,options\)\}/,'explicit Home actions reset category selection while popstate restoration preserves the history state');
 const viewState=fs.readFileSync('frontend/customer/view-state.js','utf8');
 assert.match(viewState,/history:'replace'/);
-assert.match(viewState,/window\.history\?\.state\?\.__freshwayCustomer/,'refresh restoration should trust the active history entry before older session storage');
+assert.match(viewState,/window\.history\?\.state\?\.__waterNowCustomer/,'refresh restoration should trust the active history entry before older session storage');
 const html=fs.readFileSync('index.html','utf8');
 assert.match(html,/fw-view-restore-pending #app\{visibility:hidden\}/,'non-home refreshes should remain hidden until the restored route is active');
 assert.ok(html.includes('navigation.js?v=20261107-history-back-v1'),'navigation must use the cache-busted deterministic history module');
