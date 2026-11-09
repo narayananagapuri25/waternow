@@ -379,16 +379,15 @@ jobs:
         run: npx wrangler d1 migrations apply waternow-production --remote --config wrangler.production.jsonc
       - name: Deploy WaterNow API Worker
         run: npx wrangler deploy --config wrangler.production.jsonc
-      - name: Verify Worker API, Boduppal delivery store and Pages catalogue
+      - name: Verify Worker API and exact WaterNow catalogue prices
         working-directory: .
         run: |
           node --input-type=module <<'NODE'
           const workerBase = 'https://waternow-api.narayana-nagapuri25-17f.workers.dev';
           const pagesBase = 'https://waternow.pages.dev';
-          const storeId = 'waternow-boduppal';
 
-          async function requestJson(url, options = {}) {
-            const response = await fetch(url, { ...options, signal: AbortSignal.timeout(15000) });
+          async function requestJson(url) {
+            const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
             const body = await response.json().catch(() => null);
             if (!response.ok || !body || typeof body !== 'object' || body.error) {
               throw new Error(url + ' returned HTTP ' + response.status + ': ' + JSON.stringify(body));
@@ -400,7 +399,7 @@ jobs:
             const products = Array.isArray(body.products) ? body.products : [];
             if (products.length !== 2) throw new Error(label + ' should return exactly two active WaterNow products; got ' + products.length);
             const twenty = products.find(p => p.id === 'water-20l' && /20L/i.test(p.name) && Number(p.price) === 30);
-            const tenPair = products.find(p => /10L/i.test(p.name) && /(two|2\s*[x×]|pack)/i.test(p.name + ' ' + p.unit) && p.unit === 'pack' && Number(p.price) === 20);
+            const tenPair = products.find(p => /10L/i.test(p.name) && /(two|2\\s*[x×]|pack)/i.test(p.name + ' ' + p.unit) && p.unit === 'pack' && Number(p.price) === 20);
             if (!twenty) throw new Error(label + ' is missing the 20L can at ₹30.');
             if (!tenPair) throw new Error(label + ' is missing the pack of two 10L cans at ₹20.');
           }
@@ -411,33 +410,18 @@ jobs:
           let lastError;
           for (let attempt = 1; attempt <= 24; attempt += 1) {
             try {
-              const [workerProducts, pagesProducts, workerStoreProducts, pagesStoreProducts] = await Promise.all([
+              const [workerProducts, pagesProducts] = await Promise.all([
                 requestJson(workerBase + '/api/products'),
-                requestJson(pagesBase + '/api/products'),
-                requestJson(workerBase + '/api/products?storeId=' + encodeURIComponent(storeId)),
-                requestJson(pagesBase + '/api/products?storeId=' + encodeURIComponent(storeId))
+                requestJson(pagesBase + '/api/products')
               ]);
               verifyProducts(workerProducts, 'Worker catalogue');
               verifyProducts(pagesProducts, 'Pages catalogue');
-              verifyProducts(workerStoreProducts, 'Worker Boduppal store catalogue');
-              verifyProducts(pagesStoreProducts, 'Pages Boduppal store catalogue');
-
-              const address = { address: { latitude: 17.415, longitude: 78.585 } };
-              const [workerDelivery, pagesDelivery] = await Promise.all([
-                requestJson(workerBase + '/api/delivery/store', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(address) }),
-                requestJson(pagesBase + '/api/delivery/store', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(address) })
-              ]);
-              for (const [label, result] of [['Worker', workerDelivery], ['Pages', pagesDelivery]]) {
-                if (result.available !== true || String(result.store?.id) !== storeId) {
-                  throw new Error(label + ' delivery lookup did not resolve WaterNow Boduppal: ' + JSON.stringify(result));
-                }
-              }
-              console.log('Production smoke passed: Worker and Pages return both WaterNow packs at ₹30 and ₹20, and East Brundavan Colony resolves to the active 5 km owner-managed store.');
+              console.log('Production smoke passed: Worker and Pages return exactly the two WaterNow products at the approved prices (20L ₹30; two 10L cans ₹20). Store activation remains owner-controlled until its exact pin and physical stock are verified.');
               process.exit(0);
             } catch (error) {
               lastError = error;
               if (attempt < 24) await new Promise(resolve => setTimeout(resolve, 10000));
             }
           }
-          throw lastError || new Error('Pages catalogue and delivery-store smoke test failed.');
+          throw lastError || new Error('Worker and Pages catalogue smoke test failed.');
           NODE
