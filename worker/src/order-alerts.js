@@ -23,14 +23,14 @@ export function buildOrderPlacedAlerts(order) {
     {
       audience: 'customer', customerId: cleanText(order?.customerId, 100), orderId: id,
       eventType: 'order_placed', eventKey: `order:${id}:placed:customer`,
-      title: 'Order received · FreshWay',
+      title: 'Order received · WaterNow',
       body: `We received order ${id} for ${amount}. We’ll notify you when it’s confirmed.`,
       url: `/?openOrder=${encodeURIComponent(id)}#orders`
     },
     {
       audience: 'owner', customerId: '', orderId: id,
       eventType: 'new_order', eventKey: `order:${id}:placed:owner`,
-      title: 'OWNER · New FreshWay order',
+      title: 'OWNER · New WaterNow order',
       body: `${customerName} · ${id} · ${amount} · ${itemCount} item${itemCount === 1 ? '' : 's'} · Cash pending`,
       url: `/admin/?openOrder=${encodeURIComponent(id)}#orders`
     }
@@ -56,8 +56,8 @@ export async function dispatchOrderAlert(env, alert) {
   const orderId = cleanText(alert?.orderId, 100) || null;
   const eventType = cleanText(alert?.eventType, 60) || 'order_update';
   const eventKey = cleanText(alert?.eventKey, 240);
-  const title = cleanText(alert?.title, 80) || 'FreshWay order update';
-  const body = cleanText(alert?.body, 300) || 'There is an update about your FreshWay order.';
+  const title = cleanText(alert?.title, 80) || 'WaterNow order update';
+  const body = cleanText(alert?.body, 300) || 'There is an update about your WaterNow order.';
   const url = safePath(alert?.url);
   if (!eventKey) return { status: 'invalid_event', sent: 0, failed: 0 };
 
@@ -73,7 +73,7 @@ export async function dispatchOrderAlert(env, alert) {
     if (!eventId) return { status: 'logged_without_id', sent: 0, failed: 0 };
   } catch (error) {
     // Alert storage is best-effort at this boundary; never roll back a placed order or status change.
-    console.error('FreshWay order alert could not be recorded:', error?.message || error);
+    console.error('WaterNow order alert could not be recorded:', error?.message || error);
     return { status: 'log_failed', sent: 0, failed: 0 };
   }
 
@@ -90,7 +90,7 @@ export async function dispatchOrderAlert(env, alert) {
     subscriptions = result?.results || [];
   } catch (error) {
     try { await updateEvent(env, eventId, { status: 'failed', lastError: 'SUBSCRIPTION_LOOKUP_FAILED' }); } catch (_) {}
-    console.error('FreshWay order alert subscription lookup failed:', error?.message || error);
+    console.error('WaterNow order alert subscription lookup failed:', error?.message || error);
     return { status: 'failed', sent: 0, failed: 0 };
   }
 
@@ -131,7 +131,7 @@ export async function dispatchOrderAlert(env, alert) {
   } catch (error) {
     failed = subscriptions.length;
     failureReasons.SEND_SETUP_ERROR = Math.max(1, subscriptions.length);
-    console.error('FreshWay order alert send failed:', error?.message || error);
+    console.error('WaterNow order alert send failed:', error?.message || error);
   }
 
   if (dead.length) {
@@ -150,7 +150,7 @@ export async function dispatchOrderAlert(env, alert) {
         : null
     });
   } catch (error) {
-    console.error('FreshWay order alert result could not be saved:', error?.message || error);
+    console.error('WaterNow order alert result could not be saved:', error?.message || error);
   }
   return { status, sent, failed };
 }
@@ -239,7 +239,7 @@ export async function sendOwnerPushTest(env) {
     orderId: '',
     eventType: 'push_test',
     eventKey: `owner:push-test:${nonce}`,
-    title: 'FreshWay Owner · Test notification',
+    title: 'WaterNow Owner · Test notification',
     body: 'This is a test push. If you see it, this Owner device received a notification.',
     url: '/admin/#notifications'
   });
