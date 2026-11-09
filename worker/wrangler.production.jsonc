@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "waternow-api",
+  "main": "src/admin-auth.js",
+  "compatibility_date": "2026-09-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "waternow-production",
+      "database_id": "da57af93-2f4f-42f1-b2f3-eb02533bf9fd"
+    }
+  ],
+  "vars": {
+    "WATERNOW_ENVIRONMENT": "production",
+    "APP_ORIGIN": "https://waternow.pages.dev",
+    "APP_ORIGINS": "https://waternow.pages.dev",
+    "APP_ORIGIN_SUFFIXES": ".waternow.pages.dev"
+  }
+}
