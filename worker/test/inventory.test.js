@@ -98,7 +98,7 @@ test('legacy unassigned order cancellation never restores deprecated global prod
       },
       async batch(statements){
         assert.equal(statements.length,1,'an unassigned legacy order has no store inventory ledger to mutate');
-        assert.match(statements[0].sql,/UPDATE orders SET/);
+        assert.ok(calls.some(sql=>/UPDATE orders SET/.test(sql)));
         assert.ok(!calls.some(sql=>/products.*stock_quantity|stock_quantity.*products/i.test(sql)),
           'legacy global product stock must never be read or changed');
         return [{meta:{changes:1}}];
@@ -109,17 +109,26 @@ test('legacy unassigned order cancellation never restores deprecated global prod
   assert.equal(result.status,'Cancelled');
 });
 
-test('central customer catalogue does not expose a duplicate global stock state',async()=>{
+test('central customer catalogue query and response omit all global stock columns',async()=>{
+  const queries=[];
+  const DB={
+    prepare(sql){
+      queries.push(sql);
+      return {
+        async all(){return{results:[{id:'p1',name:'Water Can',unit:'can',price:30,emoji:'💧',active:1}]}};
+      };
+    }
+  };
   const response=await (await import('../src/index.js')).default.fetch(
     new Request('https://api.example.test/api/products'),
-    {APP_ORIGIN:'https://waternow.pages.dev',DB:mockProducts([
-      {id:'p1',name:'Water Can',unit:'can',price:30,emoji:'💧',active:1,stock_managed:1,stock_quantity:2,low_stock_threshold:2}
-    ])},
+    {APP_ORIGIN:'https://waternow.pages.dev',DB},
     {}
   );
   assert.equal(response.status,200);
   const data=await response.json();
   assert.equal(data.products[0].id,'p1');
+  assert.ok(!queries.some(sql=>/stock_quantity|stock_managed|low_stock_threshold/.test(sql)),
+    'the central catalogue endpoint must not read a second global stock source');
   assert.equal('stock_status' in data.products[0],false);
   assert.equal('stock_quantity' in data.products[0],false);
 });
