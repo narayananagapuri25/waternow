@@ -1,9 +1,9 @@
 # Configurable commerce PWA starter
 
-This private repository contains a full application source snapshot imported from FreshWay: customer PWA, owner/admin interface, Cloudflare Pages Functions and Worker API, D1 schema and migrations, assets, and automated tests.
+WaterNow is a local drinking-water ordering PWA and supplier operations starter, adapted from the imported commerce PWA foundation. It supports 20L cans and packs of two 10L cans, supplier onboarding, owner operations and Cloudflare D1.
 
 ## Safety and reuse
-- This is a development/template copy, not a live FreshWay deployment.
+- This is a development/template copy, not a live WaterNow deployment.
 - Production deployment workflows and production/live-data audit suites were intentionally omitted.
 - No production credentials or production D1 database identifier are included.
 - Configure your own Cloudflare account, D1 database, domain, secrets, and notification providers before deployment.
@@ -20,3 +20,16 @@ This private repository contains a full application source snapshot imported fro
 
 ## Source snapshot
 Imported from nagapurinarayana-ship-it/freshway, branch main, during 2026-11-07. This is a snapshot, not a fork; future changes do not synchronize automatically.
+
+
+## WaterNow product direction
+- Customer home presents both water packs together: 20L cans and 2 × 10L cans. Selecting a pack filters the catalogue in place; it does not open a separate category page.
+- Prices remain unavailable until the owner has agreed and entered supplier pricing. A zero-priced item is intentionally not orderable.
+- The owner can onboard suppliers and delivery partners by city. Newly added suppliers remain inactive until an administrator verifies the applicable FSSAI licence/registration and packaged-water testing records.
+- Supplier delivery and WaterNow-arranged last-mile delivery are represented separately in the network model.
+- Use a Cloudflare D1 database for customer, catalogue, supplier, partner, order and fulfilment records. Do not store operational business data in inline JavaScript.
+
+## Catalogue image sources
+The initial water-can reference images are external catalogue examples; replace them with approved supplier-owned product photographs before production:
+- 20L reference: https://www.aquacoolthrissur.com/images/products/packaged-mineral-water-20l-can-thrissur.png
+- 10L reference: https://www.bbassets.com/media/uploads/p/l/40366456_1-bailley-bailley-packaged-drinking-water.jpg
