@@ -95,8 +95,29 @@ PENDING_0053_TRIGGERS = {
 }
 
 
+LEGACY_SHARE_DESCRIPTION_DEFAULT = "'Order 20L drinking water cans or packs of two 10L cans from local suppliers with convenient home delivery.'"
+WATERNOW_SHARE_DESCRIPTION_DEFAULT = "'Order 20L drinking water cans or packs of two 10L cans directly from WaterNow with convenient home delivery.'"
+
+
+def columns_match_with_known_share_description_default(table, expected_columns, actual_columns, allow_legacy_default):
+    if not allow_legacy_default or table != "store_profile":
+        return False
+    expected_copy, actual_copy = list(expected_columns), list(actual_columns)
+    expected_index = next((i for i, column in enumerate(expected_copy) if column[0] == "share_description"), None)
+    actual_index = next((i for i, column in enumerate(actual_copy) if column[0] == "share_description"), None)
+    if expected_index is None or actual_index is None:
+        return False
+    if expected_copy[expected_index][3] != WATERNOW_SHARE_DESCRIPTION_DEFAULT:
+        return False
+    if actual_copy[actual_index][3] != LEGACY_SHARE_DESCRIPTION_DEFAULT:
+        return False
+    actual_copy[actual_index] = expected_copy[expected_index]
+    return expected_copy == actual_copy
+
+
 def compare(expected: sqlite3.Connection, actual: sqlite3.Connection,
-            allow_pending_0053: bool = False) -> list[str]:
+            allow_pending_0053: bool = False,
+            allow_legacy_waternow_share_description_default: bool = False) -> list[str]:
     issues: list[str] = []
     exp_tables, act_tables = app_tables(expected), app_tables(actual)
     for name in sorted(exp_tables - act_tables):
@@ -106,7 +127,9 @@ def compare(expected: sqlite3.Connection, actual: sqlite3.Connection,
 
     for table in sorted(exp_tables & act_tables):
         exp_cols, act_cols = columns(expected, table), columns(actual, table)
-        if exp_cols != act_cols:
+        if exp_cols != act_cols and not columns_match_with_known_share_description_default(
+            table, exp_cols, act_cols, allow_legacy_waternow_share_description_default
+        ):
             issues.append(
                 f"column mismatch: {table}\n"
                 f"  expected={json.dumps(exp_cols, default=str)}\n"
@@ -159,13 +182,22 @@ def main() -> int:
         action="store_true",
         help="Allow only the eight additive supplier/partner guard triggers from migration 0053 to be pending.",
     )
+    parser.add_argument(
+        "--allow-legacy-waternow-share-description-default",
+        action="store_true",
+        help="Allow only the known pre-0054 store_profile.share_description DEFAULT mismatch; compare all other schema metadata strictly.",
+    )
     args = parser.parse_args()
 
     expected = connect_from_sql(args.expected)
     actual = connect_from_sql(args.actual)
     expected_table_count = len(app_tables(expected))
     try:
-        issues = compare(expected, actual, allow_pending_0053=args.allow_pending_0053)
+        issues = compare(
+            expected, actual,
+            allow_pending_0053=args.allow_pending_0053,
+            allow_legacy_waternow_share_description_default=args.allow_legacy_waternow_share_description_default
+        )
     finally:
         expected.close()
         actual.close()
