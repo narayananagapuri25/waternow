@@ -26,7 +26,7 @@ For a merge or direct push to `main`:
 1. Worker/D1 unit tests, Owner navigation/orders/performance regressions, customer browser journeys and isolated delivery/store-fallback Playwright tests must all pass.
 2. The deployment job runs the guarded production D1 baseline bootstrap. If the live database already has a non-empty migration ledger, the bootstrap leaves it unchanged and the next step verifies it. If the ledger is absent or empty, the bootstrap first exports and compares the production schema against the canonical WaterNow schema, verifies historical data fingerprints and foreign-key integrity, and captures a D1 Time Travel recovery bookmark. It records baseline migration names only if every preflight matches.
 3. The strict baseline verifier confirms that every historical repository migration through `0052_waternow_catalogue_seed.sql` is already accounted for. If any check fails, the job stops before applying migration SQL or deploying the Worker.
-4. Wrangler applies only migrations that are still pending. At the current repository revision, `0053_delivery_store_supplier_partner_guards.sql` is the next pending migration; it adds referential-integrity triggers for supplier and delivery-partner references without rebuilding populated tables.
+4. Wrangler applies only migrations that are still pending. Migration `0053_delivery_store_supplier_partner_guards.sql` adds nullable-reference integrity triggers for legacy network tables; it does not require a supplier for a normal WaterNow order. Migration `0054_waternow_owner_managed_pack_prices.sql` sets the 20L can to ₹30 and the two-can 10L pack to ₹20 in the central catalogue.
 5. Wrangler deploys the Worker using the dedicated WaterNow production configuration.
 6. A smoke test checks the Worker `/api/admin/status` endpoint and `https://waternow.pages.dev/api/products`, which verifies that Pages can reach the Worker through the `WATERNOW_API` service binding.
 
@@ -42,12 +42,12 @@ For future schema changes, add a new numbered SQL migration under `worker/migrat
 
 ## Before enabling real customer orders
 
-The application code being deployed does not provide the operational facts needed to accept orders. Configure these in the Owner app using verified business information:
+Configure these in the Owner app using verified business information:
 
-- Exact store pin and delivery radius, including the Boduppal service point if that is the chosen dispatch location.
-- An approved WaterNow supplier linked to the dispatch location, with applicable FSSAI and packaged-water testing documentation reviewed.
-- Supplier-approved price and actual stock for the 20L can and the pack of two 10L cans.
-- The legal operator, support contact and verified business address.
-- Product images the supplier is authorised to use.
+- The WaterNow dispatch location in **Brindavan Colony, Boduppal**, with the actual shop entrance selected on the map and the intended delivery radius confirmed.
+- Actual on-hand inventory for each pack at that store. The order flow checks store stock; a sample basket of five 20L cans and five 2 × 10L packs requires at least five sellable units of each.
+- The central pack prices are set by migration 0054 to ₹30 for one 20L can and ₹20 for one pack containing two 10L cans. WaterNow can manage store-specific overrides in the Owner app; do not silently substitute another price.
+- The legal operator, customer support contact and verified business address.
+- Original WaterNow product photographs or images WaterNow is authorised to use.
 
-The current WaterNow seed is deliberately unpriced and has zero stock for both packs. Do not guess or copy prices from another business. Until approved prices, stock, service coverage and the supplier link are configured, checkout must keep these packs unavailable for ordering. A successful CI run, Worker deployment or health check is not proof that the business is ready to accept live orders.
+No supplier onboarding, supplier approval, supplier price feed or delivery-partner registration is required in the normal WaterNow customer-to-Owner order flow. The store must still be active, inside the customer's service radius, and have the requested products enabled with enough stock. A CI pass or deployment health check alone is not proof that the live ordering journey is ready.
