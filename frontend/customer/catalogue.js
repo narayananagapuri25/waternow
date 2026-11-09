@@ -72,11 +72,11 @@
     products=nextProducts;
     selected=null;
     const sync=window.FreshWayCustomerCatalogue?.setProducts(products)||{};
-    if(Number(sync.unavailable)>0)window.dispatchEvent(new CustomEvent('freshway:catalogue-sync',{detail:sync}));
+    if(Number(sync.unavailable)>0)window.dispatchEvent(new CustomEvent('waternow:catalogue-sync',{detail:sync}));
     loading=false;ready=true;errorMessage='';errorCode='';
     renderHome();
     setMode(null,{history:'none'});
-    if(changes.length)window.dispatchEvent(new CustomEvent('freshway:store-catalogue-changed',{detail:{store,changes}}));
+    if(changes.length)window.dispatchEvent(new CustomEvent('waternow:store-catalogue-changed',{detail:{store,changes}}));
     return {ok:true,changed:changedStore||changes.length>0,store,changes};
   }
   async function load({reviewChange=true,preserveExisting=true}={}){
@@ -172,7 +172,7 @@
     document.addEventListener('click',e=>{if(e.target.closest('[data-fw-delivery-contact]')){e.preventDefault();window.setView?.('contact');return}if(e.target.closest('#fwCatalogueRetry')){e.preventDefault();load();return}if(e.target.closest('[data-fw-needs-location]')){e.preventDefault();e.stopImmediatePropagation();$('#addressBtn')?.click();return}},true);
   }
   window.FreshWayCustomerStoreCatalogue=Object.freeze({selectedStoreId:()=>selectedStore?.id||selectedStoreIdValue||'',selectedStore:()=>selectedStore,switchToStore,refresh:load});
-  window.addEventListener('freshway:address-changed',()=>{void load({reviewChange:true,preserveExisting:false})});
+  window.addEventListener('waternow:address-changed',()=>{void load({reviewChange:true,preserveExisting:false})});
   window.freshWayCustomerCatalogueRefresh=load;
   window.waterNowCustomerCatalogueGoHome=()=>setMode(null,{history:'none'});
   window.addEventListener('popstate',event=>{if(event.state?.__freshwayCustomer&&event.state.view==='home')setMode(null,{history:'none'})});
