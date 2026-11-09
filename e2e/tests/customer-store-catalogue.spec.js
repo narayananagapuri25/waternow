@@ -50,7 +50,7 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   await expect(page.locator('#searchInput')).toHaveCount(0);
   await expect(page.locator('.search-wrap')).toHaveCount(0);
   await expect(page.locator('#productGrid .product-card')).toHaveCount(3,{timeout:20000});
-  await expect(page.locator('#productGrid .product-card').filter({hasText:'10L Drinking Water Can'})).toContainText('₹0');
+  await expect(page.locator('#productGrid .product-card:has([data-add="water-10l"])')).toContainText('₹0');
   await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
   await expect(page.locator('#productGrid [data-add="water-10l-pair"]')).toBeVisible();
   await expect(page.locator('#productGrid [data-add="water-10l"]')).toBeDisabled();
