@@ -115,15 +115,15 @@ test('owner lifecycle script cache-busting version matches the service-worker sh
 test('service worker keeps documents fresh and refreshes versioned code before cache fallback', () => {
   assert.ok(serviceWorkerSource.includes("if (isNavigation && ['/', '/index.html'].includes(url.pathname))"));
   assert.ok(serviceWorkerSource.includes("if (url.pathname === '/admin.html' || url.pathname.startsWith('/admin/'))"));
-  assert.match(ownerServiceWorkerSource, /const CACHE = 'fw-owner-v[0-9]+'/);
+  assert.match(ownerServiceWorkerSource, /const CACHE = 'waternow-owner-v[0-9]+'/);
   assert.ok(serviceWorkerSource.includes("const isVersionedCode = ['script','style'].includes(destination) && url.searchParams.has('v')"));
   assert.ok(serviceWorkerSource.includes("if (isVersionedCode)") && serviceWorkerSource.includes("return cached||Response.error()"), "customer versioned assets should use network-first with an offline cache fallback");
   assert.ok(serviceWorkerSource.includes("if (cached) {"));
   assert.ok(serviceWorkerSource.includes("const cached=await cache.match(event.request)"));
   assert.ok(serviceWorkerSource.includes("return (await cache.match(event.request)) || Response.error()"));
-  assert.match(serviceWorkerSource, /const CACHE = 'freshway-v[0-9]+'/);
+  assert.match(serviceWorkerSource, /const CACHE = 'waternow-v[0-9]+'/);
   assert.doesNotMatch(serviceWorkerSource, /freshway-v63/, 'the old customer service-worker cache version must not be expected');
-  assert.doesNotMatch(ownerServiceWorkerSource, /fw-owner-v20/, 'the old Owner service-worker cache version must not be expected');
+  assert.doesNotMatch(ownerServiceWorkerSource, /fw-owner-v[0-9]+/, 'FreshWay Owner cache namespaces must not remain in WaterNow');
   assert.ok(ownerServiceWorkerSource.includes("if (cached && isVersionedCode) return cached"));
   assert.ok(ownerServiceWorkerSource.includes("if (isDocument || isManifest)"));
 });
