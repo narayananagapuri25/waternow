@@ -241,34 +241,89 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           node --input-type=module <<'NODE'
-          const account = process.env.CLOUDFLARE_ACCOUNT_ID || '17f1561ed0052cf9d484cb4becbf8810';
-          const token = process.env.CLOUDFLARE_API_TOKEN;
-          if (!token) { console.log('Cloudflare API token unavailable; build log lookup skipped.'); process.exit(0); }
-          const githubChecks = await fetch('https://api.github.com/repos/' + process.env.GITHUB_REPOSITORY + '/commits/' + process.env.GITHUB_SHA + '/check-runs?per_page=100', { headers: { Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(12000) });
-          const checksBody = await githubChecks.json().catch(() => ({}));
-          const workerBuildCheck = (checksBody.check_runs || []).find(item => String(item.name || '').startsWith('Workers Builds: waternow-api'));
-          const build = String(workerBuildCheck?.details_url || '').match(/builds\/([0-9a-f-]{36})(?:$|[?#])/i)?.[1];
-          if (!build) { console.log('No Cloudflare Workers Builds UUID found on the current commit.'); process.exit(0); }
-          const base = 'https://api.cloudflare.com/client/v4/accounts/' + account + '/builds/builds/' + build;
-          for (const suffix of ['', '/logs']) {
-            try {
-              const response = await fetch(base + suffix, { headers: { Authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(12000) });
-              const body = await response.json().catch(() => ({}));
-              if (!response.ok || body.success === false) {
-                console.log(JSON.stringify({endpoint:suffix,httpStatus:response.status,errors:(body.errors||[]).map(x=>x.message)}));
-                continue;
-              }
-              if (suffix === '/logs') {
-                const lines = (body.result?.lines || []).map(row => row.map(String).join(' '));
-                const relevant = lines.filter(line => /error|failed|fatal|exit code|build command|deploy command|not found|permission/i.test(line));
-                console.log('Cloudflare Worker build log diagnostics for ' + build + ':');
-                for (const line of relevant.slice(-100)) console.log(line.slice(0,1200));
-                if (!relevant.length) console.log('No error/failure lines were returned in the retained build log page.');
+          // This diagnostic must never fail the release gate: unavailable log
+          // permissions or an expired build record are reported, not thrown.
+          try {
+            const account = process.env.CLOUDFLARE_ACCOUNT_ID || '17f1561ed0052cf9d484cb4becbf8810';
+            const token = process.env.CLOUDFLARE_API_TOKEN;
+            if (!token) {
+              console.log('Cloudflare API token unavailable; build log lookup skipped.');
+            } else {
+              const repository = process.env.GITHUB_REPOSITORY;
+              const sha = process.env.GITHUB_SHA;
+              const checksResponse = await fetch(
+                'https://api.github.com/repos/' + repository + '/commits/' + sha + '/check-runs?per_page=100',
+                { headers: { Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(12000) }
+              );
+              if (!checksResponse.ok) {
+                console.log('GitHub check-run lookup unavailable: HTTP ' + checksResponse.status);
               } else {
-                const r = body.result || {};
-                console.log(JSON.stringify({build_uuid:r.build_uuid,build_outcome:r.build_outcome,created_on:r.created_on,modified_on:r.modified_on,trigger:r.build_trigger_metadata ? {branch:r.build_trigger_metadata.branch,commit_hash:r.build_trigger_metadata.commit_hash,build_command:r.build_trigger_metadata.build_command,deploy_command:r.build_trigger_metadata.deploy_command} : null}));
+                const checksBody = await checksResponse.json().catch(() => ({}));
+                const workerBuildCheck = (checksBody.check_runs || []).find(item =>
+                  String(item.name || '').startsWith('Workers Builds: waternow-api')
+                );
+                const detailsUrl = String(workerBuildCheck?.details_url || '');
+                // URL pathname parsing avoids fragile slash-escaped regex literals.
+                let build = '';
+                try {
+                  const segments = new URL(detailsUrl).pathname.split('/').filter(Boolean);
+                  const candidate = segments[segments.length - 1] || '';
+                  if (candidate.length === 36 && candidate.split('-').length === 5) build = candidate;
+                } catch {
+                  // Missing or malformed external check URL: keep the diagnostic best-effort.
+                }
+                if (!build) {
+                  console.log('No Cloudflare Workers Builds UUID found on this commit.');
+                } else {
+                  const base = 'https://api.cloudflare.com/client/v4/accounts/' + account + '/builds/builds/' + build;
+                  for (const suffix of ['', '/logs']) {
+                    try {
+                      const response = await fetch(base + suffix, {
+                        headers: { Authorization: 'Bearer ' + token },
+                        signal: AbortSignal.timeout(12000)
+                      });
+                      const body = await response.json().catch(() => ({}));
+                      if (!response.ok || body.success === false) {
+                        console.log(JSON.stringify({
+                          endpoint: suffix || '/build',
+                          httpStatus: response.status,
+                          errors: (body.errors || []).map(item => item.message)
+                        }));
+                        continue;
+                      }
+                      if (suffix === '/logs') {
+                        const lines = (body.result?.lines || []).map(row =>
+                          Array.isArray(row) ? row.map(String).join(' ') : String(row)
+                        );
+                        const relevant = lines.filter(line =>
+                          line.toLowerCase().includes('error') ||
+                          line.toLowerCase().includes('failed') ||
+                          line.toLowerCase().includes('fatal') ||
+                          line.toLowerCase().includes('exit code') ||
+                          line.toLowerCase().includes('not found') ||
+                          line.toLowerCase().includes('permission')
+                        );
+                        console.log('Cloudflare Worker build log diagnostics for ' + build + ':');
+                        for (const line of relevant.slice(-100)) console.log(line.slice(0, 1200));
+                        if (!relevant.length) console.log('No error/failure lines were returned in the retained build log page.');
+                      } else {
+                        const result = body.result || {};
+                        console.log(JSON.stringify({
+                          build_uuid: result.build_uuid,
+                          build_outcome: result.build_outcome,
+                          created_on: result.created_on,
+                          modified_on: result.modified_on
+                        }));
+                      }
+                    } catch (error) {
+                      console.log(JSON.stringify({ endpoint: suffix || '/build', error: error.message }));
+                    }
+                  }
+                }
               }
-            } catch (error) { console.log(JSON.stringify({endpoint:suffix,error:error.message})); }
+            }
+          } catch (error) {
+            console.log('Best-effort Cloudflare build log lookup skipped: ' + String(error?.message || error));
           }
           NODE
       - name: Dry-run production D1 baseline bootstrap (read only)
