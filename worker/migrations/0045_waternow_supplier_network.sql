@@ -19,8 +19,10 @@ UPDATE categories SET name='2 × 10L Water Cans',slug='two-10l-water-cans',icon=
 INSERT OR IGNORE INTO products
   (id,name,unit,price,emoji,active,category_id,display_order,stock_managed,stock_quantity)
 VALUES
-  ('water-20l','20L Drinking Water Can','can',0,'💧',1,'water-20l',1,0,0),
-  ('water-10l-pair','2 × 10L Drinking Water Cans','pack',0,'🚰',1,'water-10l-pair',2,0,0);
+  ('water-20l','20L Drinking Water Can','can',0,'💧',1,'water-20l',1,1,0),
+  ('water-10l-pair','2 × 10L Drinking Water Cans','pack',0,'🚰',1,'water-10l-pair',2,1,0);
+
+UPDATE products SET stock_managed=1,updated_at=CURRENT_TIMESTAMP WHERE id IN ('water-20l','water-10l-pair');
 
 CREATE TABLE IF NOT EXISTS water_suppliers (
   id TEXT PRIMARY KEY,
