@@ -91,40 +91,22 @@ const newProduct = (overrides = {}) => ({
   stockManaged: true, stockQuantity: 12, lowStockThreshold: 2, ...overrides
 });
 
-test('new tracked product assigns initial stock to the only active store and seeds other stores at zero', async () => {
+test('new tracked product starts with zero stock at every store; quantities are entered per store', async () => {
   const db = new SQLiteD1();
   try {
     db.seedStore('store-active',1);
     db.seedStore('store-paused',0);
-    const result = await createProduct({DB:db},newProduct());
+    const result = await createProduct({DB:db},newProduct({stockQuantity:12}));
     const productId = result.product.id;
-    assert.equal(result.product.stock_quantity,12);
-    assert.equal(result.stockAllocationRequired,false);
+    assert.equal(result.product.stock_quantity,undefined);
+    assert.equal(db.product(productId).stock_quantity,0,'the legacy product stock column stays zero');
     assert.deepEqual(db.inventory(productId),[
-      {store_id:'store-active',stock_quantity:12},
+      {store_id:'store-active',stock_quantity:0},
       {store_id:'store-paused',stock_quantity:0}
     ]);
-    assert.equal(db.product(productId).stock_quantity,12);
     assert.deepEqual(db.db.prepare('SELECT store_id,is_available,price_override FROM delivery_store_catalogue WHERE product_id=? ORDER BY store_id').all(productId).map(row=>({...row})),[
       {store_id:'store-active',is_available:1,price_override:null},
       {store_id:'store-paused',is_available:1,price_override:null}
-    ]);
-  } finally { db.close(); }
-});
-
-test('new tracked products create zero inventory rows for every configured store', async () => {
-  const db = new SQLiteD1();
-  try {
-    db.seedStore('store-a',1);
-    db.seedStore('store-b',1);
-    const result = await createProduct({DB:db},newProduct({stockQuantity:99}));
-    const productId = result.product.id;
-    assert.equal(result.product.stock_managed,1);
-    assert.equal(result.product.stock_quantity,undefined);
-    assert.equal(db.product(productId).stock_quantity,0);
-    assert.deepEqual(db.inventory(productId),[
-      {store_id:'store-a',stock_quantity:0},
-      {store_id:'store-b',stock_quantity:0}
     ]);
   } finally { db.close(); }
 });
@@ -247,6 +229,7 @@ test('Owner catalogue deletion refuses a product with on-hand stock and preserve
     db.seedStore('store-paused', 0);
     const created = await createProduct({ DB: db }, newProduct({ stockQuantity: 8 }));
     const productId = created.product.id;
+    db.db.prepare("UPDATE delivery_store_inventory SET stock_quantity=8 WHERE store_id='store-active' AND product_id=?").run(productId);
     const beforeInventory = db.inventory(productId);
     const beforeCatalogue = db.db.prepare('SELECT store_id,is_available,price_override FROM delivery_store_catalogue WHERE product_id=? ORDER BY store_id').all(productId).map(row => ({ ...row }));
 
@@ -332,6 +315,7 @@ test('legacy Owner product endpoint refuses positive stock and historical order 
   try {
     db.seedStore('store-active', 1);
     const stocked = await createProduct({ DB: db }, newProduct({ stockQuantity: 5 }));
+    db.db.prepare("UPDATE delivery_store_inventory SET stock_quantity=5 WHERE store_id='store-active' AND product_id=?").run(stocked.product.id);
     await assert.rejects(
       () => deleteLegacyProduct({ DB: db }, stocked.product.id),
       /still has stock/i
