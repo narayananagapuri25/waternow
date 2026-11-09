@@ -238,7 +238,7 @@ jobs:
         if: always()
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_WORKERS_BUILDS_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_BUILDS_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           node --input-type=module <<'NODE'
@@ -246,9 +246,9 @@ jobs:
           // permissions or an expired build record are reported, not thrown.
           try {
             const account = process.env.CLOUDFLARE_ACCOUNT_ID || '17f1561ed0052cf9d484cb4becbf8810';
-            const token = process.env.CLOUDFLARE_WORKERS_BUILDS_API_TOKEN;
+            const token = process.env.CLOUDFLARE_API_TOKEN;
             if (!token) {
-              console.log('Cloudflare user-scoped Workers Builds token unavailable; build log lookup skipped. Configure CLOUDFLARE_WORKERS_BUILDS_API_TOKEN.');
+              console.log('CLOUDFLARE_API_TOKEN is unavailable; Cloudflare Workers build log lookup skipped.');
             } else {
               const repository = process.env.GITHUB_REPOSITORY;
               const sha = process.env.GITHUB_HEAD_SHA || process.env.GITHUB_SHA;
