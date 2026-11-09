@@ -2,6 +2,9 @@
   const CSS_URL='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
   const JS_URL='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
   let leafletPromise=null;
+  const style=document.createElement('style');
+  style.textContent='.fw-store-map-picker{margin:12px 0 18px;padding:14px;border:1px solid #dfe9e2;border-radius:15px;background:#fbfdfb}.fw-store-map-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end;margin-bottom:12px}.fw-store-map-tools .settings-field{margin:0}.fw-store-map-tools>div{display:flex;gap:8px;flex-wrap:wrap}.fw-store-map-tools button{min-height:42px;white-space:nowrap}.fw-store-map-canvas{width:100%;height:290px;min-height:240px;border:1px solid #dce7df;border-radius:13px;overflow:hidden;background:#edf3ef;z-index:0}.fw-store-map-status{margin:10px 0 0;font-size:12px;line-height:1.5}.fw-store-map-picker .leaflet-container{font:inherit}@media(max-width:560px){.fw-store-map-picker{padding:10px}.fw-store-map-tools{grid-template-columns:1fr}.fw-store-map-tools>div{display:grid;grid-template-columns:1fr 1fr}.fw-store-map-tools button{width:100%;padding:9px 8px;font-size:12px}.fw-store-map-canvas{height:260px;min-height:230px}}';
+  document.head.appendChild(style);
 
   function loadLeaflet(){
     if(window.L)return Promise.resolve(window.L);
@@ -60,7 +63,7 @@
       if(!Number.isFinite(point[0])||!Number.isFinite(point[1])||Math.abs(point[0])>90||Math.abs(point[1])>180)return;
       latitude.value=point[0].toFixed(6);
       longitude.value=point[1].toFixed(6);
-      if(!marker)marker=window.L.marker(point,{draggable:true}).addTo(map);
+      if(!marker){marker=window.L.marker(point,{draggable:true}).addTo(map);marker.on('dragend',pinFromMarker);}
       else marker.setLatLng(point);
       if(!circle)circle=window.L.circle(point,{radius:radiusMetres(),color:'#087b52',weight:2,fillColor:'#13a36c',fillOpacity:.12}).addTo(map);
       else{circle.setLatLng(point);circle.setRadius(radiusMetres());}
@@ -105,13 +108,6 @@
       }).addTo(map);
       if(hasPin)setPin(initial[0],initial[1],{pan:false});
       map.on('click',event=>setPin(event.latlng.lat,event.latlng.lng));
-      if(marker)marker.on('dragend',pinFromMarker);
-      // A marker created after an initial map click also needs the drag handler.
-      const originalSetPin=setPin;
-      // Keep the drag handler attached exactly once to newly-created markers.
-      const attachMarkerDrag=()=>{if(marker&&!marker.__waterNowDragBound){marker.on('dragend',pinFromMarker);marker.__waterNowDragBound=true;}};
-      if(hasPin)attachMarkerDrag();
-      map.on('click',attachMarkerDrag);
       radius?.addEventListener('input',updateRadius);
       searchButton?.addEventListener('click',searchLocation);
       search?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();searchLocation();}});
