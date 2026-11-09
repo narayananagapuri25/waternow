@@ -240,12 +240,14 @@ test('store reassignment uses valid reservation SQL and stock-managed products r
   assert.ok(delivery.includes('async function ensureStoreInventoryRows(env)'));
   assert.ok(delivery.includes('await ensureStoreInventoryRows(env);'),
     'Owner inventory view and stock updates must repair missing inventory rows safely');
-  assert.ok(worker.includes('if(stockManaged&&allStores>0)statements.push('),
-    'creating a stock-managed product must initialise store inventory when stores exist');
-  assert.ok(worker.includes('const changingToManaged=!wasManaged&&stockManaged;') && worker.includes('if(changingToManaged&&allStores>0)statements.push('),
-    'enabling stock management on an existing product must initialise store inventory only when stores exist');
+  assert.ok(worker.includes('function inventoryRowsForProduct(env,productId)'),
+    'the catalogue must use a dedicated store-inventory row initializer');
+  assert.ok(worker.includes("'SELECT s.id,?,0 FROM delivery_stores s'"),
+    'new stock-managed products must start at zero in every configured store');
+  assert.equal(worker.split('if(stockManaged)statements.push(inventoryRowsForProduct(env,productId));').length-1,2,
+    'both product creation and editing must ensure local inventory rows when tracking is enabled');
   assert.ok(worker.includes('INSERT OR IGNORE INTO delivery_store_inventory'),
-    'product create/update must not duplicate inventory rows');
+    'product create/update must not duplicate inventory rows or copy a global quantity');
 });
 
 test('customer cancellation uses customer audit identity and rejected reschedules restore the displayed schedule state', () => {
