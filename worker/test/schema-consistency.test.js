@@ -150,15 +150,15 @@ test('customer tombstone support stays aligned between fresh schema and migratio
 });
 
 
-const productionAudit = readFileSync(new URL('../scripts/audit-production-schema.mjs', import.meta.url), 'utf8');
+const localAudit = readFileSync(new URL('../scripts/audit-local-schema.mjs', import.meta.url), 'utf8');
 test('production D1 audit covers all Store Profile API fields and deletion/address indexes', () => {
-  const profileColumns = productionAudit.match(/store_profile: \[([^\]]+)\]/)?.[1] || '';
+  const profileColumns = localAudit.match(/store_profile: \[([^\]]+)\]/)?.[1] || '';
   for (const column of [
     'id', 'store_name', 'about', 'phone', 'whatsapp', 'email', 'address',
     'shop_latitude', 'shop_longitude', 'business_hours', 'delivery_info',
     'share_title', 'share_description', 'created_at', 'updated_at'
   ]) {
-    assert.ok(profileColumns.includes("'" + column + "'"), 'production schema audit must verify store_profile.' + column);
+    assert.ok(profileColumns.includes("'" + column + "'"), 'local schema audit must verify store_profile.' + column);
   }
   for (const index of [
     'idx_customers_active_phone',
@@ -167,7 +167,7 @@ test('production D1 audit covers all Store Profile API fields and deletion/addre
     'idx_account_deletion_requests_customer_created',
     'idx_addresses_customer_deleted'
   ]) {
-    assert.ok(productionAudit.includes("'" + index + "'"), 'production schema audit must verify ' + index);
+    assert.ok(localAudit.includes("'" + index + "'"), 'local schema audit must verify ' + index);
   }
 });
 
