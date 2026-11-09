@@ -27,6 +27,9 @@ jobs:
       - name: Install Worker dependencies
         working-directory: worker
         run: npm install --no-audit --no-fund
+      - name: Audit local D1 schema
+        working-directory: worker
+        run: node ./scripts/audit-local-schema.mjs
       - name: Run Worker tests
         working-directory: worker
         run: npm test
