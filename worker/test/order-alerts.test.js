@@ -16,7 +16,7 @@ test('new order alerts tell the customer the order was received and alert the Ow
   assert.doesNotMatch(customer.body, /is confirmed/i);
   assert.match(customer.url, /openOrder=FW-12345678-ABC#orders/);
   assert.equal(owner.audience, 'owner');
-  assert.match(owner.title, /^OWNER · New FreshWay order/);
+  assert.match(owner.title, /^OWNER · New WaterNow order/);
   assert.doesNotMatch(customer.title, /^OWNER/);
   assert.match(owner.body, /Narayana/);
   assert.match(owner.body, /₹2,238/);
