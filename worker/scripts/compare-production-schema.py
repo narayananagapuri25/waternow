@@ -66,7 +66,7 @@ def object_sql(conn: sqlite3.Connection, kind: str) -> dict[str, str]:
         "AND name <> 'd1_migrations' ORDER BY name",
         (kind,),
     ).fetchall()
-    return {name: re.sub(r"\\s+", " ", sql.strip()).lower() for name, sql in rows}
+    return {name: re.sub(r"\s+", " ", sql.strip()).lower() for name, sql in rows}
 
 
 def compare(expected: sqlite3.Connection, actual: sqlite3.Connection) -> list[str]:
@@ -123,6 +123,7 @@ def main() -> int:
 
     expected = connect_from_sql(args.expected)
     actual = connect_from_sql(args.actual)
+    expected_table_count = len(app_tables(expected))
     try:
         issues = compare(expected, actual)
     finally:
@@ -136,7 +137,7 @@ def main() -> int:
         return 1
 
     print(
-        f"Production schema comparison PASSED: {len(app_tables(connect_from_sql(args.expected)))} "
+        f"Production schema comparison PASSED: {expected_table_count} "
         "application tables, all columns, foreign keys, indexes and triggers match."
     )
     return 0
