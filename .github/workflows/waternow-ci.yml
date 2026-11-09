@@ -76,7 +76,10 @@ jobs:
         with:
           node-version: 22
       - name: Run Owner navigation, orders and performance contracts
-        run: node --test admin-navigation.test.js admin-orders.test.js admin-performance.test.js
+        run: |
+          node --test admin-navigation.test.js admin-orders.test.js admin-performance.test.js
+          node frontend/admin/store-management.test.js
+          node frontend/admin/catalogue-image-fit.test.js
 
   browser-tests:
     name: Customer browser and Playwright tests
@@ -88,8 +91,11 @@ jobs:
           node-version: 22
       - name: Run customer service-worker regression tests
         run: node sw-notification-refresh.test.js
-      - name: Run customer catalogue display regression tests
-        run: node frontend/customer/catalogue.test.js
+      - name: Run customer catalogue display and refresh regression tests
+        run: |
+          node frontend/customer/catalogue.test.js
+          node frontend/customer/navigation.test.js
+          node frontend/customer/view-state.test.js
       - name: Install Playwright dependencies
         working-directory: e2e
         run: npm ci
