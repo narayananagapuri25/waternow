@@ -124,12 +124,12 @@
         try{result=await api('/api/customer/messages',options);}
         catch(error){
           if(Number(error?.status)!==401)throw error;
-          await window.WaterNowCustomerAuth?.login?.();
+          await window.FreshWayCustomerAuth?.login?.();
           result=await api('/api/customer/messages',options);
         }
         form.reset();
         setStatus(result.message||'Message sent. We’ll reply in Profile → Messages.');
-        window.WaterNowCustomerMessages?.refreshBadge?.();
+        window.FreshWayCustomerMessages?.refreshBadge?.();
         if(typeof toast==='function')toast('Message sent to WaterNow');
       }catch(error){setStatus(error.message||'Could not send your message. Please try again.',true);}
       finally{submit.disabled=false;}
@@ -157,5 +157,5 @@
     return profile;
   }
 
-  window.WaterNowCustomerStoreInfo=Object.freeze({show,renderAbout,renderContact,mapHref,validShopCoordinates,get lastProfile(){return lastProfile;}});
+  const storeInfo=Object.freeze({show,renderAbout,renderContact,mapHref,validShopCoordinates,get lastProfile(){return lastProfile;}});\n  window.FreshWayCustomerStoreInfo=storeInfo;\n  window.WaterNowCustomerStoreInfo=storeInfo;
 })();
