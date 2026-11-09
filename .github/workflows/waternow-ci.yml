@@ -232,7 +232,7 @@ jobs:
           test -n "${PREVIEW_D1_DATABASE_ID}" || { echo "::error::Preview D1 database ID was not provided."; exit 1; }
           test "${PREVIEW_D1_DATABASE_ID}" != "da57af93-2f4f-42f1-b2f3-eb02533bf9fd" || { echo "::error::Production D1 ID is forbidden for Preview migrations."; exit 1; }
           config_file=".wrangler.preview-generated.jsonc"
-          trap 'rm -f "${config_file}"' EXIT
+          trap 'rm -f "${config_file}" .waternow-preview-baseline.sql' EXIT
           PREVIEW_D1_DATABASE_ID="${PREVIEW_D1_DATABASE_ID}" node --input-type=module <<'NODE'
           import { writeFileSync } from 'node:fs';
           const id = process.env.PREVIEW_D1_DATABASE_ID;
@@ -264,17 +264,17 @@ jobs:
           PREVIEW_D1_DATABASE_ID="${PREVIEW_D1_DATABASE_ID}" node --input-type=module <<'NODE'
           import { readdirSync, writeFileSync } from 'node:fs';
           const baseline = readdirSync('migrations')
-            .filter(name => /^\\d{4}_.+\\.sql$/.test(name) && Number(name.slice(0, 4)) <= 51)
+            .filter(name => /^\d{4}_.+\.sql$/.test(name) && Number(name.slice(0, 4)) <= 51)
             .sort();
           if (!baseline.includes('0051_waternow_supplier_network.sql') ||
               baseline.includes('0052_waternow_catalogue_seed.sql') || baseline.length < 40) {
             throw new Error('Preview baseline migration inventory is invalid.');
           }
-          const values = baseline.map(name => "('" + name.replaceAll("'", "''") + "')").join(',\\n');
+          const values = baseline.map(name => "('" + name.replaceAll("'", "''") + "')").join(',\n');
           const sql = [
             'CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)',
             'INSERT OR IGNORE INTO d1_migrations (name) VALUES ' + values
-          ].join(';\\n') + ';\\n';
+          ].join(';\n') + ';\n';
           writeFileSync('.waternow-preview-baseline.sql', sql);
           console.log('Prepared ' + baseline.length + ' baseline history rows through 0051; WaterNow migrations 0052–0056 will execute normally.');
           NODE
