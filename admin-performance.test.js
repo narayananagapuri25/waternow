@@ -49,7 +49,7 @@ assert.doesNotMatch(sw,/cached && !freshCode/);
 assert.match(sw,/cache:\s*'no-store'/,'document navigation must bypass cached HTML and prefer a current network response');
 assert.doesNotMatch(sw,/\.catch\(\(\) => \{\}\)/);
 
-assert.match(auth,/COOKIE='__Host-freshway-admin-session'/);
+assert.match(auth,/COOKIE='__Host-waternow-admin-session'/);
 assert.match(auth,/response\(\{ok:true,version:ADMIN_AUTH_VERSION\}/);
 assert.doesNotMatch(auth,/response\(\{ok:true,version:ADMIN_AUTH_VERSION,session\}/);
 assert.match(auth,/SameSite=Lax/);
