@@ -58,11 +58,11 @@ test('WaterNow catalogue artwork and promotion images load and decode on mobile 
     unknownProduct:window.WaterNowCatalogueMedia.image('products','unmapped-product',{name:'Unmapped Product'})
   }));
   expect(semanticMedia).toEqual({
-    twentyLCategory:'frontend/media/catalogue/water-20l.svg',
-    twinPackCategory:'frontend/media/catalogue/water-10l-pair.svg',
-    twentyLProduct:'frontend/media/catalogue/water-20l.svg',
-    twinPackProduct:'frontend/media/catalogue/water-10l-pair.svg',
-    directTwentyL:'frontend/media/catalogue/water-20l.svg',
+    twentyLCategory :'frontend/media/catalogue/water-20l.svg',
+    twinPackCategory :'frontend/media/catalogue/water-10l-pair.svg',
+    twentyLProduct :'frontend/media/catalogue/water-20l.svg',
+    twinPackProduct :'frontend/media/catalogue/water-10l-pair.svg',
+    directTwentyL :'frontend/media/catalogue/water-20l.svg',
     unknownProduct:''
   });
 
