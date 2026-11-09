@@ -11,7 +11,7 @@ async function readBody(request){try{return await request.json()}catch(_){throw 
 async function listNetwork(env){
   const [supplierRows,partnerRows]=await Promise.all([
     env.DB.prepare(`SELECT s.*,
-      (SELECT COUNT(*) FROM water_supplier_products p WHERE p.supplier_id=s.id) AS product_count,
+      (SELECT COUNT(*) FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.active=1 AND (c.id IS NULL OR c.active=1)) AS product_count,
       (SELECT COUNT(*) FROM water_supplier_service_areas a WHERE a.supplier_id=s.id AND a.is_active=1) AS service_area_count,
       (SELECT id FROM delivery_stores d WHERE d.supplier_id=s.id ORDER BY d.id LIMIT 1) AS linked_store_id,
       (SELECT delivery_model FROM delivery_stores d WHERE d.supplier_id=s.id ORDER BY d.id LIMIT 1) AS linked_delivery_model
@@ -21,11 +21,17 @@ async function listNetwork(env){
       FROM water_delivery_partners p ORDER BY p.city,p.name`).all()
   ]);
   const [supplierProducts,deliveryStores]=await Promise.all([
-    env.DB.prepare(`SELECT sp.supplier_id,sp.product_id,p.name AS product_name,sp.selling_price,
-      COALESCE((SELECT i.stock_quantity FROM delivery_store_inventory i JOIN delivery_stores d ON d.id=i.store_id WHERE d.supplier_id=sp.supplier_id AND i.product_id=sp.product_id LIMIT 1),sp.stock_quantity) AS stock_quantity,
-      CASE WHEN sp.selling_price>0 AND COALESCE((SELECT i.stock_quantity FROM delivery_store_inventory i JOIN delivery_stores d ON d.id=i.store_id WHERE d.supplier_id=sp.supplier_id AND i.product_id=sp.product_id LIMIT 1),sp.stock_quantity)>0 THEN 1 ELSE 0 END AS is_available
-      FROM water_supplier_products sp JOIN products p ON p.id=sp.product_id
-      ORDER BY p.display_order,p.name`).all(),
+    env.DB.prepare(`SELECT s.id AS supplier_id,p.id AS product_id,p.name AS product_name,p.unit,
+      COALESCE(sp.selling_price,0) AS selling_price,
+      COALESCE((SELECT i.stock_quantity FROM delivery_store_inventory i JOIN delivery_stores d ON d.id=i.store_id WHERE d.supplier_id=s.id AND i.product_id=p.id LIMIT 1),COALESCE(sp.stock_quantity,0)) AS stock_quantity,
+      CASE WHEN COALESCE(sp.selling_price,0)>0
+        AND COALESCE((SELECT i.stock_quantity FROM delivery_store_inventory i JOIN delivery_stores d ON d.id=i.store_id WHERE d.supplier_id=s.id AND i.product_id=p.id LIMIT 1),COALESCE(sp.stock_quantity,0))>0
+        AND COALESCE(sp.is_available,0)=1 THEN 1 ELSE 0 END AS is_available
+      FROM water_suppliers s CROSS JOIN products p
+      LEFT JOIN water_supplier_products sp ON sp.supplier_id=s.id AND sp.product_id=p.id
+      LEFT JOIN categories c ON c.id=p.category_id
+      WHERE p.active=1 AND (c.id IS NULL OR c.active=1)
+      ORDER BY s.name,p.display_order,p.name`).all(),
     env.DB.prepare(`SELECT id,name,address,service_radius_km,is_active,supplier_id,delivery_model,delivery_partner_id FROM delivery_stores ORDER BY name`).all()
   ]);
   return {suppliers:supplierRows.results||[],deliveryPartners:partnerRows.results||[],
@@ -49,11 +55,7 @@ function validateSupplier(payload){
     contactPerson:clean(payload.contactPerson,120),
     email:clean(payload.email,200),
     address:clean(payload.address,500),
-    price20:Math.max(0,Number.isSafeInteger(Number(payload.price20))?Number(payload.price20):0),
-    price10:Math.max(0,Number.isSafeInteger(Number(payload.price10))?Number(payload.price10):0),
-    stock20:Math.max(0,Number.isSafeInteger(Number(payload.stock20))?Number(payload.stock20):0),
-    stock10:Math.max(0,Number.isSafeInteger(Number(payload.stock10))?Number(payload.stock10):0)
-  };
+};
 }
 
 async function createSupplier(env,payload){
@@ -64,19 +66,9 @@ async function createSupplier(env,payload){
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',0)`)
     .bind(id,data.name,data.supplierType,data.contactPerson,data.phone,data.city,data.state,data.pincode,
       data.email,data.address,data.fulfilmentModel,data.fssaiLicenseNumber,data.fssaiLicenseExpiry||null,
-      data.testingSchemeAcknowledged)];
-  if(data.price20||data.stock20)statements.push(env.DB.prepare(`INSERT INTO water_supplier_products
-    (supplier_id,product_id,selling_price,stock_quantity,is_available)
-    VALUES (?,'water-20l',?,?,?)`).bind(id,data.price20,data.stock20,data.price20>0&&data.stock20>0?1:0));
-  else statements.push(env.DB.prepare(`INSERT INTO water_supplier_products
-    (supplier_id,product_id,selling_price,stock_quantity,is_available) VALUES (?,'water-20l',0,0,0)`).bind(id));
-  if(data.price10||data.stock10)statements.push(env.DB.prepare(`INSERT INTO water_supplier_products
-    (supplier_id,product_id,selling_price,stock_quantity,is_available)
-    VALUES (?,'water-10l-pair',?,?,?)`).bind(id,data.price10,data.stock10,data.price10>0&&data.stock10>0?1:0));
-  else statements.push(env.DB.prepare(`INSERT INTO water_supplier_products
-    (supplier_id,product_id,selling_price,stock_quantity,is_available) VALUES (?,'water-10l-pair',0,0,0)`).bind(id));
-  statements.push(env.DB.prepare(`INSERT OR IGNORE INTO water_supplier_service_areas
-    (id,supplier_id,city,state,pincode) VALUES (?,?,?,?,?)`).bind(crypto.randomUUID(),id,data.city,data.state,data.pincode));
+      data.testingSchemeAcknowledged),
+    env.DB.prepare(`INSERT OR IGNORE INTO water_supplier_service_areas
+      (id,supplier_id,city,state,pincode) VALUES (?,?,?,?,?)`).bind(crypto.randomUUID(),id,data.city,data.state,data.pincode)];
   await env.DB.batch(statements);
   return (await listNetwork(env)).suppliers.find(item=>item.id===id);
 }
@@ -113,10 +105,11 @@ async function updateSupplier(env,id,payload){
 }
 
 async function updateSupplierProduct(env,supplierId,productId,payload){
-  if(!['water-20l','water-10l-pair'].includes(productId))throw new Error('Unknown WaterNow water pack.');
   const price=Number(payload.sellingPrice),stock=Number(payload.stockQuantity);
   if(!Number.isSafeInteger(price)||price<0||price>10000000)throw new Error('Enter a valid supplier selling price in whole rupees.');
   if(!Number.isSafeInteger(stock)||stock<0||stock>100000)throw new Error('Enter a valid available stock quantity.');
+  const product=await env.DB.prepare('SELECT id FROM products WHERE id=?').bind(productId).first();
+  if(!product)throw new Error('Select a product from the catalogue.');
   const supplier=await env.DB.prepare('SELECT id,is_active FROM water_suppliers WHERE id=?').bind(supplierId).first();
   if(!supplier)throw new Error('Water supplier not found.');
   await env.DB.batch([
@@ -167,15 +160,16 @@ async function linkSupplierStore(env,supplierId,payload){
   const statements=[
     env.DB.prepare('UPDATE delivery_stores SET supplier_id=?,delivery_model=?,delivery_partner_id=?,is_active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
       .bind(supplierId,model,model==='platform_delivery'?partnerId:null,active,storeId),
-    ...['water-20l','water-10l-pair'].map(productId=>env.DB.prepare(`UPDATE delivery_store_catalogue SET
-      is_available=COALESCE((SELECT is_available FROM water_supplier_products WHERE supplier_id=? AND product_id=?),0),
-      price_override=(SELECT CASE WHEN selling_price>0 THEN selling_price ELSE NULL END FROM water_supplier_products WHERE supplier_id=? AND product_id=?),
-      updated_at=CURRENT_TIMESTAMP WHERE store_id=? AND product_id=?`)
-      .bind(supplierId,productId,supplierId,productId,storeId,productId)),
-    ...['water-20l','water-10l-pair'].map(productId=>env.DB.prepare(`UPDATE delivery_store_inventory SET
-      stock_quantity=COALESCE((SELECT stock_quantity FROM water_supplier_products WHERE supplier_id=? AND product_id=?),0),
-      updated_at=CURRENT_TIMESTAMP WHERE store_id=? AND product_id=?`)
-      .bind(supplierId,productId,storeId,productId))
+    env.DB.prepare(`UPDATE delivery_store_catalogue SET
+      is_available=COALESCE((SELECT sp.is_available FROM water_supplier_products sp
+        WHERE sp.supplier_id=? AND sp.product_id=delivery_store_catalogue.product_id),0),
+      price_override=(SELECT CASE WHEN sp.selling_price>0 THEN sp.selling_price ELSE NULL END
+        FROM water_supplier_products sp WHERE sp.supplier_id=? AND sp.product_id=delivery_store_catalogue.product_id),
+      updated_at=CURRENT_TIMESTAMP WHERE store_id=?`).bind(supplierId,supplierId,storeId),
+    env.DB.prepare(`UPDATE delivery_store_inventory SET
+      stock_quantity=COALESCE((SELECT sp.stock_quantity FROM water_supplier_products sp
+        WHERE sp.supplier_id=? AND sp.product_id=delivery_store_inventory.product_id),0),
+      updated_at=CURRENT_TIMESTAMP WHERE store_id=?`).bind(supplierId,storeId)
   ];
   await env.DB.batch(statements);
   return {ok:true,store:await env.DB.prepare('SELECT id,name,supplier_id,delivery_model,delivery_partner_id,is_active FROM delivery_stores WHERE id=?').bind(storeId).first()};
@@ -229,7 +223,7 @@ export async function handleWaterNetworkRequest(request,env){
     try{return json(await linkSupplierStore(env,decodeURIComponent(storeLink[1]),await readBody(request)))}
     catch(error){return json({error:error.message||'Could not link supplier to this delivery location.'},400)}
   }
-  const supplierProduct=path.match(/^\/api\/admin\/water-suppliers\/([^/]+)\/products\/(water-20l|water-10l-pair)$/);
+  const supplierProduct=path.match(/^\/api\/admin\/water-suppliers\/([^/]+)\/products\/([^/]+)$/);
   if(supplierProduct&&method==='PATCH'){
     try{return json(await updateSupplierProduct(env,decodeURIComponent(supplierProduct[1]),supplierProduct[2],await readBody(request)))}
     catch(error){return json({error:error.message||'Could not save supplier pricing.'},400)}
