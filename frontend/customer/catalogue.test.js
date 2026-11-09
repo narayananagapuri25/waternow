@@ -72,6 +72,28 @@ const cartView=fs.readFileSync('frontend/customer/cart-view.js','utf8');
 assert.match(cartView,/image_data&&x\.product\.image_mime_type/);
 assert.match(cartView,/cart-product-media/);
 const productView=fs.readFileSync('frontend/customer/product-view.js','utf8');
+const productGrid={innerHTML:''};
+const productCount={textContent:''};
+const productViewContext={
+  window:{FreshWayCatalogueMedia:null},
+  document:{querySelector(selector){
+    if(selector==='#productGrid')return productGrid;
+    if(selector==='.count-pill')return productCount;
+    return null;
+  }}
+};
+vm.createContext(productViewContext);
+vm.runInContext(productView,productViewContext);
+productViewContext.window.FreshWayCustomerProductView.render(
+  [{id:'water-10l',name:'10L Drinking Water Can',unit:'bottle',price:0,emoji:'💧',active:1,stock_status:'in_stock'}],
+  {cart:{}},
+  '',
+  {esc:value=>String(value??''),money:value=>'₹'+Number(value||0),changeQty(){},updateCartBar(){}}
+);
+assert.match(productGrid.innerHTML,/class="product-card"/,'a catalogue product with a zero price must still render');
+assert.match(productGrid.innerHTML,/class="product-price">₹0<small> \/ bottle<\/small>/,'a zero price must be displayed as ₹0 rather than Price soon');
+assert.equal(productCount.textContent,'1 item');
+
 assert.match(productView,/stock_status/);
 assert.match(productView,/OUT OF STOCK/);
 assert.match(productView,/data-plus/);
@@ -128,9 +150,11 @@ assert.match(adminSource,/async function refreshOwnerAfterOrderMutation/);
 assert.match(adminSource,/if\(id==='overview'\)await Promise\.all\(\[loadSummary\(\),loadBusiness\(\),loadHome\(\)\]\)/);
 assert.match(adminSource,/else if\(id==='orders'\)await Promise\.all\(\[loadSummary\(\),loadBusiness\(\),loadOrders\(true\)\]\)/);
 
-assert.ok(source.includes("const WATER_PRODUCT_IDS=new Set(['water-20l','water-10l-pair'])"),'only the two WaterNow water packs are eligible for customer display');
-assert.ok(source.includes("productResult.products.filter(product=>WATER_PRODUCT_IDS.has"),'the store catalogue is restricted to the 20L and 2 × 10L products');
+
+
 assert.ok(!source.includes('class="fw-category-card"'),'category tiles are not shown on the customer home');
+assert.ok(!source.includes("const WATER_PRODUCT_IDS=new Set(['water-20l','water-10l-pair'])"),'customer display is driven by the selected store catalogue, not a fixed product-ID whitelist');
+assert.ok(source.includes('const nextProducts=productResult.products;'),'all products returned by the selected store catalogue are displayed');
 assert.ok(source.includes('Available water products'),'the customer home displays its product heading directly');
 assert.ok(source.includes("c.hidden=!notice"),'the extra category area collapses when it has no delivery message');
 assert.ok(!source.includes('data-fw-category'),'there are no category-selection controls in the WaterNow home');
