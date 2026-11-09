@@ -22,7 +22,7 @@
     if(hero&&hero.parentElement===home&&hero.nextSibling!==c){
       home.insertBefore(c,hero.nextSibling);
     }
-    if(hero){const fruit=$('.hero-fruit');if(fruit)fruit.textContent='💧🚰';const h=hero.querySelector('h1');if(h)h.innerHTML='Drinking water,<br><em>delivered locally.</em>';const p=hero.querySelector('p');if(p)p.textContent='Choose your can size. Order in a few taps. Your local supplier takes care of the rest.';const eyebrow=hero.querySelector('.eyebrow');if(eyebrow)eyebrow.textContent='WATERNOW';}
+    if(hero){const fruit=$('.hero-fruit');if(fruit)fruit.textContent='💧🚰';const h=hero.querySelector('h1');if(h)h.innerHTML='Drinking water,<br><em>delivered locally.</em>';const p=hero.querySelector('p');if(p)p.textContent='Browse products available in your delivery area. Your local supplier takes care of the rest.';const eyebrow=hero.querySelector('.eyebrow');if(eyebrow)eyebrow.textContent='WATERNOW';}
     return c;
   }
   function cartChangesForStore(nextProducts){
