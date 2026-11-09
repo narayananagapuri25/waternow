@@ -166,7 +166,6 @@ async function createCategory(env,p){const v=validCategoryPayload(p);const exist
 async function updateCategory(env,categoryId,p){const current=await env.DB.prepare('SELECT * FROM categories WHERE id=?').bind(categoryId).first();if(!current)throw new Error('Category not found.');const v=validCategoryPayload({...current,...p,imageData:p.imageData===undefined?current.image_data:p.imageData,imageMimeType:p.imageMimeType===undefined?current.image_mime_type:p.imageMimeType});const existing=await env.DB.prepare('SELECT id FROM categories WHERE slug=? AND id<>?').bind(v.slug,categoryId).first();if(existing)throw new Error('A category with this name already exists.');await env.DB.prepare('UPDATE categories SET name=?,slug=?,icon=?,image_data=?,image_mime_type=?,description=?,display_order=?,active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(v.name,v.slug,v.icon,v.imageData,v.imageMimeType,v.description,v.displayOrder,v.active,categoryId).run();return{ok:true}}
 async function deleteCategory(env,categoryId){const current=await env.DB.prepare('SELECT id FROM categories WHERE id=?').bind(categoryId).first();if(!current)throw new Error('Category not found.');const used=Number((await env.DB.prepare('SELECT COUNT(*) count FROM products WHERE category_id=?').bind(categoryId).first())?.count||0);if(used)throw new Error('This category contains products. Hide the category instead of deleting it.');await env.DB.prepare('DELETE FROM categories WHERE id=?').bind(categoryId).run();return{ok:true}}
 async function requireCategory(env,categoryId){const c=await env.DB.prepare('SELECT id,name,active FROM categories WHERE id=?').bind(clean(categoryId,100)).first();if(!c)throw new Error('Select a valid category.');return c}
-const units=new Set(['kg','g','litre','ml','piece','packet','box','bottle','dozen']);
 async function activeStoreCount(env){
   return Number((await env.DB.prepare('SELECT COUNT(*) count FROM delivery_stores WHERE is_active=1').first())?.count||0);
 }
@@ -193,7 +192,6 @@ async function createProduct(env,p){
     stockManaged=p.stockManaged!==false,requestedStock=Number(p.stockQuantity??0),lowStockThreshold=Number(p.lowStockThreshold??5);
   const image=imageFields(p);
   if(!name||!unit||!Number.isFinite(price)||price<0)throw new Error('Product name, unit and valid price are required.');
-  if(!units.has(unit))throw new Error('Select a valid unit.');
   if(!Number.isInteger(requestedStock)||requestedStock<0||!Number.isInteger(lowStockThreshold)||lowStockThreshold<0)throw new Error('Enter valid stock values.');
   if(hsnCode&&!/^\d{4,8}$/.test(hsnCode))throw new Error('HSN code must contain 4 to 8 digits.');
   if(!Number.isInteger(gstRateBps)||gstRateBps<0||gstRateBps>4000)throw new Error('GST rate must be between 0% and 40%, in increments of 0.01%.');
