@@ -10,8 +10,8 @@ function renderStores(){
  if(!storeRoot)return;
  if(storeRoot.__waterNowMapDestroy){storeRoot.__waterNowMapDestroy();storeRoot.__waterNowMapDestroy=null;}
  let form='';
- if(editing!==null){form='<form class="panel fw-store-form" id="fwStoreForm"><div class="section-head"><div><h2>'+(editing.id?'Edit store':'Add store')+'</h2><p>Enter the store address and map pin. The default delivery radius is 5 km.</p></div></div><div class="settings-form-grid">'+
- '<label class="settings-field"><span>Store name</span><input name="name" maxlength="120" required value="'+esc(editing.name)+'" placeholder="Store 1"></label>'+
+ if(editing!==null){form='<form class="panel fw-store-form" id="fwStoreForm"><div class="section-head"><div><h2>'+(editing.id?'Edit store':'Add store')+'</h2><p>Set this store's delivery radius and choose its exact location on the map.</p></div></div><div class="settings-form-grid">'+
+ '<label class="settings-field"><span>Store name</span><input name="name" maxlength="120" required value="'+esc(editing.name)+'" placeholder="Enter store name"></label>'+
  '<label class="settings-field"><span>Address</span><input name="address" maxlength="300" value="'+esc(editing.address)+'" placeholder="Street, area, city"></label>'+
  '<label class="settings-field"><span>Delivery radius (km)</span><input name="radius" type="number" step="0.1" min="0.1" max="100" required value="'+esc(editing.radius)+'"></label>'+
  (editing.id?'<label class="settings-field"><span>Status</span><select name="active"><option value="1" '+(editing.active?'selected':'')+'>Active</option><option value="0" '+(!editing.active?'selected':'')+'>Inactive</option></select></label>':'')+
@@ -66,7 +66,7 @@ function renderStores(){
    '<div class="fw-store-management-save"><p class="muted">Saving updates this store only. Reserved quantities are protected from being reduced.</p><button class="primary" type="button" data-save-store-management data-save-catalogue data-save-inventory>Save prices &amp; inventory</button></div></section>';
  }
 
- const storesView='<div class="fw-admin-section-head"><div><span class="eyebrow">DELIVERY SETUP</span><h2>Stores</h2><p>Manage locations, 5 km delivery areas and stock by location.</p></div><button class="primary" type="button" data-add-store>+ Add store</button></div><p data-store-status class="muted fw-admin-status" role="status" aria-live="polite">'+stores.length+' store'+(stores.length===1?'':'s')+' loaded.</p>'+form+'<div class="fw-store-grid">'+cards+'</div>';
+ const storesView='<div class="fw-admin-section-head"><div><span class="eyebrow">DELIVERY SETUP</span><h2>Stores</h2><p>Manage store locations, delivery areas and stock by location.</p></div><button class="primary" type="button" data-add-store>+ Add store</button></div><p data-store-status class="muted fw-admin-status" role="status" aria-live="polite">'+stores.length+' store'+(stores.length===1?'':'s')+' loaded.</p>'+form+'<div class="fw-store-grid">'+cards+'</div>';
  storeRoot.innerHTML=selectedStoreId?management:storesView;
  const mapRoot=storeRoot.querySelector('[data-waternow-store-map-picker]');
  if(mapRoot&&window.WaterNowStoreMapPicker)storeRoot.__waterNowMapDestroy=window.WaterNowStoreMapPicker.mount(mapRoot)||null;
@@ -177,7 +177,7 @@ async function openStoreManagement(id){
 function closeStoreManagement(){
   if(storeSaving)return;
   const state=window.history?.state;
-  if(state?.__freshwayOwner&&state.screen==='stores'&&state.storeId&&typeof window.history.back==='function'){window.history.back();return}
+  if(state?.__waterNowOwner&&state.screen==='stores'&&state.storeId&&typeof window.history.back==='function'){window.history.back();return}
  storeRequestVersion++;
  selectedStoreId=null;inventory=[];storeCatalogue=[];storeSaving=false;storeDetailLoading=false;storeLoadError='';storeStockFilter='all';
  renderStores();
