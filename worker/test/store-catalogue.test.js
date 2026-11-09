@@ -228,3 +228,36 @@ test('order creation resolves local price server-side even when a client omits s
     assert.equal(saved.assigned_store_id,'store-near');
   }finally{d1.close()}
 });
+
+
+test('WaterNow direct Owner catalogue prices support a five-plus-five basket without supplier onboarding',async()=>{
+  const d1=new SQLiteD1();
+  try{
+    d1.db.exec(`
+      INSERT INTO categories (id,name,slug,icon,display_order,active)
+      VALUES
+        ('water-20l','20L Water Can','20l-water-can','💧',1,1),
+        ('water-10l-pair','2 × 10L Water Cans','two-10l-water-cans','🚰',2,1);
+      INSERT INTO products (id,name,unit,price,emoji,active,category_id,display_order,stock_managed,stock_quantity,low_stock_threshold,hsn_code,gst_rate_bps,gst_rate_confirmed)
+      VALUES
+        ('water-20l','20L Drinking Water Can','can',0,'💧',1,'water-20l',1,1,0,2,'',0,0),
+        ('water-10l-pair','2 × 10L Drinking Water Cans','pack',0,'🚰',1,'water-10l-pair',2,1,0,2,'',0,0);
+      INSERT INTO delivery_store_catalogue (store_id,product_id,is_available,price_override)
+      VALUES ('store-near','water-20l',1,NULL),('store-near','water-10l-pair',1,NULL);
+      INSERT INTO delivery_store_inventory (store_id,product_id,stock_quantity)
+      VALUES ('store-near','water-20l',5),('store-near','water-10l-pair',5);
+    `);
+    const migration=readFileSync(new URL('../migrations/0054_waternow_owner_managed_pack_prices.sql',import.meta.url),'utf8');
+    d1.db.exec(migration);
+    const response=await handleCustomerDeliveryOffersRequest(jsonRequest(
+      'https://api.example.test/api/checkout/quote',
+      {storeId:'store-near',items:[{id:'water-20l',qty:5},{id:'water-10l-pair',qty:5}]}
+    ),{DB:d1},null);
+    assert.equal(response.status,200);
+    const result=await response.json();
+    assert.equal(result.pricing.itemsSubtotal,250);
+    const prices=new Map(result.pricing.items.map(item=>[item.id,{price:item.price,lineTotal:item.lineTotal,qty:item.qty}]));
+    assert.deepEqual(prices.get('water-20l'),{price:30,lineTotal:150,qty:5});
+    assert.deepEqual(prices.get('water-10l-pair'),{price:20,lineTotal:100,qty:5});
+  }finally{d1.close()}
+});
