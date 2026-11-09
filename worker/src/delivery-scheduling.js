@@ -865,10 +865,10 @@ export async function handleAdminDeliveryRequest(request, env) {
   if (path === '/api/admin/delivery/stores' && request.method === 'POST') {
     let body = {}; try { body = await request.json(); } catch (_) {}
     const name = clean(body.name).slice(0, 120), address = clean(body.address).slice(0, 300);
-    const latitude = Number(body.latitude), longitude = Number(body.longitude), radius = Number(body.serviceRadiusKm ?? 5);
+    const latitude = Number(body.latitude), longitude = Number(body.longitude), radius = body.serviceRadiusKm === undefined || body.serviceRadiusKm === null || String(body.serviceRadiusKm).trim() === '' ? NaN : Number(body.serviceRadiusKm);
     if (!name) throw new Error('Enter the store name.');
     if (!Number.isFinite(latitude) || Math.abs(latitude) > 90 || !Number.isFinite(longitude) || Math.abs(longitude) > 180) throw new Error('Enter valid store map coordinates.');
-    if (!Number.isFinite(radius) || radius < 0.1 || radius > 100) throw new Error('Invalid store delivery radius.');
+    if (!Number.isFinite(radius) || radius < 0.1 || radius > 100) throw new Error('Enter a valid store delivery radius between 0.1 and 100 km.');
     const storeId=id('store');
     const existingStores=Number((await env.DB.prepare('SELECT COUNT(*) count FROM delivery_stores').first())?.count||0);
     const inventorySeed=existingStores===0?'copied-current-available-stock':'zero-stock-requires-setup';
