@@ -141,3 +141,90 @@ test('WaterNow refuses supplier verification without an unexpired FSSAI record a
     assert.equal(stillPending.compliance_status,'pending');
   }finally{db.close();}
 });
+
+test('WaterNow prevents cross-area partner assignment, supplier replacement and unsafe reactivation',async()=>{
+  const db=new SQLiteD1();
+  try{
+    db.db.prepare(`INSERT INTO delivery_stores(id,name,address,latitude,longitude,service_radius_km,is_active)
+      VALUES('store-hyd','WaterNow Hyderabad Hub','Test address',17.385,78.4867,5,1)`).run();
+
+    const createSupplier=async(name)=>{
+      const response=await handleWaterNetworkRequest(request('water-suppliers',{
+        name,supplierType:'distributor',phone:'9999999999',city:'Hyderabad',state:'Telangana',pincode:'500072',
+        fulfilmentModel:'platform_delivery',fssaiLicenseNumber:'12345678901234',
+        fssaiLicenseExpiry:'2027-12-31',testingSchemeAcknowledged:true
+      }),env(db));
+      assert.equal(response.status,201);
+      return (await response.json()).supplier;
+    };
+    const verifySupplier=async supplier=>handleWaterNetworkRequest(request('water-suppliers/'+supplier.id,{
+      complianceStatus:'verified',fssaiLicenseNumber:'12345678901234',
+      fssaiLicenseExpiry:'2027-12-31',testingSchemeAcknowledged:true
+    },'PATCH'),env(db));
+    const createPartner=async(name,city,pincode)=>{
+      const response=await handleWaterNetworkRequest(request('delivery-partners',{
+        name,phone:'9888888888',city,state:'Telangana',pincode,partnerType:'fleet'
+      }),env(db));
+      assert.equal(response.status,201);
+      const partner=(await response.json()).partner;
+      const verified=await handleWaterNetworkRequest(request('delivery-partners/'+partner.id,{complianceStatus:'verified'},'PATCH'),env(db));
+      assert.equal(verified.status,200);
+      return partner;
+    };
+
+    const supplier=await createSupplier('Hyderabad Water Supplier');
+    assert.equal((await verifySupplier(supplier)).status,200);
+
+    const outsidePartner=await createPartner('Warangal Delivery Fleet','Warangal','506001');
+    const wrongArea=await handleWaterNetworkRequest(request('water-suppliers/'+supplier.id+'/link-store',{
+      storeId:'store-hyd',fulfilmentModel:'platform_delivery',deliveryPartnerId:outsidePartner.id
+    }),env(db));
+    assert.equal(wrongArea.status,400);
+    assert.match((await wrongArea.json()).error,/does not cover this supplier/i);
+
+    const localPartner=await createPartner('Hyderabad Delivery Fleet','Hyderabad','500072');
+    const linked=await handleWaterNetworkRequest(request('water-suppliers/'+supplier.id+'/link-store',{
+      storeId:'store-hyd',fulfilmentModel:'platform_delivery',deliveryPartnerId:localPartner.id
+    }),env(db));
+    assert.equal(linked.status,200);
+
+    const secondSupplier=await createSupplier('Second Hyderabad Supplier');
+    assert.equal((await verifySupplier(secondSupplier)).status,200);
+    const replacement=await handleWaterNetworkRequest(request('water-suppliers/'+secondSupplier.id+'/link-store',{
+      storeId:'store-hyd',fulfilmentModel:'supplier_delivery'
+    }),env(db));
+    assert.equal(replacement.status,400);
+    assert.match((await replacement.json()).error,/already linked to another supplier/i);
+    let store=db.db.prepare('SELECT supplier_id,is_active FROM delivery_stores WHERE id=?').get('store-hyd');
+    assert.equal(store.supplier_id,supplier.id);
+    assert.equal(Number(store.is_active),1);
+
+    const suspended=await handleWaterNetworkRequest(request('delivery-partners/'+localPartner.id,{complianceStatus:'suspended'},'PATCH'),env(db));
+    assert.equal(suspended.status,200);
+    store=db.db.prepare('SELECT is_active FROM delivery_stores WHERE id=?').get('store-hyd');
+    assert.equal(Number(store.is_active),0);
+
+    assert.equal((await verifySupplier(supplier)).status,200);
+    store=db.db.prepare('SELECT is_active FROM delivery_stores WHERE id=?').get('store-hyd');
+    assert.equal(Number(store.is_active),0,'verifying a supplier must not reactivate a store with a suspended delivery partner');
+
+    const blockedReLink=await handleWaterNetworkRequest(request('water-suppliers/'+supplier.id+'/link-store',{
+      storeId:'store-hyd',fulfilmentModel:'platform_delivery',deliveryPartnerId:localPartner.id
+    }),env(db));
+    assert.equal(blockedReLink.status,400);
+    assert.match((await blockedReLink.json()).error,/verified and active delivery partner/i);
+
+    const reverifiedPartner=await handleWaterNetworkRequest(request('delivery-partners/'+localPartner.id,{complianceStatus:'verified'},'PATCH'),env(db));
+    assert.equal(reverifiedPartner.status,200);
+    store=db.db.prepare('SELECT is_active FROM delivery_stores WHERE id=?').get('store-hyd');
+    assert.equal(Number(store.is_active),0,'partner reverification must not silently reactivate a paused delivery location');
+
+    const explicitRelink=await handleWaterNetworkRequest(request('water-suppliers/'+supplier.id+'/link-store',{
+      storeId:'store-hyd',fulfilmentModel:'platform_delivery',deliveryPartnerId:localPartner.id
+    }),env(db));
+    assert.equal(explicitRelink.status,200);
+    store=db.db.prepare('SELECT supplier_id,is_active FROM delivery_stores WHERE id=?').get('store-hyd');
+    assert.equal(store.supplier_id,supplier.id);
+    assert.equal(Number(store.is_active),1);
+  }finally{db.close();}
+});
