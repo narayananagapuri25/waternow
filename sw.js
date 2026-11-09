@@ -104,7 +104,7 @@ try {
 const page=new URL(client.url);
 if(page.origin!==self.location.origin||page.pathname.startsWith('/admin/')||page.pathname==='/admin.html')return;
 client.postMessage({
-type:'freshway:order-updated',
+type:'waternow:order-updated',
 audience:'customer',
 orderId:String(alert.orderId),
 eventType:String(alert.eventType||'order_update')
