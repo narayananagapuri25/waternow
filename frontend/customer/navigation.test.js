@@ -23,7 +23,7 @@ assert.match(viewState,/window\.history\?\.state\?\.__waterNowCustomer/,'refresh
 const html=fs.readFileSync('index.html','utf8');
 assert.match(html,/fw-view-restore-pending #app\{visibility:hidden\}/,'non-home refreshes should remain hidden until the restored route is active');
 assert.ok(html.includes('navigation.js?v=20261109-waternow-state-v2'),'navigation must use the cache-busted deterministic history module');
-assert.match(html,/view-state\.js\?v=20261028-nav-restore-v2/);
+assert.match(html,/view-state\.js\?v=20261109-waternow-state-v2/);
 console.log('customer navigation history isolation OK');
 
 assert.match(source,/visibleModal/);
