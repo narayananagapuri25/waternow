@@ -230,7 +230,6 @@ async function updateProduct(env,productId,p){
     lowStockThreshold=Number(next.lowStockThreshold??current.low_stock_threshold??5);
   const image=imageFields({...p,imageData:p.imageData===undefined?current.image_data:p.imageData,imageMimeType:p.imageMimeType===undefined?current.image_mime_type:p.imageMimeType});
   if(!name||!unit||!Number.isFinite(price)||price<0)throw new Error('Enter a valid name, price and unit.');
-  if(!units.has(unit))throw new Error('Select a valid unit.');
   if(Number(current.stock_managed)===1&&!stockManaged)throw new Error('Stock tracking cannot be disabled after it is enabled.');
   if(!Number.isInteger(requestedStock)||requestedStock<0||!Number.isInteger(lowStockThreshold)||lowStockThreshold<0)throw new Error('Enter valid stock values.');
   if(hsnCode&&!/^\d{4,8}$/.test(hsnCode))throw new Error('HSN code must contain 4 to 8 digits.');
