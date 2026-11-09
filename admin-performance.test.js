@@ -57,7 +57,7 @@ assert.match(response,/SameSite=Lax/);
 
 assert.match(ownerSw,/const CACHE = 'waternow-owner-v2'/);
 assert.match(ownerSw,/delivery-management\.js\?v=20261106-store-reconciliation-v1/);
-assert.match(ownerSw,/admin\.css\?v=waternow-v1/);
+assert.match(ownerSw,/admin\.css\?v=20261109-configurable-v2/);
 assert.match(ownerSw,/if \(cached && isVersionedCode\) return cached/);
 assert.match(ownerSw,/if \(isDocument \|\| isManifest\)/);
 assert.match(ownerRouter,/OWNER_VERSIONED_ASSET_CACHE_CONTROL/);
