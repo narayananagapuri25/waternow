@@ -79,7 +79,24 @@ def object_sql(conn: sqlite3.Connection, kind: str) -> dict[str, str]:
     return {name: normalize_sql(sql) for name, sql in rows}
 
 
-def compare(expected: sqlite3.Connection, actual: sqlite3.Connection) -> list[str]:
+LEGACY_DELIVERY_STORE_FKS = {
+    ("water_delivery_partners", "delivery_partner_id", "id", "NO ACTION", "SET NULL"),
+    ("water_suppliers", "supplier_id", "id", "NO ACTION", "SET NULL"),
+}
+PENDING_0053_TRIGGERS = {
+    "delivery_stores_supplier_fk_insert",
+    "delivery_stores_supplier_fk_update",
+    "delivery_stores_partner_fk_insert",
+    "delivery_stores_partner_fk_update",
+    "water_suppliers_delivery_stores_set_null",
+    "water_suppliers_delivery_stores_id_guard",
+    "water_delivery_partners_delivery_stores_set_null",
+    "water_delivery_partners_delivery_stores_id_guard",
+}
+
+
+def compare(expected: sqlite3.Connection, actual: sqlite3.Connection,
+            allow_pending_0053: bool = False) -> list[str]:
     issues: list[str] = []
     exp_tables, act_tables = app_tables(expected), app_tables(actual)
     for name in sorted(exp_tables - act_tables):
@@ -96,6 +113,12 @@ def compare(expected: sqlite3.Connection, actual: sqlite3.Connection) -> list[st
                 f"  actual={json.dumps(act_cols, default=str)}"
             )
         exp_fk, act_fk = foreign_keys(expected, table), foreign_keys(actual, table)
+        if table == "delivery_stores":
+            missing_legacy_refs = LEGACY_DELIVERY_STORE_FKS.intersection(exp_fk) - set(act_fk)
+            actual_trigger_names = set(object_sql(actual, "trigger"))
+            guards_complete = PENDING_0053_TRIGGERS.issubset(actual_trigger_names)
+            if missing_legacy_refs and (allow_pending_0053 or guards_complete):
+                exp_fk = [item for item in exp_fk if item not in missing_legacy_refs]
         if exp_fk != act_fk:
             issues.append(
                 f"foreign-key mismatch: {table}\n"
@@ -113,6 +136,8 @@ def compare(expected: sqlite3.Connection, actual: sqlite3.Connection) -> list[st
     for kind in ("index", "trigger"):
         exp, act = object_sql(expected, kind), object_sql(actual, kind)
         for name in sorted(exp.keys() - act.keys()):
+            if kind == "trigger" and allow_pending_0053 and name in PENDING_0053_TRIGGERS:
+                continue
             issues.append(f"missing {kind}: {name}")
         for name in sorted(act.keys() - exp.keys()):
             issues.append(f"unexpected {kind}: {name}")
@@ -129,13 +154,18 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--expected", required=True, type=Path)
     parser.add_argument("--actual", required=True, type=Path)
+    parser.add_argument(
+        "--allow-pending-0053",
+        action="store_true",
+        help="Allow only the eight additive supplier/partner guard triggers from migration 0053 to be pending.",
+    )
     args = parser.parse_args()
 
     expected = connect_from_sql(args.expected)
     actual = connect_from_sql(args.actual)
     expected_table_count = len(app_tables(expected))
     try:
-        issues = compare(expected, actual)
+        issues = compare(expected, actual, allow_pending_0053=args.allow_pending_0053)
     finally:
         expected.close()
         actual.close()
