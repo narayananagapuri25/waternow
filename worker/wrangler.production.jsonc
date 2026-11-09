@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "waternow-api",
   "main": "src/admin-auth.js",
+  "account_id": "17f1561ed0052cf9d484cb4becbf8810",
   "compatibility_date": "2026-09-06",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
@@ -9,7 +10,8 @@
     {
       "binding": "DB",
       "database_name": "waternow-production",
-      "database_id": "da57af93-2f4f-42f1-b2f3-eb02533bf9fd"
+      "database_id": "da57af93-2f4f-42f1-b2f3-eb02533bf9fd",
+      "migrations_dir": "migrations"
     }
   ],
   "vars": {
