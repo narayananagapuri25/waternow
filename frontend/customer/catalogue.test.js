@@ -75,7 +75,7 @@ const productView=fs.readFileSync('frontend/customer/product-view.js','utf8');
 const productGrid={innerHTML:''};
 const productCount={textContent:''};
 const productViewContext={
-  window:{FreshWayCatalogueMedia:null},
+  window:{WaterNowCatalogueMedia:{image:()=>''}},
   document:{querySelector(selector){
     if(selector==='#productGrid')return productGrid;
     if(selector==='.count-pill')return productCount;
@@ -84,16 +84,16 @@ const productViewContext={
 };
 vm.createContext(productViewContext);
 vm.runInContext(productView,productViewContext);
-productViewContext.window.FreshWayCustomerProductView.render(
-  [{id:'water-10l',name:'10L Drinking Water Can',unit:'bottle',price:0,emoji:'💧',active:1,stock_status:'in_stock'}],
+productViewContext.window.WaterNowCustomerProductView.render(
+  [{id:'custom-product',name:'Configured product name',unit:'custom selling unit',price:0,active:1,stock_status:'in_stock'}],
   {cart:{}},
   '',
   {esc:value=>String(value??''),money:value=>'₹'+Number(value||0),changeQty(){},updateCartBar(){}}
 );
-assert.match(productGrid.innerHTML,/class="product-card"/,'a catalogue product with a zero price must still render');
-assert.ok(productGrid.innerHTML.includes('<h3>10L Drinking Water Can</h3>'),'the saved catalogue product name must be displayed without hard-coded aliases');
-assert.doesNotMatch(productView,/productNameAliases/,'product names are configured in the catalogue, not hard-coded in the UI');
-assert.match(productGrid.innerHTML,/class="product-price">₹0<small> \/ bottle<\/small>/,'a zero price must be displayed as ₹0 rather than Price soon');
+assert.ok(productGrid.innerHTML.includes('<h3>Configured product name</h3>'),'the saved catalogue name must be displayed verbatim');
+assert.match(productGrid.innerHTML,/class="product-price">₹0<small> \/ custom selling unit<\/small>/,'zero price and configured unit must be displayed');
+assert.match(productGrid.innerHTML,/data-add="custom-product"/,'an in-stock item with a zero price must remain addable');
+assert.doesNotMatch(productGrid.innerHTML,/data-add="custom-product"[^>]*disabled/,'zero price is not an out-of-stock condition');
 assert.equal(productCount.textContent,'1 item');
 
 assert.match(productView,/stock_status/);
@@ -102,12 +102,17 @@ assert.match(productView,/data-plus/);
 assert.match(productView,/stock-cart-warning/);
 
 const media=fs.readFileSync('frontend/catalogue-media.js','utf8');
-assert.match(media,/'water-20l'\s*:/,'the 20L WaterNow catalogue image is mapped');
-assert.match(media,/'water-10l-pair'\s*:/,'the 10L pair WaterNow catalogue image is mapped');
-assert.match(media,/water-20l\.svg/);
-assert.doesNotMatch(media, new RegExp('api/admin|r2|D1', 'i'));
-assert.match(productView,/FreshWayCatalogueMedia/);
+assert.doesNotMatch(media,/water-20l|water-10l-pair|groundnut|sunflower|rice/i,'image selection must not depend on a fixed product ID or name');
+const mediaContext={window:{}};
+vm.createContext(mediaContext);
+vm.runInContext(media,mediaContext);
+const configuredImage='/api/catalogue/images/products/custom-product?v=abc';
+assert.equal(mediaContext.window.WaterNowCatalogueMedia.image('products','custom-product',{image_url:configuredImage}),configuredImage,'the catalogue-saved image URL must be used for any product ID');
+assert.equal(mediaContext.window.WaterNowCatalogueMedia.image('products','custom-product',{image_data:'YWJj',image_mime_type:'image/webp'}),'data:image/webp;base64,YWJj','legacy uploaded image data remains supported');
+assert.equal(mediaContext.window.WaterNowCatalogueMedia.image('products','custom-product',{}),'','missing image configuration must not be replaced by a guessed product icon');
+assert.match(productView,/WaterNowCatalogueMedia/);
 assert.match(productView,/image_data&&p\.image_mime_type/);
+assert.doesNotMatch(productView,/WaterNowCatalogueMedia/);
 const styles=fs.readFileSync('styles.css','utf8');
 const categoryFoldStyles=fs.readFileSync('frontend/customer/category-fold-fit.css','utf8');
 assert.match(styles,/grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/);
@@ -120,6 +125,9 @@ assert.match(styles,/\.product-actions \.qty-control\{flex:0 0 auto;min-width:98
 assert.match(styles,/\.qty-control button\{border:0;background:#f5f8f6;width:34px;min-width:34px;height:38px\}/);
 assert.match(styles,/@media\(max-width:380px\)/);
 const ownerCatalogue=fs.readFileSync('frontend/admin/catalogue.js','utf8');
+assert.match(ownerCatalogue,/id="fwPUnit" required maxlength="30"/,'product unit must be configurable as free text');
+assert.doesNotMatch(ownerCatalogue,/\['kg','g','litre','ml','piece','packet','box','bottle','dozen'\]/,'catalogue must not hardcode a product-unit whitelist');
+assert.doesNotMatch(fs.readFileSync('worker/src/catalogue-api.js','utf8'),/const units=new Set/,'Worker API must accept configurable product units');
 assert.match(ownerCatalogue,/type="file"/);
 assert.match(ownerCatalogue,/compressProductImage/);
 assert.match(ownerCatalogue,/imageData:image\.data/);
@@ -142,7 +150,7 @@ assert.match(catalogueApi,/cache-control/);
 console.log('catalogue UI-only media mapping OK');
 
 const navigation=fs.readFileSync('frontend/customer/navigation.js','utf8');
-assert.match(navigation,/__freshwayCustomer/);
+assert.match(navigation,/__waterNowCustomer/);
 
 const ownerLifecycle=fs.readFileSync('owner-lifecycle.js','utf8');
 const adminSource=fs.readFileSync('admin.js','utf8');
@@ -160,7 +168,7 @@ assert.ok(source.includes('const nextProducts=productResult.products;'),'all pro
 assert.ok(source.includes('Available water products'),'the customer home displays its product heading directly');
 assert.ok(source.includes("c.hidden=!notice"),'the extra category area collapses when it has no delivery message');
 assert.ok(!source.includes('data-fw-category'),'there are no category-selection controls in the WaterNow home');
-assert.ok(source.includes('window.freshWayCustomerCatalogueGoHome=()=>setMode(null'),'Home navigation restores the catalogue product list');
+assert.ok(source.includes('window.waterNowCustomerCatalogueGoHome=()=>setMode(null'),'Home navigation restores the catalogue product list');
 
 
 
