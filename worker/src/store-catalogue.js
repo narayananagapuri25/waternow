@@ -79,6 +79,7 @@ export async function getStoreProductRows(env, storeId, quantities) {
     const available=Math.max(0,Number(row.on_hand||0)-Number(row.reserved_qty||0));
     if(managed&&available<qty)throw new Error('Not enough store stock for '+row.name+'. Review your cart and try again.');
     const price=Number(row.effective_price);
+    if(!Number.isSafeInteger(price)||price<=0)throw new Error('This water pack is not orderable yet because the local supplier price has not been confirmed.');
     items.push({...row,price,qty,lineTotal:price*qty,stockReservedQty:managed?qty:0});
   }
   if(items.length!==quantities.size)throw new Error('One or more products are no longer available from the selected store.');
