@@ -1,7 +1,7 @@
 // Customer view-state boundary.
 // Restores the route represented by this browser-history entry before showing the app.
 (function(){
-  const VIEW_KEY='freshway-current-view-v1';
+  const VIEW_KEY='waternow-current-view-v1';
   const VALID_VIEWS=new Set(['home','cart','checkout','orders','messages','profile','about','contact','confirmation']);
   let restored=false;
 
@@ -23,7 +23,7 @@
     return null;
   };
   const resolveInitialView=window=>{
-    const historyView=window.history?.state?.__freshwayCustomer?window.history.state.view:null;
+    const historyView=window.history?.state?.__waterNowCustomer?window.history.state.view:null;
     if(VALID_VIEWS.has(historyView))return historyView;
     const hash=String(window.location?.hash||'').replace(/^#/,'');
     if(VALID_VIEWS.has(hash)&&hash!=='confirmation')return hash;
@@ -54,17 +54,17 @@
     return true;
   };
   const bind=({document,window})=>{
-    if(!document||!window||document.__freshwayViewStateBound)return;
-    document.__freshwayViewStateBound=true;
+    if(!document||!window||document.__waterNowViewStateBound)return;
+    document.__waterNowViewStateBound=true;
     document.addEventListener('click',e=>{const name=clickedView(e.target);if(name)saveView(name)});
     window.addEventListener('popstate',event=>{
       const state=event.state;
-      saveView(state?.__freshwayCustomer&&VALID_VIEWS.has(state.view)?state.view:'home');
+      saveView(state?.__waterNowCustomer&&VALID_VIEWS.has(state.view)?state.view:'home');
     });
     const attemptRestore=()=>{if(!restore({document,window}))window.addEventListener('load',()=>restore({document,window}),{once:true})};
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attemptRestore,{once:true});
     else attemptRestore();
   };
-  window.FreshWayCustomerViewState=Object.freeze({KEY:VIEW_KEY,VIEW_KEY,saveView,clickedView,restore,bind});
+  window.WaterNowCustomerViewState=Object.freeze({KEY:VIEW_KEY,VIEW_KEY,saveView,clickedView,restore,bind});
   if(typeof document!=='undefined'&&typeof window!=='undefined')bind({document,window});
 })();
