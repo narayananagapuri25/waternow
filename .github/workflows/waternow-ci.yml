@@ -233,6 +233,8 @@ jobs:
           test -n "${CLOUDFLARE_API_TOKEN}" || { echo "::error::Add the CLOUDFLARE_API_TOKEN GitHub Actions secret."; exit 1; }
       - name: Install Worker and Wrangler dependencies
         run: npm install --no-audit --no-fund
+      - name: Bootstrap existing production D1 baseline when ledger is absent (preflight-gated)
+        run: node ./scripts/bootstrap-production-d1-baseline.mjs
       - name: Verify production D1 migration baseline
         run: node ./scripts/require-production-d1-baseline.mjs
       - name: Apply pending production D1 migrations
