@@ -27,7 +27,6 @@ test('WaterNow catalogue artwork and promotion images load and decode on mobile 
       status:200,contentType:'application/json',
       body:JSON.stringify({available:true,code:'AVAILABLE',store:{id:'store-visual',name:'WaterNow Visual Supplier',distanceKm:1}})
     });
-    if(method==='GET'&&url.pathname==='/api/categories')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({categories})});
     if(method==='GET'&&url.pathname==='/api/products')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({products})});
     if(method==='GET'&&url.pathname==='/api/promotions')return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({promotions})});
     const promotionImage=url.pathname.match(/^\/api\/promotions\/images\/(visual-promo-[12])$/);
@@ -74,33 +73,31 @@ test('WaterNow catalogue artwork and promotion images load and decode on mobile 
   await page.locator('[data-fw-promo-dot="1"]').click();
   await decoded(activePromotion);
 
-  const mobileCategoryImages=page.locator('#fwCategoryCatalogue .fw-category-image img');
-  await expect(mobileCategoryImages).toHaveCount(2);
-  await mobileCategoryImages.first().scrollIntoViewIfNeeded();
-  await decoded(mobileCategoryImages);
+  await expect(page.locator('#productGrid .product-card')).toHaveCount(2);
+  await expect(page.locator('#productGrid .product-card').filter({hasText:'20L Drinking Water Can'})).toBeVisible();
+  await expect(page.locator('#productGrid .product-card').filter({hasText:'2 × 10L Drinking Water Cans'})).toBeVisible();
   const mobileProductImages=page.locator('#productGrid .product-card .product-image img');
   await expect(mobileProductImages).toHaveCount(2);
   await decoded(mobileProductImages);
   await page.evaluate(()=>window.scrollTo(0,0));
   await capture('mobile-water-pack-home');
 
-  await page.locator('[data-fw-category="water-20l"]').click();
-  await expect(page.locator('#productGrid .product-card:visible')).toHaveCount(1);
-  await decoded(page.locator('#productGrid .product-card:visible .product-image img'));
+  const mobileTwentyLCard=page.locator('#productGrid .product-card').filter({hasText:'20L Drinking Water Can'});
+  await mobileTwentyLCard.scrollIntoViewIfNeeded();
+  await decoded(mobileTwentyLCard.locator('.product-image img'));
   await capture('mobile-20l-pack');
 
   await page.setViewportSize({width:1365,height:900});
   await page.reload();
   const desktopPromotion=page.locator('.hero-banner .fw-promo-slide[aria-hidden="false"] img');
   await decoded(desktopPromotion);
-  const desktopCategoryImages=page.locator('#fwCategoryCatalogue .fw-category-image img');
-  await expect(desktopCategoryImages).toHaveCount(2);
-  await decoded(desktopCategoryImages);
+  await expect(page.locator('#productGrid .product-card')).toHaveCount(2);
+  await decoded(page.locator('#productGrid .product-card .product-image img'));
   await page.evaluate(()=>window.scrollTo(0,0));
   await capture('desktop-water-pack-home');
 
-  await page.locator('[data-fw-category="water-10l-pair"]').click();
-  await expect(page.locator('#productGrid .product-card:visible')).toHaveCount(1);
-  await decoded(page.locator('#productGrid .product-card:visible .product-image img'));
+  const desktopTwinPackCard=page.locator('#productGrid .product-card').filter({hasText:'2 × 10L Drinking Water Cans'});
+  await desktopTwinPackCard.scrollIntoViewIfNeeded();
+  await decoded(desktopTwinPackCard.locator('.product-image img'));
   await capture('desktop-twin-10l-pack');
 });
