@@ -83,6 +83,7 @@ test('legacy cleanup is restricted to the 12 owner-confirmed test order IDs and 
 test('migration hard-deletes the target orders and linked records while preserving shared data', () => {
   const db = makeDatabase();
   try {
+    const productIdsBefore = db.prepare('SELECT id FROM products ORDER BY id').all().map(row=>row.id);
     db.exec(migration);
     const count = table => Number(db.prepare('SELECT COUNT(*) count FROM '+table).get().count);
     assert.equal(count('orders'),0);
