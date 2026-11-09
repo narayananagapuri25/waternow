@@ -29,10 +29,10 @@
           } else {
             throw new Error('WaterNow did not confirm cancellation. Refresh My Orders and try again.');
           }
-          document.dispatchEvent(new CustomEvent('freshway:order-actions-changed', { detail:{ orderId, action:'cancel', silentError:true } }));
+          document.dispatchEvent(new CustomEvent('waternow:order-actions-changed', { detail:{ orderId, action:'cancel', silentError:true } }));
         } catch (error) {
           feedback(error?.message || 'Could not cancel this order. Refresh and try again.');
-          document.dispatchEvent(new CustomEvent('freshway:order-actions-changed', { detail:{ orderId, action:'refresh', silentError:true } }));
+          document.dispatchEvent(new CustomEvent('waternow:order-actions-changed', { detail:{ orderId, action:'refresh', silentError:true } }));
         }
         finally { if (cancel.isConnected) cancel.disabled = false; }
         return;
@@ -63,7 +63,7 @@
             });
             feedback(result.message || 'Delivery date updated.');
             target.hidden = true;
-            document.dispatchEvent(new CustomEvent('freshway:order-actions-changed', { detail:{ orderId, action:'reschedule' } }));
+            document.dispatchEvent(new CustomEvent('waternow:order-actions-changed', { detail:{ orderId, action:'reschedule' } }));
           }
         });
         return;
@@ -101,7 +101,7 @@
           const result = await api('/api/orders/' + encodeURIComponent(orderId) + '/request', { method:'POST', body:JSON.stringify({ requestType, reason }) });
           feedback(result.request?.alreadyRequested ? 'You already have a request waiting for WaterNow.' : requestType === 'return' ? 'Your return request was sent to WaterNow.' : 'Your message was sent to WaterNow.');
           panel.hidden = true;
-          document.dispatchEvent(new CustomEvent('freshway:order-actions-changed', { detail:{ orderId, action:'request' } }));
+          document.dispatchEvent(new CustomEvent('waternow:order-actions-changed', { detail:{ orderId, action:'request' } }));
         } catch (error) { feedback(error?.message || 'Could not send your request. Try again.'); }
         finally { if (submitRequest.isConnected) submitRequest.disabled = false; }
       }
