@@ -9,6 +9,8 @@ const customerStyles = fs.readFileSync('styles.css', 'utf8');
 assert.match(source, /\.fw-promo-preview\{[^}]*height:auto[^}]*aspect-ratio:auto/);
 assert.match(source, /\.fw-promo-preview img\{[^}]*max-width:100%;max-height:320px;width:auto;height:auto;object-fit:contain/);
 assert.match(source, /\.fw-product-icon\{height:auto;min-height:100px;aspect-ratio:4\/3/);
+assert.match(source, /fw-product-image-empty/,'unconfigured products use a neutral image placeholder, not an unrelated emoji');
+assert.match(source, /id="fwPUnit" required maxlength="30"/,'the product unit is owner-configurable');
 assert.match(source, /\.fw-cat-icon img,.fw-product-icon img\{[^}]*object-fit:contain;object-position:center/);
 assert.match(source, /\.fw-image-preview img\{width:100%;height:100%;object-fit:contain/);
 assert.match(source, /drawImage\(bitmap,0,0,canvas\.width,canvas\.height\)/);
