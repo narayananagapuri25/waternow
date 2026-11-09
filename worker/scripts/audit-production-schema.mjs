@@ -32,7 +32,7 @@ export const requiredMigrations = [
   '0046_store_first_fulfilment.sql',
   '0047_store_inventory_reservation_floor.sql',
   '0051_waternow_supplier_network.sql',
-  '0046_waternow_catalogue_seed.sql'
+  '0052_waternow_catalogue_seed.sql'
 ];
 
 export const requiredIndexes = [
