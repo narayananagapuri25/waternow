@@ -10,13 +10,15 @@
     if(!response.ok)throw new Error(data.error||'The request could not be completed.');
     return data;
   }
-  let network={suppliers:[],deliveryPartners:[],supplierProducts:[]};
+  let network={suppliers:[],deliveryPartners:[],supplierProducts:[],deliveryStores:[]};
   function productsFor(supplierId){return network.supplierProducts.filter(item=>String(item.supplier_id)===String(supplierId))}
   function renderSuppliers(){
     const host=$('#waterSupplierList');if(!host)return;
     host.innerHTML=network.suppliers.map(supplier=>{
       const offers=productsFor(supplier.id);
       const active=Number(supplier.is_active)===1;
+      const storeOptions=network.deliveryStores.map(store=>'<option value="'+esc(store.id)+'" '+(String(store.id)===String(supplier.linked_store_id||'')?'selected':'')+'>'+esc(store.name)+'</option>').join('');
+      const partnerOptions=network.deliveryPartners.filter(partner=>Number(partner.is_active)===1).map(partner=>'<option value="'+esc(partner.id)+'">'+esc(partner.name)+' · '+esc(partner.city)+'</option>').join('');
       const products=offers.map(item=>`<form class="water-offer-form" data-water-offer data-supplier-id="${esc(supplier.id)}" data-product-id="${esc(item.product_id)}">
         <strong>${esc(item.product_name)}</strong>
         <label>Price <input name="price" type="number" min="0" step="1" value="${Number(item.selling_price||0)}" aria-label="Price for ${esc(item.product_name)}"></label>
@@ -28,7 +30,8 @@
         <div class="water-network-meta"><span>${esc(supplier.supplier_type)}</span><span>${supplier.fulfilment_model==='platform_delivery'?'WaterNow delivery':'Supplier delivery'}</span><span>${Number(supplier.service_area_count||0)} service areas</span></div>
         <p class="water-network-compliance">FSSAI: ${esc(supplier.fssai_license_number||'Not entered')} · Expires: ${esc(supplier.fssai_license_expiry||'Not entered')} · Water testing records: ${Number(supplier.water_testing_scheme_acknowledged)===1?'Confirmed':'Not confirmed'}</p>
         <div class="water-offer-list">${products||'<p class="empty">No water pack prices entered.</p>'}</div>
-        <div class="water-network-actions">${active?'<span class="water-compliance-confirmed">Eligible for manual order allocation</span>':`<button type="button" class="primary" data-water-verify-supplier="${esc(supplier.id)}">Verify compliance</button>`}</div>
+        <div class="water-network-actions">${active?'<span class="water-compliance-confirmed">Verified supplier</span>':`<button type="button" class="primary" data-water-verify-supplier="${esc(supplier.id)}">Verify compliance</button>`}</div>
+        ${network.deliveryStores.length?`<form class="water-link-store-form" data-water-link-store data-supplier-id="${esc(supplier.id)}"><label>Delivery location<select name="storeId" required><option value="">Choose configured store</option>${storeOptions}</select></label><label>Delivery model<select name="fulfilmentModel"><option value="supplier_delivery" ${(supplier.linked_delivery_model||'supplier_delivery')==='supplier_delivery'?'selected':''}>Supplier delivers</option><option value="platform_delivery" ${supplier.linked_delivery_model==='platform_delivery'?'selected':''}>WaterNow delivery</option></select></label><label>WaterNow delivery partner<select name="deliveryPartnerId"><option value="">Choose partner when using WaterNow delivery</option>${partnerOptions}</select></label><button type="submit" class="ghost">Link location</button></form>`:'<p class="water-network-compliance">Create a delivery location with a precise map pin in Stores before linking this supplier.</p><button class="ghost" type="button" data-screen="stores">Open delivery locations</button>'}
       </article>`;
     }).join('')||'<div class="empty">No suppliers onboarded yet. Add a trusted local supplier to begin.</div>';
   }
@@ -46,7 +49,7 @@
   async function load(){
     const host=$('#waterSupplierList');if(host)host.innerHTML='<div class="empty">Loading supplier network…</div>';
     const data=await api('/api/admin/water-network');
-    network={suppliers:Array.isArray(data.suppliers)?data.suppliers:[],deliveryPartners:Array.isArray(data.deliveryPartners)?data.deliveryPartners:[],supplierProducts:Array.isArray(data.supplierProducts)?data.supplierProducts:[]};
+    network={suppliers:Array.isArray(data.suppliers)?data.suppliers:[],deliveryPartners:Array.isArray(data.deliveryPartners)?data.deliveryPartners:[],supplierProducts:Array.isArray(data.supplierProducts)?data.supplierProducts:[],deliveryStores:Array.isArray(data.deliveryStores)?data.deliveryStores:[]};
     renderSuppliers();renderPartners();
     return network;
   }
@@ -85,6 +88,8 @@
     finally{if(button){button.disabled=false;button.textContent=old||'Add delivery partner'}}
   }
   async function handleSubmit(event){
+    const linkForm=event.target.closest('[data-water-link-store]');
+    if(linkForm){event.preventDefault();const button=event.submitter;if(button)button.disabled=true;const form=new FormData(linkForm);try{await api('/api/admin/water-suppliers/'+encodeURIComponent(linkForm.dataset.supplierId)+'/link-store',{method:'POST',body:JSON.stringify({storeId:form.get('storeId'),fulfilmentModel:form.get('fulfilmentModel'),deliveryPartnerId:form.get('deliveryPartnerId')})});await load()}catch(error){window.alert(error.message)}finally{if(button)button.disabled=false}return}
     const offer=event.target.closest('[data-water-offer]');if(!offer)return;
     event.preventDefault();const button=event.submitter;if(button)button.disabled=true;
     const form=new FormData(offer);
@@ -129,6 +134,7 @@
     $('#waterPartnerForm')?.addEventListener('submit',addPartner);
     document.addEventListener('submit',handleSubmit);
     document.addEventListener('click',handleClick);
+    document.addEventListener('change',event=>{if(event.target.matches('select[name="fulfilmentModel"]')){const form=event.target.closest('[data-water-link-store]');const partner=form?.querySelector('select[name="deliveryPartnerId"]');if(partner)partner.disabled=event.target.value!=='platform_delivery'}});
     $('#wnRefresh')?.addEventListener('click',()=>load().catch(error=>window.alert(error.message)));
     document.addEventListener('freshway:admin-authenticated',()=>{load().catch(()=>{})});
     window.FreshWayOwnerWaterNetwork=Object.freeze({load,refresh:load});
