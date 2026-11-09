@@ -900,14 +900,15 @@ export async function handleAdminDeliveryRequest(request, env) {
     const approximatePin = /approximate locality pin/i.test(String(current.address || ''));
     const pinChanged = Math.abs(latitude - Number(current.latitude)) > 0.000001 ||
       Math.abs(longitude - Number(current.longitude)) > 0.000001;
-    if (active === 1 && approximatePin && (!pinChanged || /approximate locality pin/i.test(address))) {
-      throw new Error('Confirm the exact shop location: replace the approximate locality pin and move the map marker before activating delivery.');
-    }
     const isActivating = active === 1 && Number(current.is_active) !== 1;
-    if (isActivating && body.confirmExactLocation !== true) {
-      throw new Error('Confirm that the map marker is the exact shop entrance before activating delivery.');
+    let activationBlocked = '';
+    if (isActivating && approximatePin && (!pinChanged || /approximate locality pin/i.test(address))) {
+      activationBlocked = 'Confirm the exact shop location: replace the approximate locality pin and move the map marker before activating delivery.';
     }
-    if (active === 1) {
+    if (isActivating && !activationBlocked && body.confirmExactLocation !== true) {
+      activationBlocked = 'Confirm that the map marker is the exact shop entrance before activating delivery.';
+    }
+    if (isActivating && !activationBlocked) {
       const readiness = await env.DB.prepare(
         'SELECT COUNT(*) listed_count,' +
         'SUM(CASE WHEN p.stock_managed=1 AND ' +
@@ -917,21 +918,21 @@ export async function handleAdminDeliveryRequest(request, env) {
         'FROM delivery_store_catalogue sc ' +
         'JOIN products p ON p.id=sc.product_id ' +
         'JOIN categories c ON c.id=p.category_id ' +
-        'LEFT JOIN delivery_store_inventory i ON i.store_id=sc.store_id AND i.product_id=sc.product_id ' +
+        'LEFT JOIN delivery_store_inventory i ON i.store_id=sc.store_id AND i.product_id=p.id ' +
         'WHERE sc.store_id=? AND sc.is_available=1 AND p.active=1 AND c.active=1'
       ).bind(storeId).first();
       if (Number(readiness?.listed_count || 0) < 1) {
-        throw new Error('Make at least one active product available in this store before activating delivery.');
-      }
-      if (Number(readiness?.unstocked_count || 0) > 0) {
-        throw new Error('Enter positive physical stock for every available stock-managed product before activating delivery.');
+        activationBlocked = 'Make at least one active product available in this store before activating delivery.';
+      } else if (Number(readiness?.unstocked_count || 0) > 0) {
+        activationBlocked = 'Enter positive physical stock for every available stock-managed product before activating delivery.';
       }
     }
+    const savedActive = activationBlocked ? 0 : active;
     await env.DB.prepare('UPDATE delivery_stores SET name=?,address=?,latitude=?,longitude=?,service_radius_km=?,is_active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
-      .bind(name,address,latitude,longitude,radius,active,storeId).run();
-    await refreshProductAvailability(env);
+      .bind(name,address,latitude,longitude,radius,savedActive,storeId).run();
+        await refreshProductAvailability(env);
     const pendingOrderCount=Number((await env.DB.prepare("SELECT COUNT(*) count FROM orders WHERE assigned_store_id=? AND delivery_status NOT IN ('Delivered','Cancelled')").bind(storeId).first())?.count||0);
-    return response({ok:true,store:{...current,name,address,latitude,longitude,service_radius_km:radius,is_active:active,pending_order_count:pendingOrderCount},pendingOrderCount});
+    return response({ok:true,store:{...current,name,address,latitude,longitude,service_radius_km:radius,is_active:savedActive,pending_order_count:pendingOrderCount},pendingOrderCount,activationBlocked:activationBlocked||null});
   }
   const catalogueMatch = path.match(new RegExp('^/api/admin/delivery/stores/([^/]+)/catalogue$'));
   if (catalogueMatch && request.method === 'GET') {
