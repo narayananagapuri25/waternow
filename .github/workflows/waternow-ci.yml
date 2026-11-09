@@ -168,6 +168,100 @@ jobs:
             note: candidates.length ? 'Review these dedicated non-production candidates before binding.' : 'No dedicated WaterNow preview/staging database was found; do not bind production.'
           }, null, 2));
           NODE
+      - name: Provision isolated WaterNow Preview D1 database
+        if: github.event_name == 'push'
+        id: preview-d1
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +x
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+          const token = process.env.CLOUDFLARE_API_TOKEN;
+          const endpoint = `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database`;
+          async function call(method, body) {
+            const response = await fetch(endpoint, {
+              method,
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+              const messages = (payload.errors || []).map(item => item.message).join('; ');
+              throw new Error(`Cloudflare D1 ${method} failed (HTTP ${response.status}): ${messages || 'unknown API error'}`);
+            }
+            return payload;
+          }
+          const listed = await call('GET');
+          let database = (listed.result || []).find(item => item.name === 'waternow-preview');
+          let created = false;
+          if (!database) {
+            const result = await call('POST', {
+              name: 'waternow-preview',
+              primary_location_hint: 'apac',
+              read_replication: { mode: 'disabled' }
+            });
+            database = result.result;
+            created = true;
+          }
+          const productionId = 'da57af93-2f4f-42f1-b2f3-eb02533bf9fd';
+          const fakeLocalId = '00000000-0000-4000-8000-000000000001';
+          if (database?.name !== 'waternow-preview' || !database.uuid ||
+              database.uuid === productionId || database.uuid === fakeLocalId) {
+            throw new Error('Refusing to use a missing or non-isolated D1 database for Preview.');
+          }
+          appendFileSync(process.env.GITHUB_OUTPUT, `database_id=${database.uuid}\\n`);
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `## WaterNow Preview database\\n\\n- Database: ${database.name}\\n- UUID: ${database.uuid}\\n- Created by this run: ${created ? 'yes' : 'no'}\\n- Region hint: Asia-Pacific\\n- Production database: not used\\n`);
+          console.log(`Isolated WaterNow Preview D1 is ready (${created ? 'created' : 'reused'}): ${database.name} / ${database.uuid}`);
+          NODE
+      - name: Apply repository migrations to isolated Preview D1 only
+        if: github.event_name == 'push'
+        working-directory: worker
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PREVIEW_D1_DATABASE_ID: ${{ steps.preview-d1.outputs.database_id }}
+        run: |
+          set +x
+          test -n "${PREVIEW_D1_DATABASE_ID}" || { echo "::error::Preview D1 database ID was not provided."; exit 1; }
+          test "${PREVIEW_D1_DATABASE_ID}" != "da57af93-2f4f-42f1-b2f3-eb02533bf9fd" || { echo "::error::Production D1 ID is forbidden for Preview migrations."; exit 1; }
+          config_file=".wrangler.preview-generated.jsonc"
+          trap 'rm -f "${config_file}"' EXIT
+          PREVIEW_D1_DATABASE_ID="${PREVIEW_D1_DATABASE_ID}" node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+          const id = process.env.PREVIEW_D1_DATABASE_ID;
+          if (!id || id === 'da57af93-2f4f-42f1-b2f3-eb02533bf9fd' ||
+              id === '00000000-0000-4000-8000-000000000001') {
+            throw new Error('Invalid or unsafe Preview D1 database ID.');
+          }
+          writeFileSync('.wrangler.preview-generated.jsonc', JSON.stringify({
+            name: 'waternow-api-preview-migrations',
+            main: 'src/admin-auth.js',
+            compatibility_date: '2026-09-06',
+            compatibility_flags: ['nodejs_compat'],
+            d1_databases: [{
+              binding: 'DB',
+              database_name: 'waternow-preview',
+              database_id: id,
+              migrations_dir: 'migrations'
+            }],
+            vars: {
+              WATERNOW_ENVIRONMENT: 'preview',
+              APP_ORIGIN: 'https://waternow.pages.dev',
+              APP_ORIGINS: 'https://waternow.pages.dev',
+              APP_ORIGIN_SUFFIXES: '.waternow.pages.dev'
+            }
+          }, null, 2));
+          NODE
+          npx wrangler d1 migrations apply DB --remote --config "${config_file}"
+          npx wrangler d1 execute DB --remote --config "${config_file}" --command "SELECT id, name, price, active FROM products WHERE active=1 ORDER BY display_order" --json
+          npx wrangler d1 execute DB --remote --config "${config_file}" --command "SELECT id, is_active, service_radius_km FROM delivery_stores ORDER BY id" --json
       - name: Check production D1 migration ledger (read only)
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
