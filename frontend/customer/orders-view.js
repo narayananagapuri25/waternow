@@ -40,13 +40,13 @@
     if(!delivered&&!cancelled){
       html+='<button type="button" class="secondary-btn" data-customer-order-cancel="'+id+'">Cancel order</button>';
       if(o.scheduledDelivery?.date)html+='<button type="button" class="secondary-btn" data-customer-order-reschedule="'+id+'" aria-expanded="false">Change delivery date</button>';
-      html+='<button type="button" class="text-btn" data-customer-order-open-request="issue">Contact FreshWay</button>';
+      html+='<button type="button" class="text-btn" data-customer-order-open-request="issue">Contact WaterNow</button>';
     }else if(delivered){
       html+='<button type="button" class="secondary-btn" data-customer-order-buy-again="'+id+'">Buy again</button><button type="button" class="secondary-btn" data-customer-order-open-request="issue">Report an issue</button><button type="button" class="secondary-btn" data-customer-order-open-request="return">Request a return</button>';
     }else{
       html+='<button type="button" class="text-btn" data-customer-order-open-request="issue">Need help with this order?</button>';
     }
-    html+='</div><div class="fw-customer-request-panel" data-customer-order-request-panel hidden><strong data-customer-request-heading>Contact FreshWay about this order</strong><textarea rows="3" maxlength="500" placeholder="Describe your request (optional)"></textarea><div class="fw-customer-order-actions"><button type="button" class="primary-btn" data-customer-order-submit-request>Send request</button><button type="button" class="secondary-btn" data-customer-order-close-request>Keep shopping</button></div></div>';
+    html+='</div><div class="fw-customer-request-panel" data-customer-order-request-panel hidden><strong data-customer-request-heading>Contact WaterNow about this order</strong><textarea rows="3" maxlength="500" placeholder="Describe your request (optional)"></textarea><div class="fw-customer-order-actions"><button type="button" class="primary-btn" data-customer-order-submit-request>Send request</button><button type="button" class="secondary-btn" data-customer-order-close-request>Keep shopping</button></div></div>';
     if(!delivered&&!cancelled&&o.scheduledDelivery?.date)html+='<div class="fw-customer-reschedule" data-customer-reschedule-picker hidden></div>';
     return html;
   };
