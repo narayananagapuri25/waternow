@@ -4,6 +4,11 @@ import { DEFAULT_STORE_PROFILE, sanitizeStoreProfile, getStoreProfile, updateSto
 
 const savedPin = { shopLatitude: 17.6082, shopLongitude: 79.1091 };
 
+test('default share metadata describes direct WaterNow ordering', () => {
+  assert.match(DEFAULT_STORE_PROFILE.shareDescription, /directly from WaterNow/i);
+  assert.doesNotMatch(DEFAULT_STORE_PROFILE.shareDescription, /suppliers?/i);
+});
+
 test('store profile keeps WhatsApp sharing fields separate from SEO', () => {
   const profile = sanitizeStoreProfile({
     shareTitle: 'FreshWay WhatsApp',
