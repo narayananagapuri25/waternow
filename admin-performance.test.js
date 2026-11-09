@@ -28,7 +28,7 @@ assert.doesNotMatch(admin,/const target=setAdminScreenVisual\(location\.hash\.sl
 assert.match(admin,/refreshOwnerAfterOrderMutation\(\)/);
 assert.doesNotMatch(admin,/localStorage\.setItem\(['"]freshway-admin-session['"]/);
 assert.doesNotMatch(admin,/sessionStorage\.setItem\(['"]freshway-admin-session['"]/);
-assert.match(admin,/AUTH_HINT='freshway-admin-auth'/);
+assert.match(admin,/AUTH_HINT='waternow-admin-auth'/);
 assert.match(html,/admin\.js\?v=waternow-v1/);
 assert.match(html,/admin\.css\?v=waternow-v1/);
 assert.match(html,/frontend\/admin\/delivery-management\.js\?v=20261106-store-reconciliation-v1/);
@@ -55,7 +55,7 @@ assert.doesNotMatch(auth,/response\(\{ok:true,version:ADMIN_AUTH_VERSION,session
 assert.match(auth,/SameSite=Lax/);
 assert.match(response,/SameSite=Lax/);
 
-assert.match(ownerSw,/const CACHE = 'waternow-owner-v1'/);
+assert.match(ownerSw,/const CACHE = 'waternow-owner-v2'/);
 assert.match(ownerSw,/delivery-management\.js\?v=20261106-store-reconciliation-v1/);
 assert.match(ownerSw,/admin\.css\?v=waternow-v1/);
 assert.match(ownerSw,/if \(cached && isVersionedCode\) return cached/);
