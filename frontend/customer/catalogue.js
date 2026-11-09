@@ -139,11 +139,23 @@
   }
   function renderHome(){
     const c=ensureUI();if(!c)return;
-    if(loading){c.innerHTML='<div class="fw-category-loading" role="status" aria-live="polite">Loading the live catalogue…</div>';return}
-    if(errorMessage){if(errorCode==='AREA_UNAVAILABLE'){c.innerHTML='<section class="fw-area-unavailable" role="region" aria-label="Delivery area options" aria-live="polite"><span class="eyebrow">DELIVERY LOCATION</span><h2>Outside our current delivery area?</h2><p>Sorry, we don’t currently deliver directly to this location. Please contact FreshWay. We may be able to arrange a handover at a nearby RTC bus stand or discuss postal delivery options, depending on your location and order. We’ll confirm what is possible with you.</p><button type="button" class="primary-btn full" data-fw-delivery-contact>Contact FreshWay</button></section>';return}c.innerHTML='<div class="fw-category-error" role="alert"><strong>Catalogue temporarily unavailable.</strong><br>'+esc(errorMessage)+'<button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';return}
-    const usable=categories.filter(x=>Number(x.product_count)>0);
-    const cards=usable.map(x=>'<button type="button" class="fw-category-card" aria-pressed="'+(String(x.id)===String(selected))+'" data-fw-category="'+esc(x.id)+'">'+((x.image_url||media?.image('categories',x.id,x))?'<span class="fw-category-icon fw-category-image"><img src="'+esc(x.image_url||media.image('categories',x.id,x))+'" alt="" loading="lazy" decoding="async"></span>':'<span class="fw-category-icon" aria-hidden="true">'+esc(x.icon)+'</span>')+'<span><strong>'+esc(x.name)+'</strong><small>'+Number(x.product_count)+' '+(Number(x.product_count)===1?'product':'products')+' <span class="fw-cat-arrow">View →</span></small></span></button>').join('');
-    c.innerHTML='<div class="fw-cat-heading"><div><span class="eyebrow">WATER OPTIONS</span><h2>Choose your water pack</h2></div><span class="count-pill">'+usable.length+' '+(usable.length===1?'category':'categories')+'</span></div>'+(selectedStore?'<p class="fw-store-selection">Prices and availability at '+esc(selectedStore.name)+'</p>':'')+'<div class="fw-category-grid'+(usable.length===1?' is-single':'')+'">'+(cards||'<div class="fw-category-empty" style="grid-column:1/-1"><strong>No products are available right now.</strong><br>Please check back later.</div>')+'</div>';
+    const fallback=[
+      {id:'water-20l',name:'20L Water Can',slug:'20l-water-can',icon:'💧'},
+      {id:'water-10l-pair',name:'2 × 10L Water Cans',slug:'two-10l-water-cans',icon:'🚰'}
+    ];
+    const needsLocation=loading||!!errorMessage;
+    const visible=needsLocation?fallback:categories.filter(x=>Number(x.product_count)>0);
+    const cards=visible.map(item=>{
+      const image=needsLocation?media?.image('categories',item.id,item):item.image_url||media?.image('categories',item.id,item);
+      const icon=image?'<span class="fw-category-icon fw-category-image"><img src="'+esc(image)+'" alt="" loading="lazy" decoding="async"></span>':'<span class="fw-category-icon" aria-hidden="true">'+esc(item.icon||'💧')+'</span>';
+      const label=needsLocation?'Check local availability':Number(item.product_count)+' '+(Number(item.product_count)===1?'product':'products');
+      return '<button type="button" class="fw-category-card" data-fw-'+(needsLocation?'needs-location':'category')+'="'+esc(item.id)+'" aria-pressed="'+(!needsLocation&&String(item.id)===String(selected))+'">'+icon+'<span><strong>'+esc(item.name)+'</strong><small>'+label+' <span class="fw-cat-arrow">View →</span></small></span></button>';
+    }).join('');
+    let notice='';
+    if(loading)notice='<p class="fw-location-needed" role="status">Checking local supplier availability. Add your delivery address to see nearby options.</p>';
+    else if(errorCode==='AREA_UNAVAILABLE')notice='<div class="fw-location-needed" role="status">We do not have a confirmed supplier for this address yet. Contact WaterNow and we will check nearby delivery options.<button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
+    else if(errorMessage)notice='<div class="fw-location-needed" role="status">Add your delivery address to check prices and availability from nearby suppliers.<button type="button" data-fw-needs-location="address">Add delivery address</button><button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';
+    c.innerHTML='<div class="fw-cat-heading"><div><span class="eyebrow">WATER OPTIONS</span><h2>Choose your water pack</h2></div><span class="count-pill">2 water packs</span></div><div class="fw-category-grid">'+cards+'</div>'+notice;
   }
   function setMode(categoryId,{history='none'}={}){
     const requested=categoryId||null;
