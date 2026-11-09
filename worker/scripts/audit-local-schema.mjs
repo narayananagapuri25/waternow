@@ -34,7 +34,6 @@ const required={
 
 const requiredIndexes=[
   'idx_orders_test_created',
-  'idx_customers_active_phone',
   'idx_account_deletion_requests_one_active',
   'idx_account_deletion_requests_status_created',
   'idx_account_deletion_requests_customer_created',
@@ -64,6 +63,10 @@ const requiredMigrations=[
   '0051_waternow_supplier_network.sql',
   '0052_waternow_catalogue_seed.sql'
 ];
+
+const requiredMigrationIndexes={
+  '0034_customer_account_erasure.sql':['idx_customers_active_phone']
+};
 
 const requiredTriggers=[
   'delivery_slot_capacity_before_insert',
@@ -100,6 +103,12 @@ function run(){
   for(const migration of requiredMigrations){
     if(!existsSync(resolve(root,'migrations',migration)))problems.push('Missing migration '+migration);
   }
+  for(const [migration,indexes] of Object.entries(requiredMigrationIndexes)){
+    const path=resolve(root,'migrations',migration);
+    if(!existsSync(path)){problems.push('Missing migration '+migration);continue}
+    const source=readFileSync(path,'utf8');
+    for(const index of indexes)if(!source.includes(index))problems.push('Missing migration index '+index+' in '+migration);
+  }
   if(!schema.includes('customer_id TEXT,')||!schema.includes('FOREIGN KEY(address_id) REFERENCES addresses(id) ON DELETE SET NULL')){
     problems.push('order_address_snapshots.customer_id must allow NULL for account erasure while retaining address integrity');
   }
@@ -112,5 +121,5 @@ function run(){
   return {ok:true,problems:[]};
 }
 
-export { required, requiredIndexes, requiredMigrations, requiredTriggers, tableSource, run };
+export { required, requiredIndexes, requiredMigrations, requiredMigrationIndexes, requiredTriggers, tableSource, run };
 if(process.argv[1]&&import.meta.url===new URL('file://'+process.argv[1]).href)run();
