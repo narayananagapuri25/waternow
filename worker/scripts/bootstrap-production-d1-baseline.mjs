@@ -188,7 +188,7 @@ function recordBaseline(migrations) {
   }
 }
 
-function main() {
+function main({ dryRun = false } = {}) {
   const migrations = expectedBaseline();
   if (!migrations.length ||
       !migrations.includes('0051_waternow_supplier_network.sql') ||
@@ -225,6 +225,12 @@ function main() {
   ]);
   if (!bookmark.trim()) throw new Error('Could not capture the pre-bootstrap D1 Time Travel bookmark.');
 
+  if (dryRun) {
+    console.log('Read-only baseline dry-run passed. Production schema and data fingerprints match the WaterNow baseline; the D1 Time Travel bookmark was captured. No migration ledger, application data, migration SQL, or Worker deployment was changed.');
+    console.log('WaterNow invoice setup is intentionally disabled and blank. Historical migrations 0030-0032 contain legacy FreshWay seller defaults; they will not be replayed or copied into WaterNow.');
+    return;
+  }
+
   console.log('Preflight passed. Recording ' + migrations.length +
     ' historical migration names as baseline-accounted. No historical migration SQL will run.');
   console.log('WaterNow invoice setup is intentionally disabled and blank. Historical migrations 0030-0032 contain legacy FreshWay seller defaults; they are accounted for in the baseline and will not be replayed or copied into WaterNow.');
@@ -235,7 +241,7 @@ function main() {
 
 if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).href) {
   try {
-    main();
+    main({ dryRun: process.argv.includes('--dry-run') });
   } catch (error) {
     console.error('PRODUCTION D1 BASELINE BOOTSTRAP FAILED CLOSED.');
     console.error(error?.message || String(error));
