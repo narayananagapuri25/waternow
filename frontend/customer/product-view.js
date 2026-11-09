@@ -15,11 +15,12 @@
       const qty=Number(state.cart[p.id]||0);
       const stock=String(p.stock_status||'not_tracked');
       const out=stock==='out_of_stock';
+      const priceConfigured=Number.isFinite(Number(p.price))&&Number(p.price)>0;
       const stockLabel=stock==='out_of_stock'?'Out of stock':stock==='low_stock'?'Low stock':stock==='in_stock'?'In stock':'Available';
       const stockClass=out?'stock-out':stock==='low_stock'?'stock-low':'stock-ok';
       const action=qty
         ? `<div class="qty-control"><button data-minus="${esc(p.id)}" aria-label="Remove one ${esc(name)}">−</button><span>${qty}</span>${out?'<span class="stock-cart-warning">Unavailable</span>':'<button data-plus="'+esc(p.id)+'" aria-label="Add one '+esc(name)+'">+</button>'}</div>`
-        : `<button class="add-btn" data-add="${esc(p.id)}" ${out?'disabled aria-disabled="true"':''}>${out?'OUT OF STOCK':'ADD'}</button>`;
+        : `<button class="add-btn" data-add="${esc(p.id)}" ${(out||!priceConfigured)?'disabled aria-disabled="true"':''}>${out?'OUT OF STOCK':'ADD'}</button>`;
       const legacyImage=p.image_data&&p.image_mime_type?'data:'+p.image_mime_type+';base64,'+p.image_data:'';
       const image=p.image_url||legacyImage||media?.image('products',p.id,p);
       const visual=image?`<img src="${esc(image)}" alt="${esc(name)}" loading="lazy" decoding="async">`:`<span class="product-image-empty" aria-hidden="true"></span>`;
