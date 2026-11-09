@@ -76,7 +76,7 @@ const customerDeliveryBooking=window.FreshWayCustomerDeliveryBooking?.create({ap
 window.FreshWayCustomerDeliveryBookingInstance=customerDeliveryBooking||null;
 customerDeliveryBooking?.mountCheckout($('#checkoutDeliveryPicker'));
 $('#checkoutForm')?.addEventListener('change',event=>{if(!event.target.closest('#checkoutDeliveryPicker'))void customerDeliveryBooking?.refreshCheckout?.()});
-function renderProducts(filter=''){customerProductView.render(PRODUCTS,state,filter,{esc,money,changeQty,updateCartBar})}
+function renderProducts(filter=''){customerProductView.render(PRODUCTS,state,filter,{esc,money,changeQty,updateCartBar,orderDisabled:window.FreshWayCustomerStoreCatalogue?.canOrder?.()!==true})}
 const updateCartBar=()=>{
   customerCartBar.update(document,{count:cartCount(),total:cartTotal(),money})
 };
