@@ -86,7 +86,7 @@ async function dispatchPush(payload) {
   const sw = fs.readFileSync('sw.js', 'utf8');
   assert.match(app, /waternow:order-updated/);
   assert.match(app, /customerOrderData\.load\(\)/);
-  assert.match(index, /app\.js\?v=107/);
+  assert.match(index, /app\.js\?v=waternow-configurable-v1/);
   assert.ok(index.includes('frontend/customer/navigation.js?v=20261109-waternow-state-v2'), 'customer HTML must load the deterministic history module');
   assert.ok(index.includes('frontend/customer/delivery-booking.js?v=20261109-waternow-supplier-copy-v1'), 'customer HTML must load the current WaterNow delivery help copy');
   assert.ok(index.includes('frontend/customer/order-actions.js?v=20261109-waternow-order-actions-v1'), 'customer HTML must load the current WaterNow order actions copy');
