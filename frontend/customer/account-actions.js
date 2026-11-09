@@ -32,11 +32,11 @@
       if(modal){modal.classList.remove('hidden');return}
       const appMode=standaloneApp();
       const intro=appMode
-        ?'FreshWay is installed as an app. Android controls whether it may show notifications.'
-        :'Notifications are blocked for this site. Allow them in Chrome, then return to FreshWay.';
+        ?'WaterNow is installed as an app. Android controls whether it may show notifications.'
+        :'Notifications are blocked for this site. Allow them in Chrome, then return to WaterNow.';
       const steps=appMode
-        ?'<ol><li>Open Android Settings.</li><li>Choose Apps → FreshWay → Notifications.</li><li>Turn notifications on. If FreshWay is not listed, open Chrome → Settings → Site settings → Notifications → fwcoldpressed.in → Allow.</li></ol>'
-        :'<ol><li>Open Chrome and tap ⋮.</li><li>Choose Settings → Site settings → Notifications.</li><li>Find fwcoldpressed.in and choose Allow.</li></ol>';
+        ?'<ol><li>Open Android Settings.</li><li>Choose Apps → WaterNow → Notifications.</li><li>Turn notifications on. If WaterNow is not listed, open Chrome → Settings → Site settings → Notifications → ' + window.location.host + ' → Allow.</li></ol>'
+        :'<ol><li>Open Chrome and tap ⋮.</li><li>Choose Settings → Site settings → Notifications.</li><li>Find ' + window.location.host + ' and choose Allow.</li></ol>';
       modal=document.createElement('div');
       modal.id='notificationPermissionHelp';
       modal.className='modal';
@@ -57,20 +57,20 @@
           const status=await notifications.getStatus();
           if(status.state==='blocked'){
             message.textContent=appMode
-              ?'Notifications are still blocked. Turn them on in Android Settings → Apps → FreshWay → Notifications, then check again.'
-              :'Notifications are still blocked. Allow them in Chrome site settings for fwcoldpressed.in, then check again.';
+              ?'Notifications are still blocked. Turn them on in Android Settings → Apps → WaterNow → Notifications, then check again.'
+              :'Notifications are still blocked. Allow them in Chrome site settings for ' + window.location.host + ', then check again.';
             return;
           }
           if(status.permission!=='granted'){
-            message.textContent='FreshWay does not have notification permission yet. Complete the steps above, then check again.';
+            message.textContent='WaterNow does not have notification permission yet. Complete the steps above, then check again.';
             return;
           }
           close();
           await refreshNotificationStatus();
           if(status.state==='enabled'){
-            showToast(document,'FreshWay order updates are already enabled on this device.',2600);
+            showToast(document,'WaterNow order updates are already enabled on this device.',2600);
           }else if(!auth.customerId()){
-            showToast(document,'Permission is restored. Sign in to connect FreshWay order updates.',3600);
+            showToast(document,'Permission is restored. Sign in to connect WaterNow order updates.',3600);
           }else{
             showToast(document,'Permission is restored. Tap App notifications again to finish setup.',3600);
           }
@@ -88,12 +88,12 @@
       if(event.target.closest('#requestAccountDeletionBtn')){
         const session=await auth.session().catch(()=>null);
         if(!session?.customerId){window.location.href='/delete-account.html';return}
-        if(!window.confirm('Request deletion of your FreshWay account? Your account will not be deleted immediately. FreshWay will review linked orders and invoices and may retain records required by law.'))return;
+        if(!window.confirm('Request deletion of your WaterNow account? Your account will not be deleted immediately. WaterNow will review linked orders and invoices and may retain records required by law.'))return;
         try{
           const result=await fetch('/api/account-deletion/request',{method:'POST',credentials:'include',headers:{'content-type':'application/json'},body:'{}'});
           const data=await result.json().catch(()=>({}));
           if(!result.ok)throw new Error(data.error||'Could not record your request.');
-          showToast(document,data.alreadyRequested?'A deletion request is already pending.':'Deletion request recorded. FreshWay will review it.',4200);
+          showToast(document,data.alreadyRequested?'A deletion request is already pending.':'Deletion request recorded. WaterNow will review it.',4200);
         }catch(error){showToast(document,error.message||'Could not record your request',3200)}
         return;
       }
@@ -114,7 +114,7 @@
           // Call immediately from this tap; enable() requests permission before its first network await.
           await notifications.enable();
           const status=await refreshNotificationStatus();
-          if(status?.state==='enabled')showToast(document,'FreshWay order updates are enabled on this device.',2400);
+          if(status?.state==='enabled')showToast(document,'WaterNow order updates are enabled on this device.',2400);
           else showToast(document,status?.label||'Notifications were allowed, but setup is not complete yet.',3200);
         }catch(error){
           await refreshNotificationStatus();
@@ -132,7 +132,7 @@
         }catch(error){showToast(document,error.message||'Could not sign out',2800)}
       }
     });
-    document.addEventListener('freshway:session',async()=>{
+    document.addEventListener('waternow:session',async()=>{
       try{
         const session=await auth.session();
         const phone=document.querySelector('#profilePhone');
@@ -142,13 +142,13 @@
       }catch(_){}
       await refreshNotificationStatus();
     });
-    document.addEventListener('freshway:notification-status-changed',()=>void refreshNotificationStatus());
+    document.addEventListener('waternow:notification-status-changed',()=>void refreshNotificationStatus());
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void refreshNotificationStatus()});
     window.addEventListener('focus',()=>void refreshNotificationStatus());
     window.addEventListener('pageshow',()=>void refreshNotificationStatus());
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>void refreshNotificationStatus(),{once:true});
     else void refreshNotificationStatus();
   };
-  window.FreshWayCustomerAccountActions=Object.freeze({bind});
-  if(window.FreshWayCustomerAuth&&window.FreshWayCustomerNotifications)bind({document,auth:window.FreshWayCustomerAuth,notifications:window.FreshWayCustomerNotifications});
+  window.WaterNowCustomerAccountActions=Object.freeze({bind});
+  if(window.WaterNowCustomerAuth&&window.WaterNowCustomerNotifications)bind({document,auth:window.WaterNowCustomerAuth,notifications:window.WaterNowCustomerNotifications});
 })();
