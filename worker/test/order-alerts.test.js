@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import webpush from 'web-push';
+import { webpush } from '../src/order-alerts.js';
 import { buildOrderPlacedAlerts, dispatchOrderAlert, saveOwnerSubscription, deleteOwnerSubscription, listOwnerOrderAlerts, deleteOwnerOrderAlert, deleteAllOwnerOrderAlerts, getOwnerPushDiagnostics, sendOwnerPushTest } from '../src/order-alerts.js';
 import { buildOrderChangeAlerts } from '../src/admin-notifications.js';
 
