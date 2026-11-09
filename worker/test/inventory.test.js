@@ -77,7 +77,7 @@ test('legacy untracked products retain ordering behavior without reservation',as
   assert.equal(result.items[0].stockReservedQty,0);
 });
 
-test('cancelling an order restores its reserved stock in the same database batch',async()=>{
+test('legacy unassigned order cancellation never restores deprecated global product stock',async()=>{
   const calls=[];
   const env={
     DB:{
@@ -88,7 +88,6 @@ test('cancelling an order restores its reserved stock in the same database batch
             return {
               async all(){
                 if(sql.includes('SELECT delivery_status'))return {results:[{delivery_status:'New',payment_status:'Not Collected',delivery_plan:'Tomorrow',customer_id:'c1'}]};
-                if(sql.includes('SELECT product_id,SUM'))return {results:[{product_id:'p1',stock_reserved_qty:2}]};
                 return {results:[]};
               },
               async first(){return null;},
@@ -98,10 +97,11 @@ test('cancelling an order restores its reserved stock in the same database batch
         };
       },
       async batch(statements){
-        assert.equal(statements.length,2);
-        assert.match(calls[calls.length-2],/stock_quantity=stock_quantity\+\?/);
-        assert.match(calls[calls.length-1],/UPDATE orders SET/);
-        return [{meta:{changes:1}},{meta:{changes:1}}];
+        assert.equal(statements.length,1,'an unassigned legacy order has no store inventory ledger to mutate');
+        assert.match(statements[0].sql,/UPDATE orders SET/);
+        assert.ok(!calls.some(sql=>/products.*stock_quantity|stock_quantity.*products/i.test(sql)),
+          'legacy global product stock must never be read or changed');
+        return [{meta:{changes:1}}];
       }
     }
   };
@@ -109,16 +109,17 @@ test('cancelling an order restores its reserved stock in the same database batch
   assert.equal(result.status,'Cancelled');
 });
 
-test('customer product responses expose stock state without exact inventory counts',async()=>{
+test('central customer catalogue does not expose a duplicate global stock state',async()=>{
   const response=await (await import('../src/index.js')).default.fetch(
     new Request('https://api.example.test/api/products'),
-    {APP_ORIGIN:'https://freshway-f32.pages.dev',DB:mockProducts([
-      {id:'p1',name:'Rice',unit:'kg',price:450,emoji:'🍚',active:1,stock_managed:1,stock_quantity:2,low_stock_threshold:2}
+    {APP_ORIGIN:'https://waternow.pages.dev',DB:mockProducts([
+      {id:'p1',name:'Water Can',unit:'can',price:30,emoji:'💧',active:1,stock_managed:1,stock_quantity:2,low_stock_threshold:2}
     ])},
     {}
   );
   assert.equal(response.status,200);
   const data=await response.json();
-  assert.equal(data.products[0].stock_status,'low_stock');
+  assert.equal(data.products[0].id,'p1');
+  assert.equal('stock_status' in data.products[0],false);
   assert.equal('stock_quantity' in data.products[0],false);
 });
