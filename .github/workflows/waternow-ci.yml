@@ -34,6 +34,17 @@ jobs:
         working-directory: worker
         run: npm test
 
+  owner-ui-regression:
+    name: Owner UI regression checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Owner navigation, orders and performance contracts
+        run: node --test admin-navigation.test.js admin-orders.test.js admin-performance.test.js
+
   browser-tests:
     name: Customer browser and Playwright tests
     runs-on: ubuntu-latest
