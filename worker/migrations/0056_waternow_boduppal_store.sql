@@ -1,11 +1,12 @@
--- Create the first directly managed WaterNow delivery point only if none exists.
--- Pin is an approximate East Brundavan Colony locality point, not a shop/property GPS.
--- Owner can refine it using the map picker.
+-- Create a disabled WaterNow Boduppal location placeholder only when no store exists.
+-- Coordinates are an approximate locality-centre map pin, not a verified shop/property GPS.
+-- The store stays inactive and has zero store stock until the Owner confirms the exact map pin,
+-- radius and physical inventory in the Owner app.
 INSERT OR IGNORE INTO delivery_stores
   (id,name,address,latitude,longitude,service_radius_km,is_active,delivery_model)
 SELECT 'waternow-boduppal','WaterNow Boduppal',
-       'East Brundavan Colony, Boduppal, Telangana 500092 (approximate locality map pin)',
-       17.415,78.585,5,1,'owner_managed'
+       'Brindavan Colony, Boduppal, Telangana 500092 — approximate locality pin; confirm exact shop location in Owner app',
+       17.415,78.585,5,0,'owner_managed'
 WHERE NOT EXISTS (SELECT 1 FROM delivery_stores);
 
 INSERT OR IGNORE INTO delivery_store_catalogue
@@ -13,8 +14,9 @@ INSERT OR IGNORE INTO delivery_store_catalogue
 SELECT s.id,p.id,1,NULL FROM delivery_stores s CROSS JOIN products p
 WHERE s.id='waternow-boduppal' AND p.active=1;
 
--- Reuse only existing centrally configured stock quantities; do not increase them.
+-- Do not copy central/demo stock quantities into a physical store. The Owner must
+-- enter verified on-hand quantities before activating the store.
 INSERT OR IGNORE INTO delivery_store_inventory (store_id,product_id,stock_quantity)
-SELECT s.id,p.id,COALESCE(p.stock_quantity,0)
+SELECT s.id,p.id,0
 FROM delivery_stores s CROSS JOIN products p
 WHERE s.id='waternow-boduppal' AND p.active=1 AND p.stock_managed=1;
