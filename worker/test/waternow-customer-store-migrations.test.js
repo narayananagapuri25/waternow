@@ -46,7 +46,7 @@ test('0055 keeps legacy product references and order snapshots while correcting 
   } finally { db.close(); }
 });
 
-test('0056 creates the owner-managed Boduppal store with both products and reuses existing stock', () => {
+test('0056 creates an inactive Boduppal placeholder and never invents store inventory', () => {
   const db = database();
   try {
     db.exec(m55);
@@ -54,11 +54,12 @@ test('0056 creates the owner-managed Boduppal store with both products and reuse
     const store = db.prepare("SELECT * FROM delivery_stores WHERE id='waternow-boduppal'").get();
     assert.ok(store);
     assert.equal(store.name, 'WaterNow Boduppal');
-    assert.match(store.address, /East Brundavan Colony/);
+    assert.match(store.address, /Brindavan Colony/);
+    assert.match(store.address, /approximate locality pin/i);
     assert.equal(store.latitude, 17.415);
     assert.equal(store.longitude, 78.585);
     assert.equal(store.service_radius_km, 5);
-    assert.equal(store.is_active, 1);
+    assert.equal(store.is_active, 0, 'the store must remain inactive until the Owner verifies the location and stock');
     assert.equal(store.delivery_model, 'owner_managed');
     const products = db.prepare("SELECT p.name,p.unit,p.price,c.is_available,COALESCE(i.stock_quantity,0) stock FROM delivery_store_catalogue c JOIN products p ON p.id=c.product_id LEFT JOIN delivery_store_inventory i ON i.store_id=c.store_id AND i.product_id=p.id WHERE c.store_id=? ORDER BY p.display_order").all(store.id);
     assert.equal(products.length, 2);
@@ -66,7 +67,9 @@ test('0056 creates the owner-managed Boduppal store with both products and reuse
     assert.equal(products[1].name, '2 × 10L Drinking Water Cans');
     assert.equal(products[1].unit, 'pack');
     assert.equal(products[1].price, 20);
-    assert.ok(products.every(p => p.is_available === 1 && p.stock === 999));
+    assert.ok(products.every(p => p.is_available === 1 && p.stock === 0));
+    const central = db.prepare('SELECT SUM(stock_quantity) quantity FROM products').get();
+    assert.equal(central.quantity, 1998, 'the existing central catalogue quantities must remain unchanged');
     db.exec(m56);
     assert.equal(db.prepare('SELECT COUNT(*) count FROM delivery_stores').get().count, 1);
     assert.equal(db.prepare('SELECT COUNT(*) count FROM delivery_store_catalogue').get().count, 2);
