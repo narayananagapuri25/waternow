@@ -115,14 +115,14 @@ test('owner lifecycle script cache-busting version matches the service-worker sh
 test('service worker keeps documents fresh and refreshes versioned code before cache fallback', () => {
   assert.ok(serviceWorkerSource.includes("if (isNavigation && ['/', '/index.html'].includes(url.pathname))"));
   assert.ok(serviceWorkerSource.includes("if (url.pathname === '/admin.html' || url.pathname.startsWith('/admin/'))"));
-  assert.match(ownerServiceWorkerSource, /const CACHE = 'fw-owner-v[0-9]+'/);
+  assert.match(ownerServiceWorkerSource, /const CACHE = 'waternow-owner-v[0-9]+'/);
   assert.ok(serviceWorkerSource.includes("const isVersionedCode = ['script','style'].includes(destination) && url.searchParams.has('v')"));
   assert.ok(serviceWorkerSource.includes("if (isVersionedCode)") && serviceWorkerSource.includes("return cached||Response.error()"), "customer versioned assets should use network-first with an offline cache fallback");
   assert.ok(serviceWorkerSource.includes("if (cached) {"));
   assert.ok(serviceWorkerSource.includes("const cached=await cache.match(event.request)"));
   assert.ok(serviceWorkerSource.includes("return (await cache.match(event.request)) || Response.error()"));
-  assert.match(serviceWorkerSource, /const CACHE = 'freshway-v[0-9]+'/);
-  assert.doesNotMatch(serviceWorkerSource, /freshway-v63/, 'the old customer service-worker cache version must not be expected');
+  assert.match(serviceWorkerSource, /const CACHE = 'waternow-customer-v[0-9]+'/);
+  assert.doesNotMatch(serviceWorkerSource, /freshway-v[0-9]+/, 'no legacy FreshWay customer cache should remain');
   assert.doesNotMatch(ownerServiceWorkerSource, /fw-owner-v20/, 'the obsolete Owner cache version must not remain');
   assert.ok(ownerServiceWorkerSource.includes("if (cached && isVersionedCode) return cached"));
   assert.ok(ownerServiceWorkerSource.includes("if (isDocument || isManifest)"));
@@ -207,7 +207,7 @@ test('Owner script URLs and service-worker shell cache versions match', () => {
   assert.ok(htmlLife);
   assert.ok(shellLife);
   assert.equal(htmlLife,shellLife);
-  assert.match(ownerServiceWorkerSource,/const CACHE = 'fw-owner-v[0-9]+'/);
+  assert.match(ownerServiceWorkerSource,/const CACHE = 'waternow-owner-v[0-9]+'/);
   assert.match(adminHtml, /rel="manifest" href="\/admin\/manifest\.webmanifest"/);
   assert.match(adminHtml, /owner-pwa-install\.js\?v=20261019-install-prompt-v2/);
   assert.match(adminHtml, /owner-pwa-install\.css\?v=20261019-install-prompt-v2/);
@@ -216,7 +216,7 @@ test('Owner script URLs and service-worker shell cache versions match', () => {
   assert.ok(ownerServiceWorkerSource.includes("'/waternow-icon.svg'"), 'Owner shell must use the WaterNow app icon');
   
   
-  assert.ok(ownerServiceWorkerSource.includes("'/waternow-logo.svg'"), 'Owner shell must use the WaterNow wordmark');
+  assert.ok(ownerServiceWorkerSource.includes("'/admin/waternow-logo.svg'"), 'Owner shell must use the WaterNow wordmark');
   assert.match(ownerServiceWorkerSource, /REQUIRED_SHELL = \[[\s\S]*owner-pwa-install\.js\?v=20261019-install-prompt-v2/);
   assert.match(ownerInstallSource, /beforeinstallprompt/);
   assert.match(ownerInstallSource, /promptEvent\.prompt\(\)/);
