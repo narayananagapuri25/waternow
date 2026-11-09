@@ -1,10 +1,20 @@
 # WaterNow Cloudflare Worker and D1 setup
 
-**Account isolation:** WaterNow must use a new, separate Cloudflare account, Worker, Pages project, domain and D1 database. The FreshWay Cloudflare account and its D1 database are not connected to this repository and must never be selected for WaterNow. No Cloudflare account credentials or deployed resources have been verified. `wrangler.production.jsonc` contains a D1 UUID that must be confirmed against the WaterNow account or replaced with the UUID returned by that account before deployment.
+WaterNow is split across a Cloudflare Pages customer/Owner application, the `waternow-api` Worker and the dedicated `waternow-production` D1 database. WaterNow resources are isolated from FreshWay and must never reference the FreshWay account, database or secrets.
 
-This directory contains the customer and owner API Worker, D1 schema, additive migrations and tests. `wrangler.jsonc` is a local-development template with a placeholder database ID and localhost origins; do not deploy it as-is.
+## Production configuration
 
-## Local setup
+- Pages project: `waternow` (`https://waternow.pages.dev`)
+- Worker: `waternow-api`
+- D1 database: `waternow-production`
+- Production Worker config: `wrangler.production.jsonc` (pins the WaterNow account and D1 database)
+- Pages API service binding: `WATERNOW_API` → `waternow-api`
+
+Cloudflare Pages deploys the `main` branch through its Git integration. GitHub Actions runs the full CI suite and, after all checks pass on `main`, applies pending D1 migrations, deploys the API Worker and smoke-tests the Worker and Pages API proxy. See [Production deployment](../docs/production-deployment.md) for the one-time GitHub secret setup and the D1 migration-history safety gate.
+
+The deployment workflow requires the GitHub Actions secrets `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`. The API token must be scoped to the WaterNow account with Workers Editor access for the existing Worker and D1 Editor access for the production database. Never commit credentials.
+
+## Local development
 
 1. Create `worker/.dev.vars` (ignored by Git) with local-only values for `ADMIN_TOKEN`, `CUSTOMER_SESSION_SECRET` and `ADMIN_SESSION_SECRET`.
 2. Install dependencies: `npm install`.
@@ -22,10 +32,10 @@ This directory contains the customer and owner API Worker, D1 schema, additive m
 
 5. Start locally: `npx wrangler dev --local --config=./wrangler.jsonc --port 8787`.
 
-## Existing D1 databases
+## D1 migration rules
 
-Apply pending migrations in order using the Cloudflare D1 migration workflow. WaterNow adds `0051_waternow_supplier_network.sql` and `0052_waternow_catalogue_seed.sql`. Do not manually apply the additive `0051` migration on a database that was bootstrapped from the complete `schema.sql` snapshot, because that snapshot already includes the supplier tables and delivery-store columns; in that case apply only `0052` to activate the WaterNow catalogue.
+Apply pending migrations in order. The complete `schema.sql` snapshot already includes the supplier network schema from migration 0051; when bootstrapping a fresh local database from that snapshot, do not apply 0051 again. Apply 0052 to activate the WaterNow catalogue.
 
-Use isolated local/preview databases for all tests. Never use production credentials or production customer/order data. For a real deployment, sign in to the new WaterNow Cloudflare account, create a new D1 database named waternow-production, and use only the database UUID returned by that account. Create a new WaterNow Worker and Pages project in that same account; configure secrets there; verify or replace the D1 UUID in `wrangler.production.jsonc` with the UUID returned by the WaterNow Cloudflare account; set the WaterNow domain/origin; and create a separately reviewed deployment workflow. Do not copy any FreshWay account ID, D1 UUID, API token, domain binding or secret.
+For an existing remote D1 database, inspect the Wrangler migration history before applying migrations. The production workflow requires all existing repository migrations through 0052 to be recorded in `d1_migrations`, so old cleanup migrations cannot be replayed against live data. Do not manually create or modify the production migration ledger until the actual database schema and historical migration state have been audited.
 
-Never commit `ADMIN_TOKEN`, session secrets, VAPID private keys, Twilio credentials, WhatsApp credentials or any other secret.
+Use isolated local/preview databases for tests. Never point local or preview environments at the production database or put customer/order data into test fixtures.
