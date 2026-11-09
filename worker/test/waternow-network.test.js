@@ -62,17 +62,32 @@ test('WaterNow clean-install schema exposes two priced-by-supplier water packs a
 test('WaterNow supplier approval gates customer delivery and links approved supplier pricing and stock to a delivery location',async()=>{
   const db=new SQLiteD1();
   try{
+    db.db.prepare(`INSERT INTO products (id,name,unit,price,emoji,active,category_id,display_order,stock_managed,stock_quantity)
+      VALUES ('water-filter','Water Filter Replacement','piece',0,'',1,'water-20l',3,1,0)`).run();
     db.db.prepare(`INSERT INTO delivery_stores(id,name,address,latitude,longitude,service_radius_km,is_active)
       VALUES('store-hyd','WaterNow Hyderabad Hub','Test address',17.385,78.4867,5,1)`).run();
     const created=await handleWaterNetworkRequest(request('water-suppliers',{
       name:'Local Water Works',supplierType:'distributor',phone:'9999999999',city:'Hyderabad',state:'Telangana',pincode:'500072',
       fssaiLicenseNumber:'12345678901234',fssaiLicenseExpiry:'2027-12-31',testingSchemeAcknowledged:true,
-      fulfilmentModel:'platform_delivery',price20:120,stock20:8,price10:85,stock10:12
+      fulfilmentModel:'platform_delivery'
     }),env(db));
     assert.equal(created.status,201);
     const supplier=(await created.json()).supplier;
     assert.equal(supplier.compliance_status,'pending');
     assert.equal(Number(supplier.is_active),0);
+    const configuredProducts=[
+      ['water-20l',120,8],
+      ['water-10l-pair',85,12],
+      ['water-filter',45,5]
+    ];
+    for(const [productId,sellingPrice,stockQuantity] of configuredProducts){
+      const configured=await handleWaterNetworkRequest(request('water-suppliers/'+supplier.id+'/products/'+productId,{sellingPrice,stockQuantity},'PATCH'),env(db));
+      assert.equal(configured.status,200,'catalogue product '+productId+' must be configurable for a supplier');
+    }
+    const supplierCatalogue=await handleWaterNetworkRequest(new Request('https://waternow.test/api/admin/water-network'),env(db));
+    const supplierProductRows=(await supplierCatalogue.json()).supplierProducts.filter(row=>row.supplier_id===supplier.id);
+    assert.deepEqual(supplierProductRows.map(row=>row.product_id),['water-filter','water-20l','water-10l-pair'].sort(),
+      'supplier setup lists all active catalogue products, including products added after initial setup');
 
     const partnerCreate=await handleWaterNetworkRequest(request('delivery-partners',{
       name:'City Water Delivery',phone:'9888888888',city:'Hyderabad',state:'Telangana',pincode:'500072',partnerType:'fleet'
@@ -108,13 +123,18 @@ test('WaterNow supplier approval gates customer delivery and links approved supp
     assert.equal(Number(store.is_active),1);
 
     const catalogue=db.db.prepare(`SELECT product_id,is_available,price_override FROM delivery_store_catalogue
-      WHERE store_id='store-hyd' AND product_id IN ('water-20l','water-10l-pair') ORDER BY product_id`).all();
-    assert.equal(catalogue.length,2);
+      WHERE store_id='store-hyd' AND product_id IN ('water-20l','water-10l-pair','water-filter') ORDER BY product_id`).all();
+    assert.equal(catalogue.length,3,'linking a supplier syncs every active catalogue product, not a fixed pack list');
     const twenty=db.db.prepare(`SELECT is_available,price_override FROM delivery_store_catalogue WHERE store_id='store-hyd' AND product_id='water-20l'`).get();
     assert.equal(Number(twenty.is_available),1);
     assert.equal(Number(twenty.price_override),120);
     const inventory=db.db.prepare(`SELECT stock_quantity FROM delivery_store_inventory WHERE store_id='store-hyd' AND product_id='water-20l'`).get();
     assert.equal(Number(inventory.stock_quantity),8);
+    const filterCatalogue=db.db.prepare(`SELECT is_available,price_override FROM delivery_store_catalogue WHERE store_id='store-hyd' AND product_id='water-filter'`).get();
+    assert.equal(Number(filterCatalogue.is_available),1);
+    assert.equal(Number(filterCatalogue.price_override),45);
+    const filterInventory=db.db.prepare(`SELECT stock_quantity FROM delivery_store_inventory WHERE store_id='store-hyd' AND product_id='water-filter'`).get();
+    assert.equal(Number(filterInventory.stock_quantity),5);
   }finally{db.close();}
 });
 
@@ -123,7 +143,7 @@ test('WaterNow refuses supplier verification without an unexpired FSSAI record a
   try{
     const created=await handleWaterNetworkRequest(request('water-suppliers',{
       name:'Pending Water Supplier',supplierType:'retailer',phone:'9777777777',city:'Warangal',state:'Telangana',
-      fssaiLicenseNumber:'12345678901234',price20:100,stock20:10
+      fssaiLicenseNumber:'12345678901234'
     }),env(db));
     const supplier=(await created.json()).supplier;
     const missingTesting=await handleWaterNetworkRequest(request('water-suppliers/'+supplier.id,{
