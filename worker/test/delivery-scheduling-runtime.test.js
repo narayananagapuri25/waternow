@@ -92,13 +92,10 @@ test('new Owner stores start inactive with zero stock when another store already
 test('new Owner stores require an explicit configured delivery radius', async () => {
   const db=new SQLiteD1();
   try {
-    const response=await handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/stores',{
+    await assert.rejects(handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/stores',{
       method:'POST',headers:{'content-type':'application/json'},
       body:JSON.stringify({name:'Radius Missing Store',address:'Second Address',latitude:17.39,longitude:78.49})
-    }),{DB:db});
-    assert.equal(response.status,400);
-    const result=await response.json();
-    assert.match(result.error,/delivery radius/i);
+    }),{DB:db}),/delivery radius/i);
     assert.equal(db.db.prepare("SELECT COUNT(*) AS total FROM delivery_stores WHERE name='Radius Missing Store'").get().total,0);
   } finally { db.close(); }
 });
