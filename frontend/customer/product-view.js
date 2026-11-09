@@ -2,7 +2,7 @@
 // Owns only product-grid DOM rendering; cart state and quantity behavior remain in app.js.
 (function(){
   const media=window.WaterNowCatalogueMedia;
-  const displayName=product=>String(product?.name??'').trim().replace(/\\s+/g,' ');
+  const displayName=product=>String(product?.name??'').trim().replace(/\s+/g,' ');
   const render=(products,state,filter,{esc,money,changeQty,updateCartBar})=>{
     const grid=document.querySelector('#productGrid');
     if(!grid)return;
