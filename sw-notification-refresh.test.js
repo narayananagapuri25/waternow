@@ -68,7 +68,7 @@ async function dispatchPush(payload) {
   assert.equal(messages.length, 1, 'only customer app tabs on this origin receive refresh messages');
   assert.equal(messages[0].page, 'customer');
   assert.deepEqual(JSON.parse(JSON.stringify(messages[0].value)), {
-    type: 'freshway:order-updated',
+    type: 'waternow:order-updated',
     audience: 'customer',
     orderId: 'WN-1',
     eventType: 'payment_changed'
@@ -84,14 +84,14 @@ async function dispatchPush(payload) {
   const app = fs.readFileSync('app.js', 'utf8');
   const index = fs.readFileSync('index.html', 'utf8');
   const sw = fs.readFileSync('sw.js', 'utf8');
-  assert.match(app, /freshway:order-updated/);
+  assert.match(app, /waternow:order-updated/);
   assert.match(app, /customerOrderData\.load\(\)/);
   assert.match(index, /app\.js\?v=107/);
   assert.ok(index.includes('frontend/customer/navigation.js?v=20261107-history-back-v1'), 'customer HTML must load the deterministic history module');
   assert.ok(index.includes('frontend/customer/delivery-booking.js?v=20261109-waternow-supplier-copy-v1'), 'customer HTML must load the current WaterNow delivery help copy');
   assert.ok(index.includes('frontend/customer/order-actions.js?v=20261109-waternow-order-actions-v1'), 'customer HTML must load the current WaterNow order actions copy');
-  assert.match(sw, /const CACHE = 'waternow-customer-v2';/, 'customer service worker must publish the current history-fix cache version');
-  assert.ok(sw.includes('/app.js?v=107'), 'service worker must precache the same cache-busted customer app asset');
+  assert.match(sw, /const CACHE = 'waternow-customer-v3';/, 'customer service worker must publish the current history-fix cache version');
+  assert.ok(sw.includes('/app.js?v=waternow-configurable-v1'), 'service worker must precache the same cache-busted customer app asset');
   assert.ok(sw.includes('/frontend/customer/navigation.js?v=20261107-history-back-v1'), 'service worker must precache the exact history-fix module loaded by HTML');
   assert.ok(sw.includes('/frontend/customer/delivery-booking.js?v=20261109-waternow-supplier-copy-v1'), 'service worker must precache the updated WaterNow delivery help module');
   assert.ok(sw.includes('/frontend/customer/order-actions.js?v=20261109-waternow-order-actions-v1'), 'service worker must precache the updated WaterNow order actions module');
