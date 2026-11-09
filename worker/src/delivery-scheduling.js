@@ -239,7 +239,7 @@ async function resolveStoreForAddress(env, address = {}) {
   const availableStoreIds=await storesWithAvailableProducts(env,nearby.map(store=>store.id));
   for (const store of nearby) {
     if (availableStoreIds.has(String(store.id))) {
-      return { available:true, code:'AVAILABLE', message:'FreshWay delivers to your area from ' + store.name + '.', store:{id:store.id,name:store.name,distanceKm:Math.round(store.distance_km*10)/10} };
+      return { available:true, code:'AVAILABLE', message:'WaterNow delivers to your area from ' + store.name + '.', store:{id:store.id,name:store.name,distanceKm:Math.round(store.distance_km*10)/10} };
     }
   }
   return {available:false,code:'NO_STORE_CATALOGUE',message:'There are no products available for delivery in your area right now.'};
@@ -310,7 +310,7 @@ async function resolvePendingCancellationRequests(env, orderId, note) {
   } catch (error) {
     // The cancellation is already durable before this cleanup; don't turn it
     // into a reported failure if an obsolete request could not be retired.
-    console.error('FreshWay obsolete cancellation request cleanup failed:', error?.message || error);
+    console.error('WaterNow obsolete cancellation request cleanup failed:', error?.message || error);
   }
 }
 async function queueRequest(env, order, customerId, requestType, body = {}) {
@@ -331,7 +331,7 @@ async function queueRequest(env, order, customerId, requestType, body = {}) {
     }
     throw error;
   }
-  return { requestId, status: 'pending', requestType, message: 'Your request was sent to FreshWay. The current delivery date remains in place until the Owner changes it.' };
+  return { requestId, status: 'pending', requestType, message: 'Your request was sent to WaterNow. The current delivery date remains in place until the Owner changes it.' };
 }
 async function notifyCustomerAndOwner(env, orderId, before, action, reason, after = null) {
   const latest = after || await env.DB.prepare(
@@ -341,7 +341,7 @@ async function notifyCustomerAndOwner(env, orderId, before, action, reason, afte
   const alerts = buildOrderChangeAlerts(orderId, before, latest);
   alerts.push({
     audience: 'customer', customerId: latest.customer_id, orderId, eventType: action,
-    title: 'FreshWay delivery update', body: reason || 'Your delivery details have been updated.',
+    title: 'WaterNow delivery update', body: reason || 'Your delivery details have been updated.',
     url: '/?openOrder=' + encodeURIComponent(orderId) + '#orders',
     eventKey: 'order:' + orderId + ':' + action + ':customer:' + Date.now()
   });
@@ -352,7 +352,7 @@ async function notifyCustomerAndOwner(env, orderId, before, action, reason, afte
     eventKey: 'order:' + orderId + ':' + action + ':owner:' + Date.now()
   });
   await Promise.all(alerts.map(alert => dispatchOrderAlert(env, alert).catch(error => {
-    console.error('FreshWay order action notification failed:', error?.message || error);
+    console.error('WaterNow order action notification failed:', error?.message || error);
     return { status: 'failed' };
   })));
 }
@@ -553,8 +553,8 @@ export async function handleCustomerDeliveryRequest(request, env, customerId) {
     let body={};try{body=await request.json();}catch(_){}
     try{return response(await resolveStoreAvailability(env,body));}
     catch(error){
-      if(deliverySchemaMissing(error)){console.error('FreshWay delivery availability schema is missing:',error?.message||error);return response({available:false,code:'DELIVERY_SCHEMA_UNAVAILABLE',message:'Delivery availability is temporarily unavailable. Please try again later.'},503);}
-      console.error('FreshWay store availability check failed:',error?.message||error);
+      if(deliverySchemaMissing(error)){console.error('WaterNow delivery availability schema is missing:',error?.message||error);return response({available:false,code:'DELIVERY_SCHEMA_UNAVAILABLE',message:'Delivery availability is temporarily unavailable. Please try again later.'},503);}
+      console.error('WaterNow store availability check failed:',error?.message||error);
       return response({available:false,code:'DELIVERY_AVAILABILITY_ERROR',message:'We could not check delivery availability. Please try again.'},503);
     }
   }
@@ -564,7 +564,7 @@ export async function handleCustomerDeliveryRequest(request, env, customerId) {
     try { return response(await resolveAvailableSlots(env, body, clean(body.date))); }
     catch (error) {
       if (deliverySchemaMissing(error)) {
-        console.error('FreshWay delivery availability is unavailable because a required database schema table is missing:', error?.message || error);
+        console.error('WaterNow delivery availability is unavailable because a required database schema table is missing:', error?.message || error);
         return response({ error: 'Delivery availability is temporarily unavailable in this environment. Please try again later.', code: 'DELIVERY_SCHEMA_UNAVAILABLE' }, 503);
       }
       return response({ error: error.message || 'Could not load available delivery windows.' }, 400);
@@ -576,7 +576,7 @@ export async function handleCustomerDeliveryRequest(request, env, customerId) {
     try { orderId = decodeURIComponent(match[1]); } catch (_) { return response({ error: 'Order was not found.' }, 404); }
     try { return await customerAction(request, env, customerId, orderId, match[2]); }
     catch (error) {
-      console.error('FreshWay customer order action failed:', error?.message || error);
+      console.error('WaterNow customer order action failed:', error?.message || error);
       if (/ORDER_CONFLICT:/.test(String(error?.message || ''))) return response({ error: String(error.message).replace(/^ORDER_CONFLICT:\s*/, ''), code: 'ORDER_CONFLICT' }, 409);
       return response({ error: error.message || 'Could not update this order. Refresh and try again.' }, 400);
     }
