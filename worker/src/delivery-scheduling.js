@@ -870,11 +870,12 @@ export async function handleAdminDeliveryRequest(request, env) {
     if (!Number.isFinite(latitude) || Math.abs(latitude) > 90 || !Number.isFinite(longitude) || Math.abs(longitude) > 180) throw new Error('Enter valid store map coordinates.');
     if (!Number.isFinite(radius) || radius < 0.1 || radius > 100) throw new Error('Invalid store delivery radius.');
     const storeId=id('store');
-    const existingStores=Number((await env.DB.prepare('SELECT COUNT(*) count FROM delivery_stores').first())?.count||0);
-    const inventorySeed=existingStores===0?'copied-current-available-stock':'zero-stock-requires-setup';
+    // Central catalogue quantities are not proof of physical stock at a newly
+    // created location. Every new store must start with zero store-level stock.
+    const inventorySeed='zero-stock-requires-setup';
     const statements=[
       env.DB.prepare('INSERT INTO delivery_stores (id,name,address,latitude,longitude,service_radius_km,is_active) VALUES (?,?,?,?,?,?,0)').bind(storeId,name,address,latitude,longitude,radius),
-      env.DB.prepare(existingStores===0?'INSERT INTO delivery_store_inventory (store_id,product_id,stock_quantity) SELECT ?,id,stock_quantity FROM products WHERE stock_managed=1':'INSERT INTO delivery_store_inventory (store_id,product_id,stock_quantity) SELECT ?,id,0 FROM products WHERE stock_managed=1').bind(storeId),
+      env.DB.prepare('INSERT INTO delivery_store_inventory (store_id,product_id,stock_quantity) SELECT ?,id,0 FROM products WHERE stock_managed=1').bind(storeId),
       env.DB.prepare('INSERT INTO delivery_store_catalogue (store_id,product_id,is_available,price_override) SELECT ?,id,1,NULL FROM products').bind(storeId)
     ];
     await env.DB.batch(statements);
@@ -896,6 +897,12 @@ export async function handleAdminDeliveryRequest(request, env) {
     if (!name) throw new Error('Enter the store name.');
     if (!Number.isFinite(latitude) || Math.abs(latitude) > 90 || !Number.isFinite(longitude) || Math.abs(longitude) > 180) throw new Error('Enter valid store map coordinates.');
     if (!Number.isFinite(radius) || radius < 0.1 || radius > 100) throw new Error('Invalid store delivery radius.');
+    const approximatePin = /approximate locality pin/i.test(String(current.address || ''));
+    const pinChanged = Math.abs(latitude - Number(current.latitude)) > 0.000001 ||
+      Math.abs(longitude - Number(current.longitude)) > 0.000001;
+    if (active === 1 && approximatePin && (!pinChanged || /approximate locality pin/i.test(address))) {
+      throw new Error('Confirm the exact shop location: replace the approximate locality pin and move the map marker before activating delivery.');
+    }
     await env.DB.prepare('UPDATE delivery_stores SET name=?,address=?,latitude=?,longitude=?,service_radius_km=?,is_active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
       .bind(name,address,latitude,longitude,radius,active,storeId).run();
     await refreshProductAvailability(env);
