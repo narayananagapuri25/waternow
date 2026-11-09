@@ -12,7 +12,7 @@ const products = [{
   emoji: '🍚',
   active: 1,
   category_id: 'water-20l',
-  category_name: 'Rice',
+  category_name: '20L Water Can',
   category_slug: 'rice'
 }];
 
@@ -315,7 +315,7 @@ test('customer can browse, add a product, checkout, and receive confirmation', a
   await page.goto('/');
 
   await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
-  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('Rice');
+  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('20L Water Can');
 
   await page.locator('[data-fw-category="water-20l"]').click();
   await expect(page.locator('#productGrid')).toBeVisible();
@@ -434,7 +434,7 @@ test('checkout button shows the final payable total, not the item subtotal', asy
   });
 
   await page.goto('/');
-  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('Rice');
+  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('20L Water Can');
   await page.locator('[data-fw-category="water-20l"]').click();
   await expect(page.locator('#productGrid')).toBeVisible();
   await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
@@ -457,7 +457,7 @@ test('checkout button shows the final payable total, not the item subtotal', asy
   await expect(placeOrder).not.toContainText('₹799');
 });
 
-test('₹1,850 cart item persists through checkout navigation and page refresh', async ({ page }) => {
+test('₹1,850 WaterNow can persists through checkout navigation and page refresh', async ({ page }) => {
   const quotePayloads = [];
   let productRequests = 0;
   await page.route('**/api/products**', async route => {
@@ -469,13 +469,13 @@ test('₹1,850 cart item persists through checkout navigation and page refresh',
     contentType: 'application/json',
     body: JSON.stringify({ products: [{
       id: 42,
-      name: 'Groundnut oil/5ltrs',
+      name: '20L Drinking Water Can',
       unit: 'can',
       price: 1850,
       emoji: '🛢️',
       active: 1,
       category_id: 'water-20l',
-      category_name: 'Rice',
+      category_name: '20L Water Can',
       category_slug: 'rice'
     }] })
     });
@@ -503,19 +503,19 @@ test('₹1,850 cart item persists through checkout navigation and page refresh',
         couponDiscount: 0,
         finalTotal: itemsSubtotal,
         coupon: null,
-        items: [{ id: 42, name: 'Groundnut oil/5ltrs', unit: 'can', qty, price: 1850, lineTotal: itemsSubtotal }]
+        items: [{ id: 42, name: '20L Drinking Water Can', unit: 'can', qty, price: 1850, lineTotal: itemsSubtotal }]
       } })
     });
   });
 
   await page.goto('/');
-  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('Rice');
+  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('20L Water Can');
   await page.locator('[data-fw-category="water-20l"]').click();
-  await expect(page.locator('#productGrid .product-card')).toContainText('Groundnut oil/5ltrs');
+  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
   await page.locator('#productGrid .add-btn').click();
   await expect(page.locator('#cartTotal')).toHaveText('₹1,850');
   await page.locator('#viewCartBtn').click();
-  await expect(page.locator('#cartItems')).toContainText('Groundnut oil/5ltrs');
+  await expect(page.locator('#cartItems')).toContainText('20L Drinking Water Can');
   await expect(page.locator('#fwDeliveryPricing')).toContainText('₹1,850');
   await page.locator('#checkoutBtn').click();
   await expect(page.locator('#fwCheckoutPricing')).toContainText('₹1,850');
@@ -536,7 +536,7 @@ test('₹1,850 cart item persists through checkout navigation and page refresh',
   await expect(page.locator('#checkoutForm button[type="submit"]')).toContainText('₹1,850');
   const savedAfterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('freshway-state-v2') || '{}'));
   expect(savedAfterReload.cart['42']).toBe(1);
-  expect(savedAfterReload.cartProducts['42'].name).toBe('Groundnut oil/5ltrs');
+  expect(savedAfterReload.cartProducts['42'].name).toBe('20L Drinking Water Can');
   expect(quotePayloads.length).toBeGreaterThanOrEqual(2);
   expect(quotePayloads.every(payload => String(payload.items?.[0]?.id) === '42')).toBe(true);
 });
@@ -547,13 +547,13 @@ test('checkout refuses a quote for a different cart item instead of showing a mi
     contentType: 'application/json',
     body: JSON.stringify({ products: [{
       id: 42,
-      name: 'Groundnut oil/5ltrs',
+      name: '20L Drinking Water Can',
       unit: 'can',
       price: 1850,
       emoji: '🛢️',
       active: 1,
       category_id: 'water-20l',
-      category_name: 'Rice',
+      category_name: '20L Water Can',
       category_slug: 'rice'
     }] })
   }));
@@ -590,7 +590,7 @@ test('checkout refuses a quote for a different cart item instead of showing a mi
   await expect(page.locator('#fwCheckoutPricing')).toContainText('Could not refresh your order total');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('freshway-state-v2') || '{}'));
   expect(saved.cart['42']).toBe(1);
-  expect(saved.cartProducts['42'].name).toBe('Groundnut oil/5ltrs');
+  expect(saved.cartProducts['42'].name).toBe('20L Drinking Water Can');
   await expect(placeOrder).not.toContainText('₹799');
   await expect(placeOrder).not.toContainText('₹0');
 });
@@ -1599,7 +1599,7 @@ test('customer sees helpful out-of-area options and can contact WaterNow from ch
   await expect.poll(() => page.evaluate(() =>
     window.FreshWayAddressSystem?.getSelectedAddress?.()?.latitude ?? null
   )).toBe(17.385044);
-  // Home initially shows categories; open Rice before using its product card,
+  // Home initially shows water packs; open the 20L can before using its product card,
   // matching the real customer navigation path.
   await expect(page.locator('[data-fw-category="water-20l"]')).toBeVisible();
   await page.locator('[data-fw-category="water-20l"]').click();
@@ -1628,8 +1628,8 @@ test('customer sees helpful out-of-area options and can contact WaterNow from ch
   const help = page.locator('.fw-delivery-area-help');
   await expect(help).toBeVisible();
   await expect(help).toContainText('Outside our current delivery area?');
-  await expect(help).toContainText('nearby RTC bus stand');
-  await expect(help).toContainText('postal delivery options');
+  await expect(help).toContainText('nearby supplier network');
+  await expect(help).toContainText('supplier coverage');
   await expect(page.locator('[data-fw-delivery-availability]')).toHaveClass(/is-unavailable/);
   await expect(page.getByRole('button', { name: 'Contact WaterNow' })).toBeVisible();
 
