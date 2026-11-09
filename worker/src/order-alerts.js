@@ -1,4 +1,7 @@
-import * as webpush from 'web-push';
+import { setVapidDetails, sendNotification } from 'web-push';
+
+// Keep the small provider object mutable so delivery tests can inject a safe fake.
+export const webpush = { setVapidDetails, sendNotification };
 import { validatePushEndpoint } from './push-endpoint.js';
 
 const pushConfigured = env => Boolean(
