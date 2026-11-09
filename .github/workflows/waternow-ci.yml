@@ -149,7 +149,34 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set +x
-          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT (SELECT COUNT(*) FROM products WHERE lower(trim(name)) IN ('apple','banana','grapes','guava','mango','orange','papaya','pineapple','pomegranate','watermelon')) AS retired_catalogue_products, (SELECT COUNT(*) FROM orders WHERE id IN ('FW-12031400-6NE','FW-53962202-NM5','FW-53402034-XBH','FW-31938520-0L7','FW-87828109-18W','FW-67922479-XYN','FW-08623690-412','FW-57069654-MR4','FW-35019352-MJ4','FW-78689788-FCD','FW-77588644-BHS','FW-70361915-UDE')) AS legacy_0050_test_orders, (SELECT COUNT(*) FROM addresses WHERE is_saved_address=1 AND (recipient_name IS NULL OR trim(recipient_name)='' OR delivery_phone IS NULL OR trim(delivery_phone)='')) AS incomplete_addresses_still_saved, (SELECT COUNT(*) FROM account_deletion_requests WHERE status='completed') AS completed_deletion_requests_not_anonymized, (SELECT COUNT(*) FROM delivery_stores s WHERE s.supplier_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM water_suppliers w WHERE w.id=s.supplier_id)) AS supplier_refs_without_supplier, (SELECT COUNT(*) FROM delivery_stores s WHERE s.delivery_partner_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM water_delivery_partners p WHERE p.id=s.delivery_partner_id)) AS partner_refs_without_partner, (SELECT COUNT(*) FROM orders o JOIN customers c ON c.id=o.customer_id WHERE c.phone IS NOT NULL AND trim(c.phone)<>'' AND o.customer_phone<>c.phone) AS orders_with_registered_phone_mismatch, (SELECT COUNT(*) FROM delivery_stores) AS delivery_stores_rows, (SELECT COUNT(*) FROM delivery_store_inventory) AS delivery_store_inventory_rows, (SELECT COUNT(*) FROM delivery_store_catalogue) AS delivery_store_catalogue_rows, (SELECT COUNT(*) FROM delivery_slots) AS delivery_slots_rows, (SELECT COUNT(*) FROM delivery_slot_reservations) AS delivery_slot_reservations_rows, (SELECT COUNT(*) FROM delivery_store_inventory_reservations) AS delivery_store_inventory_reservations_rows" --json
+          audit_sql="$(cat <<'SQL'
+          SELECT
+            (SELECT COUNT(*) FROM products WHERE lower(trim(name)) IN ('apple','banana','grapes','guava','mango','orange','papaya','pineapple','pomegranate','watermelon')) AS retired_catalogue_products,
+            (SELECT COUNT(*) FROM orders WHERE id IN ('FW-12031400-6NE','FW-53962202-NM5','FW-53402034-XBH','FW-31938520-0L7','FW-87828109-18W','FW-67922479-XYN','FW-08623690-412','FW-57069654-MR4','FW-35019352-MJ4','FW-78689788-FCD','FW-77588644-BHS','FW-70361915-UDE')) AS legacy_0050_test_orders,
+            (SELECT COUNT(*) FROM addresses WHERE is_saved_address=1 AND (recipient_name IS NULL OR trim(recipient_name)='' OR delivery_phone IS NULL OR trim(delivery_phone)='')) AS incomplete_addresses_still_saved,
+            (SELECT COUNT(*) FROM account_deletion_requests WHERE status='completed') AS completed_deletion_requests_not_anonymized,
+            (SELECT COUNT(*) FROM delivery_stores s WHERE s.supplier_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM water_suppliers w WHERE w.id=s.supplier_id)) AS supplier_refs_without_supplier,
+            (SELECT COUNT(*) FROM delivery_stores s WHERE s.delivery_partner_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM water_delivery_partners p WHERE p.id=s.delivery_partner_id)) AS partner_refs_without_partner,
+            (SELECT COUNT(*) FROM orders o JOIN customers c ON c.id=o.customer_id WHERE c.phone IS NOT NULL AND trim(c.phone)<>'' AND o.customer_phone<>c.phone) AS orders_with_registered_phone_mismatch,
+            (SELECT COUNT(*) FROM products WHERE active=1 AND id NOT IN ('water-20l','water-10l-pair')) AS non_water_active_products,
+            (SELECT COUNT(*) FROM categories WHERE active=1 AND id NOT IN ('water-20l','water-10l-pair')) AS non_water_active_categories,
+            (SELECT COUNT(*) FROM delivery_scheduling_settings WHERE id=1) AS delivery_scheduling_settings_count,
+            (SELECT COUNT(*) FROM delivery_offer_settings WHERE id=1) AS delivery_offer_settings_count,
+            (SELECT COUNT(*) FROM delivery_stores s CROSS JOIN products p WHERE NOT EXISTS (SELECT 1 FROM delivery_store_catalogue c WHERE c.store_id=s.id AND c.product_id=p.id)) AS missing_store_catalogue_rows,
+            (SELECT COUNT(*) FROM invoice_settings i JOIN store_profile s ON s.id=1 WHERE i.id=1 AND i.enabled=0 AND length(trim(COALESCE(i.gstin,'')))=0 AND length(trim(COALESCE(s.store_name,'')))>0 AND length(trim(COALESCE(s.address,'')))>0) AS invoice_0028_still_eligible,
+            (SELECT COUNT(*) FROM invoice_settings WHERE id=1 AND (length(trim(COALESCE(legal_name,'')))=0 OR length(trim(COALESCE(business_address,'')))=0 OR length(trim(COALESCE(state_name,'')))=0 OR length(trim(COALESCE(state_code,'')))=0 OR length(trim(COALESCE(gstin,'')))=0 OR length(trim(COALESCE(footer,'')))=0)) AS invoice_seller_defaults_still_blank,
+            (SELECT COUNT(*) FROM invoice_settings WHERE id=1 AND (lower(trim(COALESCE(legal_name,'')))='freshway' OR lower(trim(COALESCE(business_address,''))) IN ('mancherial','mancherial telangana'))) AS legacy_invoice_placeholders,
+            (SELECT COUNT(*) FROM store_profile WHERE id=1 AND lower(trim(COALESCE(address,''))) IN ('mancherial','mancherial telangana')) AS legacy_store_address_placeholder,
+            (SELECT COUNT(*) FROM home_promotions WHERE active=1 AND ((id='promo-muzofq0q-rx6ie' AND alt_text='Buy 5ltr get ₹150 off') OR (id='promo-muzofqx8-0774i' AND alt_text='Buy 5ltr get ₹150 off') OR (id='promo-mvg9mrtf-5p0ae' AND COALESCE(TRIM(alt_text),'')=''))) AS legacy_promotion_alt_texts_remaining,
+            (SELECT COUNT(*) FROM delivery_stores) AS delivery_stores_rows,
+            (SELECT COUNT(*) FROM delivery_store_inventory) AS delivery_store_inventory_rows,
+            (SELECT COUNT(*) FROM delivery_store_catalogue) AS delivery_store_catalogue_rows,
+            (SELECT COUNT(*) FROM delivery_slots) AS delivery_slots_rows,
+            (SELECT COUNT(*) FROM delivery_slot_reservations) AS delivery_slot_reservations_rows,
+            (SELECT COUNT(*) FROM delivery_store_inventory_reservations) AS delivery_store_inventory_reservations_rows
+          SQL
+          )"
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "$audit_sql" --json
           npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "PRAGMA foreign_key_check" --json
       - name: Inventory production D1 tables (read only, even if ledger check fails)
         if: always()
