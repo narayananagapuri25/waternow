@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS invoice_settings (
   state_name TEXT NOT NULL DEFAULT '',
   state_code TEXT NOT NULL DEFAULT '',
   gstin TEXT NOT NULL DEFAULT '',
-  series_prefix TEXT NOT NULL DEFAULT 'FW',
+  series_prefix TEXT NOT NULL DEFAULT 'WN',
   footer TEXT NOT NULL DEFAULT '',
   prices_include_tax INTEGER NOT NULL DEFAULT 1 CHECK(prices_include_tax IN (0,1)),
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
