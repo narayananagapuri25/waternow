@@ -146,6 +146,14 @@ test('real customer-to-owner journey: Boduppal test store, mixed water basket, o
     expect(registration.status, JSON.stringify(registration.body)).toBe(200);
     const customerId = registration.body.customerId;
     expect(customerId).toBeTruthy();
+    // Synchronise the real signed cookie with the PWA's existing customer
+    // session boundary so the rendered My Orders screen reads the same account.
+    await customer.waitForTimeout(800);
+    await customer.evaluate(async id => {
+      window.FreshWayNotifications.setCustomerId(id);
+      await window.FreshWayNotifications.session();
+      document.dispatchEvent(new CustomEvent('waternow:session'));
+    }, customerId);
 
     const address = {
       label: 'Home',
@@ -231,6 +239,9 @@ test('real customer-to-owner journey: Boduppal test store, mixed water basket, o
     const customerOrders = await api(customer, '/api/orders?customerId=' + encodeURIComponent(customerId));
     expect(customerOrders.status, JSON.stringify(customerOrders.body)).toBe(200);
     expect(customerOrders.body.orders.some(order => order.id === orderId && order.status === 'New')).toBe(true);
+    await customer.evaluate(() => window.setView('orders'));
+    await expect(customer.locator('#ordersView')).toHaveClass(/active-view/);
+    await expect(customer.locator('#customerOrders')).toContainText(orderId);
 
     // 6. Confirm the same real order appears in the Owner's live order queue,
     // including both registered and delivery contact details.
@@ -259,6 +270,8 @@ test('real customer-to-owner journey: Boduppal test store, mixed water basket, o
     const afterReschedule = await api(customer, '/api/orders?customerId=' + encodeURIComponent(customerId));
     const rescheduledOrder = afterReschedule.body.orders.find(order => order.id === orderId);
     expect(rescheduledOrder?.scheduledDelivery?.date).toBe(rescheduledDate);
+    await customer.evaluate(() => window.setView('orders'));
+    await expect(customer.locator('#customerOrders')).toContainText(rescheduledDate.slice(0, 4));
 
     // 8. Owner cancellation releases test-store reservations and propagates to
     // the customer's actual My Orders response.
@@ -270,6 +283,8 @@ test('real customer-to-owner journey: Boduppal test store, mixed water basket, o
     const finalCustomerOrders = await api(customer, '/api/orders?customerId=' + encodeURIComponent(customerId));
     expect(finalOwnerOrders.body.orders.find(order => order.id === orderId)?.status).toBe('Cancelled');
     expect(finalCustomerOrders.body.orders.find(order => order.id === orderId)?.status).toBe('Cancelled');
+    await customer.evaluate(() => window.setView('orders'));
+    await expect(customer.locator('#customerOrders')).toContainText('Cancelled');
 
     // The isolated store profile can read/write contact metadata. It remains
     // intentionally blank until the actual parent-company email is verified;
