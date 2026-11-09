@@ -35,7 +35,7 @@ assert.match(source,/window\.FreshWayCustomerCatalogue\?\.setProducts/);
 assert.match(source,/showBrowseOnlyCatalogue/,'products remain visible when the delivery resolver has no active store');
 assert.match(source,/request\('\/api\/products'\)/,'browse-only mode loads the central public product catalogue');
 assert.match(source,/orderBlocked=true/,'ordering stays blocked until a store resolves');
-assert.match(source,/canOrder:()=>!orderBlocked&&!!selectedStore\?\.id/,'only a resolved active store enables ordering');
+assert.ok(source.includes('canOrder:()=>!orderBlocked&&!!selectedStore?.id'),'only a resolved active store enables ordering');
 assert.match(source,/loadToken/);
 assert.match(source,/hadData/);
 assert.match(source,/freshWayCustomerCatalogueRefresh/);
