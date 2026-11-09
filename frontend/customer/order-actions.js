@@ -9,13 +9,13 @@
       const cancel = event.target.closest('[data-customer-order-cancel]');
       if (cancel) {
         const orderId = cancel.dataset.customerOrderCancel;
-        if (!orderId || !window.confirm('Cancel this order? New or Confirmed orders are cancelled immediately. Orders already being fulfilled may need FreshWay review.')) return;
+        if (!orderId || !window.confirm('Cancel this order? New or Confirmed orders are cancelled immediately. Orders already being fulfilled may need WaterNow review.')) return;
         cancel.disabled = true;
         try {
           const api = request(); if (!api) throw new Error('Order actions are temporarily unavailable.');
           const result = await api('/api/orders/' + encodeURIComponent(orderId) + '/cancel', { method:'POST', body:JSON.stringify({ reason:'Requested by customer' }) });
           if (result.request?.status === 'pending') {
-            feedback('Cancellation request sent. The order stays active until FreshWay reviews it.');
+            feedback('Cancellation request sent. The order stays active until WaterNow reviews it.');
           } else if (String(result.status || '').toLowerCase() === 'cancelled' || result.alreadyCancelled) {
             // Update local history only after the API confirms cancellation. If the
             // next GET fails, the old "New" state must not replace this result.
@@ -27,7 +27,7 @@
             }
             feedback(result.alreadyCancelled ? 'This order is already cancelled.' : 'Order cancelled.');
           } else {
-            throw new Error('FreshWay did not confirm cancellation. Refresh My Orders and try again.');
+            throw new Error('WaterNow did not confirm cancellation. Refresh My Orders and try again.');
           }
           document.dispatchEvent(new CustomEvent('freshway:order-actions-changed', { detail:{ orderId, action:'cancel', silentError:true } }));
         } catch (error) {
@@ -76,7 +76,7 @@
         panel.hidden = false;
         panel.dataset.requestType = openRequest.dataset.customerOrderOpenRequest || 'issue';
         const heading = panel.querySelector('[data-customer-request-heading]');
-        if (heading) heading.textContent = panel.dataset.requestType === 'return' ? 'Request a return' : 'Contact FreshWay about this order';
+        if (heading) heading.textContent = panel.dataset.requestType === 'return' ? 'Request a return' : 'Contact WaterNow about this order';
         const input = panel.querySelector('textarea');
         if (input) { input.placeholder = panel.dataset.requestType === 'return' ? 'Tell us what was wrong with the delivered items (optional)' : 'Describe your order issue (optional)'; input.focus(); }
         return;
@@ -99,7 +99,7 @@
         try {
           const api = request(); if (!api) throw new Error('Order requests are temporarily unavailable.');
           const result = await api('/api/orders/' + encodeURIComponent(orderId) + '/request', { method:'POST', body:JSON.stringify({ requestType, reason }) });
-          feedback(result.request?.alreadyRequested ? 'You already have a request waiting for FreshWay.' : requestType === 'return' ? 'Your return request was sent to FreshWay.' : 'Your message was sent to FreshWay.');
+          feedback(result.request?.alreadyRequested ? 'You already have a request waiting for WaterNow.' : requestType === 'return' ? 'Your return request was sent to WaterNow.' : 'Your message was sent to WaterNow.');
           panel.hidden = true;
           document.dispatchEvent(new CustomEvent('freshway:order-actions-changed', { detail:{ orderId, action:'request' } }));
         } catch (error) { feedback(error?.message || 'Could not send your request. Try again.'); }
