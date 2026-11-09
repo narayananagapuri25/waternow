@@ -61,7 +61,8 @@ const requiredMigrations=[
   '0047_store_inventory_reservation_floor.sql',
   '0048_store_catalogue_pricing.sql',
   '0051_waternow_supplier_network.sql',
-  '0052_waternow_catalogue_seed.sql'
+  '0052_waternow_catalogue_seed.sql',
+  '0053_delivery_store_supplier_partner_guards.sql'
 ];
 
 const requiredMigrationIndexes={
@@ -77,7 +78,15 @@ const requiredTriggers=[
   'delivery_order_store_active_before_insert',
   'delivery_order_store_active_before_update',
   'delivery_store_active_before_insert',
-  'delivery_store_active_before_update'
+  'delivery_store_active_before_update',
+  'delivery_stores_supplier_fk_insert',
+  'delivery_stores_supplier_fk_update',
+  'delivery_stores_partner_fk_insert',
+  'delivery_stores_partner_fk_update',
+  'water_suppliers_delivery_stores_set_null',
+  'water_suppliers_delivery_stores_id_guard',
+  'water_delivery_partners_delivery_stores_set_null',
+  'water_delivery_partners_delivery_stores_id_guard'
 ];
 
 // Account-erasure safety contract: order_address_snapshots.customer_id must allow NULL for account erasure.
