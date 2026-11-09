@@ -804,12 +804,6 @@ CREATE INDEX IF NOT EXISTS idx_water_supplier_products_available ON water_suppli
 CREATE INDEX IF NOT EXISTS idx_water_delivery_partners_city_status ON water_delivery_partners(city,is_active,compliance_status);
 CREATE INDEX IF NOT EXISTS idx_water_fulfilments_supplier_status ON water_order_fulfilments(supplier_id,status,assigned_at DESC);
 
-INSERT OR IGNORE INTO categories (id,name,slug,icon,description,display_order,active) VALUES
-  ('water-20l','20L Water Can','20l-water-can','💧','Reusable 20-litre drinking water can for home and office delivery.',1,1),
-  ('water-10l-pair','2 × 10L Water Cans','two-10l-water-cans','🚰','Convenient pack containing two 10-litre drinking water cans.',2,1);
-INSERT OR IGNORE INTO products (id,name,unit,price,emoji,active,category_id,display_order,stock_managed,stock_quantity) VALUES
-  ('water-20l','20L Drinking Water Can','can',0,'💧',1,'water-20l',1,1,0),
-  ('water-10l-pair','2 × 10L Drinking Water Cans','pack',0,'🚰',1,'water-10l-pair',2,1,0);
 INSERT OR IGNORE INTO store_profile (id,store_name,share_title,share_description) VALUES
   (1,'WaterNow','WaterNow | Drinking Water Delivered Locally','Order 20L drinking water cans or packs of two 10L cans from local suppliers with convenient home delivery.');
 UPDATE store_profile SET store_name='WaterNow',share_title='WaterNow | Drinking Water Delivered Locally',
