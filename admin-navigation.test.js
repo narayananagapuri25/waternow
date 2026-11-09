@@ -34,6 +34,8 @@ assert.ok(ownerBootstrap.indexOf("setAdminScreenVisual(location.hash.slice(1)||'
 assert.match(source,/document\.readyState==='loading'\)document\.addEventListener\('DOMContentLoaded',startOwnerApp,\{once:true\}\)/);
 assert.ok(html.indexOf('admin.js?v=waternow-v1') < html.indexOf('frontend/admin/store-profile.js'),
   'the regression test should cover the real script-loading order');
+assert.match(html,/<section id="stores" class="screen"><div id="storeManagement"><\/div><\/section>/,'Owner navigation must have a mounted Stores destination and its module root');
+assert.match(fs.readFileSync('frontend/admin/store-management.js','utf8'),/document\.querySelector\('#storeManagement'\)/,'Stores module must bind to the Stores screen container');
 assert.match(html,/id="accountDeletionSummary"/);
 assert.match(html,/class="owner-nav-more"/,'desktop navigation should group occasional tools under More');
 assert.match(html,/data-screen="delivery">⌁<span>Delivery<\/span>/,'Delivery should be a primary mobile destination');
