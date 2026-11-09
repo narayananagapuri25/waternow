@@ -39,6 +39,9 @@ jobs:
       - name: Audit local D1 schema
         working-directory: worker
         run: node ./scripts/audit-local-schema.mjs
+      - name: Self-test production schema comparison
+        working-directory: worker
+        run: python3 ./scripts/compare-production-schema.py --expected ./schema.sql --actual ./schema.sql
       - name: Run Worker tests
         working-directory: worker
         run: npm test
