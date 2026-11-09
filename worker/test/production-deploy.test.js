@@ -26,15 +26,16 @@ test('production D1 migrations are guarded before Wrangler applies pending migra
 test('production Worker is pinned to the isolated WaterNow account and D1 database', () => {
   assert.equal(productionConfig.name, 'waternow-api');
   assert.equal(productionConfig.account_id, '17f1561ed0052cf9d484cb4becbf8810');
-  assert.equal(productionConfig.migrations_dir, './migrations');
   assert.deepEqual(productionConfig.d1_databases.map(database => ({
     binding: database.binding,
     database_name: database.database_name,
-    database_id: database.database_id
+    database_id: database.database_id,
+    migrations_dir: database.migrations_dir
   })), [{
     binding: 'DB',
     database_name: 'waternow-production',
-    database_id: 'da57af93-2f4f-42f1-b2f3-eb02533bf9fd'
+    database_id: 'da57af93-2f4f-42f1-b2f3-eb02533bf9fd',
+    migrations_dir: 'migrations'
   }]);
   assert.equal(productionConfig.vars.WATERNOW_ENVIRONMENT, 'production');
 });
