@@ -174,7 +174,7 @@
   window.FreshWayCustomerStoreCatalogue=Object.freeze({selectedStoreId:()=>selectedStore?.id||selectedStoreIdValue||'',selectedStore:()=>selectedStore,switchToStore,refresh:load});
   window.addEventListener('freshway:address-changed',()=>{void load({reviewChange:true,preserveExisting:false})});
   window.freshWayCustomerCatalogueRefresh=load;
-  window.freshWayCustomerCatalogueGoHome=()=>setMode(null,{history:'none'});
+  window.waterNowCustomerCatalogueGoHome=()=>setMode(null,{history:'none'});
   window.addEventListener('popstate',event=>{if(event.state?.__freshwayCustomer&&event.state.view==='home')setMode(null,{history:'none'})});
   install();load();
 })();
