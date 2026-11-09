@@ -112,7 +112,10 @@ assert.equal(mediaContext.window.WaterNowCatalogueMedia.image('products','custom
 assert.equal(mediaContext.window.WaterNowCatalogueMedia.image('products','custom-product',{}),'','missing image configuration must not be replaced by a guessed product icon');
 assert.match(productView,/WaterNowCatalogueMedia/);
 assert.match(productView,/image_data&&p\.image_mime_type/);
-assert.doesNotMatch(productView,/WaterNowCatalogueMedia/);
+assert.match(cartView,/WaterNowCatalogueMedia/,'cart uses the configurable WaterNow image source');
+assert.doesNotMatch(cartView,/FreshWayCatalogueMedia/,'cart does not use a FreshWay product map');
+assert.match(cartView,/cart-product-media-empty/,'products without a configured image use a neutral placeholder');
+assert.doesNotMatch(productView,/FreshWayCatalogueMedia/);
 const styles=fs.readFileSync('styles.css','utf8');
 const categoryFoldStyles=fs.readFileSync('frontend/customer/category-fold-fit.css','utf8');
 assert.match(styles,/grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/);
