@@ -49,7 +49,7 @@ function query(sql, description) {
 
 function expectedBaseline() {
   return readdirSync(migrationsDir)
-    .filter(name => /^\\d{4}_.+\\.sql$/.test(name) && Number(name.slice(0, 4)) <= baselineCutoff)
+    .filter(name => /^\d{4}_.+\.sql$/.test(name) && Number(name.slice(0, 4)) <= baselineCutoff)
     .sort();
 }
 
