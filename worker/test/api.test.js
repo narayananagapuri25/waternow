@@ -8,7 +8,7 @@ import adminHandler from '../src/admin-auth.js';
 import { handleAddress } from '../src/address-api.js';
 
 const env = {
-  APP_ORIGIN: 'https://freshway-f32.pages.dev',
+  APP_ORIGIN: 'https://waternow-f32.pages.dev',
   ADMIN_TOKEN: 'fixture-admin',
   CUSTOMER_SESSION_SECRET: 'fixture-customer-session',
   ADMIN_SESSION_SECRET: 'fixture-admin-session',
@@ -50,7 +50,7 @@ async function jsonResponse(response) { return response.json(); }
 test('health endpoint returns a stable success response', async () => {
   const response = await request('/api/health');
   assert.equal(response.status, 200);
-  assert.deepEqual(await jsonResponse(response), { ok: true, service: 'freshway-api' });
+  assert.deepEqual(await jsonResponse(response), { ok: true, service: 'waternow-api' });
   assert.equal(response.headers.get('access-control-allow-origin'), env.APP_ORIGIN);
 });
 
@@ -135,7 +135,7 @@ test('customer logout clears the cross-site session cookie securely', async () =
   assert.equal(response.status, 200);
   assert.deepEqual(await jsonResponse(response), { ok: true });
   const cookie = response.headers.get('set-cookie') || '';
-  assert.match(cookie, /freshway-customer-session=/);
+  assert.match(cookie, /waternow-customer-session=/);
   assert.match(cookie, /Max-Age=0/);
   assert.match(cookie, /HttpOnly/);
   assert.match(cookie, /Secure/);
@@ -167,7 +167,7 @@ test('admin login issues an expiring HttpOnly same-site session cookie', async (
   const response = await request('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'fixture-admin' }) }, adminHandler, adminEnv);
   assert.equal(response.status, 200);
   const cookie = response.headers.get('set-cookie') || '';
-  assert.match(cookie, /__Host-freshway-admin-session=/);
+  assert.match(cookie, /__Host-waternow-admin-session=/);
   assert.match(cookie, /HttpOnly/);
   assert.match(cookie, /Max-Age=28800/);
   assert.match(cookie, /SameSite=Lax/);
