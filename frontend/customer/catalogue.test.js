@@ -32,6 +32,10 @@ assert.match(source,/request\('\/api\/products\?storeId='/,'customer catalogue l
 assert.doesNotMatch(source,/request\('\/api\/categories\?storeId='/,'customer home no longer makes a separate category request');
 assert.doesNotMatch(source,/fetch\(['"]\/api\/(categories|products)/);
 assert.match(source,/window\.FreshWayCustomerCatalogue\?\.setProducts/);
+assert.match(source,/showBrowseOnlyCatalogue/,'products remain visible when the delivery resolver has no active store');
+assert.match(source,/request\('\/api\/products'\)/,'browse-only mode loads the central public product catalogue');
+assert.match(source,/orderBlocked=true/,'ordering stays blocked until a store resolves');
+assert.match(source,/canOrder:()=>!orderBlocked&&!!selectedStore\?\.id/,'only a resolved active store enables ordering');
 assert.match(source,/loadToken/);
 assert.match(source,/hadData/);
 assert.match(source,/freshWayCustomerCatalogueRefresh/);
@@ -98,6 +102,14 @@ assert.ok(productGrid.innerHTML.includes('<h3>10L Drinking Water Can</h3>'),'the
 assert.doesNotMatch(productView,/productNameAliases/,'product names are configured in the catalogue, not hard-coded in the UI');
 assert.match(productGrid.innerHTML,/class="product-price">₹0<small> \/ bottle<\/small>/,'a zero price must be displayed as ₹0 rather than Price soon');
 assert.equal(productCount.textContent,'1 item');
+productViewContext.window.FreshWayCustomerProductView.render(
+  [{id:'water-20l',name:'20L Drinking Water Can',unit:'can',price:30,emoji:'💧',active:1,stock_status:'out_of_stock'}],
+  {cart:{}},
+  '',
+  {esc:value=>String(value??''),money:value=>'₹'+Number(value||0),changeQty(){},updateCartBar(){},orderDisabled:true}
+);
+assert.match(productGrid.innerHTML,/DELIVERY SETUP PENDING/,'browse-only product cards must explain why ordering is disabled');
+assert.doesNotMatch(productGrid.innerHTML,/data-add=/,'browse-only product cards must not expose add-to-cart actions');
 
 assert.match(productView,/stock_status/);
 assert.match(productView,/OUT OF STOCK/);
