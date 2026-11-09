@@ -84,7 +84,7 @@ export async function updateInvoiceSettings(env,payload={}){
   // keep issuance disabled and return the reason to the UI.
   let enableWarning='';
   if(!TYPES.has(s.documentType))s.documentType='commercial_invoice';
-  if(!s.seriesPrefix||!/^[A-Z0-9]{1,2}$/.test(s.seriesPrefix))s.seriesPrefix='FW';
+  if(!s.seriesPrefix||!/^[A-Z0-9]{1,2}$/.test(s.seriesPrefix))s.seriesPrefix='WN';
   // The Owner requested simple order records with only the store identity and
   // address required. When GST mode was left selected without a GSTIN, make
   // the safe document type explicit instead of keeping invoices permanently
