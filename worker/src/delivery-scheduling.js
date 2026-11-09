@@ -903,6 +903,10 @@ export async function handleAdminDeliveryRequest(request, env) {
     if (active === 1 && approximatePin && (!pinChanged || /approximate locality pin/i.test(address))) {
       throw new Error('Confirm the exact shop location: replace the approximate locality pin and move the map marker before activating delivery.');
     }
+    const isActivating = active === 1 && Number(current.is_active) !== 1;
+    if (isActivating && body.confirmExactLocation !== true) {
+      throw new Error('Confirm that the map marker is the exact shop entrance before activating delivery.');
+    }
     if (active === 1) {
       const readiness = await env.DB.prepare(
         'SELECT COUNT(*) listed_count,' +
