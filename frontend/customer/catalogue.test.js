@@ -92,8 +92,7 @@ productViewContext.window.WaterNowCustomerProductView.render(
 );
 assert.ok(productGrid.innerHTML.includes('<h3>Configured product name</h3>'),'the saved catalogue name must be displayed verbatim');
 assert.match(productGrid.innerHTML,/class="product-price">₹0<small> \/ custom selling unit<\/small>/,'zero price and configured unit must be displayed');
-assert.match(productGrid.innerHTML,/data-add="custom-product"/,'an in-stock item with a zero price must remain addable');
-assert.doesNotMatch(productGrid.innerHTML,/data-add="custom-product"[^>]*disabled/,'zero price is not an out-of-stock condition');
+assert.match(productGrid.innerHTML,/data-add="custom-product"[^>]*disabled/,'a zero price is displayed but not orderable until a selling price is set');
 assert.equal(productCount.textContent,'1 item');
 
 assert.match(productView,/stock_status/);
