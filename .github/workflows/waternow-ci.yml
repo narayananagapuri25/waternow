@@ -238,19 +238,20 @@ jobs:
         if: always()
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_WORKERS_BUILDS_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKERS_BUILDS_API_TOKEN }}
+          GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           node --input-type=module <<'NODE'
           // This diagnostic must never fail the release gate: unavailable log
           // permissions or an expired build record are reported, not thrown.
           try {
             const account = process.env.CLOUDFLARE_ACCOUNT_ID || '17f1561ed0052cf9d484cb4becbf8810';
-            const token = process.env.CLOUDFLARE_API_TOKEN;
+            const token = process.env.CLOUDFLARE_WORKERS_BUILDS_API_TOKEN;
             if (!token) {
-              console.log('Cloudflare API token unavailable; build log lookup skipped.');
+              console.log('Cloudflare user-scoped Workers Builds token unavailable; build log lookup skipped. Configure CLOUDFLARE_WORKERS_BUILDS_API_TOKEN.');
             } else {
               const repository = process.env.GITHUB_REPOSITORY;
-              const sha = process.env.GITHUB_SHA;
+              const sha = process.env.GITHUB_HEAD_SHA || process.env.GITHUB_SHA;
               const checksResponse = await fetch(
                 'https://api.github.com/repos/' + repository + '/commits/' + sha + '/check-runs?per_page=100',
                 { headers: { Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(12000) }
@@ -312,7 +313,15 @@ jobs:
                           build_uuid: result.build_uuid,
                           build_outcome: result.build_outcome,
                           created_on: result.created_on,
-                          modified_on: result.modified_on
+                          modified_on: result.modified_on,
+                          trigger: result.build_trigger_metadata ? {
+                            branch: result.build_trigger_metadata.branch,
+                            commit_hash: result.build_trigger_metadata.commit_hash,
+                            root_directory: result.build_trigger_metadata.root_directory,
+                            build_command: result.build_trigger_metadata.build_command,
+                            deploy_command: result.build_trigger_metadata.deploy_command,
+                            build_token_name: result.build_trigger_metadata.build_token_name
+                          } : null
                         }));
                       }
                     } catch (error) {
