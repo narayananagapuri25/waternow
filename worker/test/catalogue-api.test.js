@@ -150,6 +150,43 @@ test('public product catalogue returns image URLs without embedding Base64 image
   assert.doesNotMatch(fixture.lastSql, /p\.image_data\s*,\s*p\.image_mime_type/);
 });
 
+
+function storeProductEnv(rows) {
+  return {
+    DB: {
+      prepare(sql) {
+        return {
+          bind() { return this; },
+          async first() {
+            if (sql.includes('FROM delivery_stores WHERE id=?')) {
+              return { id: 'store-1', name: 'WaterNow Hyderabad', is_active: 1 };
+            }
+            throw new Error('Unexpected first() query: ' + sql);
+          },
+          async all() { return { results: rows }; }
+        };
+      }
+    }
+  };
+}
+
+test('store catalogue keeps both water packs visible when a pack is out of stock', async () => {
+  const rows = [
+    { id: 'water-20l', name: '20L Drinking Water Can', unit: 'can', effective_price: 250, price: 250, emoji: '💧', active: 1, category_id: 'water-20l', display_order: 1, image_data: null, stock_managed: 1, on_hand: 0, reserved_qty: 0, low_stock_threshold: 2, category_name: '20L Water Can', category_slug: '20l-water-can', category_active: 1, is_available: 1 },
+    { id: 'water-10l-pair', name: '2 × 10L Drinking Water Cans', unit: 'pack', effective_price: 0, price: 0, emoji: '🚰', active: 1, category_id: 'water-10l-pair', display_order: 2, image_data: null, stock_managed: 1, on_hand: 0, reserved_qty: 0, low_stock_threshold: 2, category_name: '2 × 10L Water Cans', category_slug: 'two-10l-water-cans', category_active: 1, is_available: 1 }
+  ];
+  const response = await handleCatalogueRequest(
+    new Request('https://api.example.test/api/products?storeId=store-1'),
+    storeProductEnv(rows)
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.deepEqual(body.products.map(product => product.id), ['water-20l', 'water-10l-pair']);
+  assert.deepEqual(body.products.map(product => product.stock_status), ['out_of_stock', 'out_of_stock']);
+  assert.equal(body.products[0].price, 250);
+  assert.equal(body.products[1].price, 0, 'an unconfirmed price remains zero and is not fabricated');
+});
+
 test('public category catalogue returns image URLs and avoids grouping on Base64 values', async () => {
   const row = {
     id: 'cat-1', name: 'Oils', slug: 'oils', icon: '🫙', description: '',
