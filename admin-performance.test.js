@@ -26,20 +26,20 @@ const response=fs.readFileSync('worker/src/admin-response.js','utf8');
 assert.match(admin,/if\(target==='overview'\)\{await Promise\.all\(\[loadSummary\(\),loadBusiness\(\),loadHome\(\)\]\);\}/);
 assert.doesNotMatch(admin,/const target=setAdminScreenVisual\(location\.hash\.slice\(1\)\|\|'overview'\);try\{await loadSummary\(\);await loadBusiness\(\);await loadHome\(\);/);
 assert.match(admin,/refreshOwnerAfterOrderMutation\(\)/);
-assert.doesNotMatch(admin,/localStorage\.setItem\(['"]freshway-admin-session['"]/);
-assert.doesNotMatch(admin,/sessionStorage\.setItem\(['"]freshway-admin-session['"]/);
-assert.match(admin,/AUTH_HINT='freshway-admin-auth'/);
-assert.match(html,/admin\.js\?v=20261107-unsaved-store-guard-v1/);
-assert.match(html,/admin\.css\?v=20261106-store-reconciliation-v1/);
+assert.doesNotMatch(admin,/localStorage\.setItem\(['"]waternow-customer-admin-session['"]/);
+assert.doesNotMatch(admin,/sessionStorage\.setItem\(['"]waternow-customer-admin-session['"]/);
+assert.match(admin,/AUTH_HINT='waternow-customer-admin-auth'/);
+assert.match(html,/admin\.js\?v=waternow-v1/);
+assert.match(html,/admin\.css\?v=waternow-v1/);
 assert.match(html,/frontend\/admin\/delivery-management\.js\?v=20261106-store-reconciliation-v1/);
 assert.doesNotMatch(html,/admin\.js\?v=20261027-customer-messages-v1/,'Owner HTML must not retain the previous script version after simplification');
 assert.doesNotMatch(html,/\.exact-location/);
 
-assert.match(sw,/const CACHE = 'freshway-v\d+'/);
+assert.match(sw,/const CACHE = 'waternow-customer-v\d+'/);
 assert.match(sw,/const cached=await cache\.match\(event\.request\)/);
 assert.match(sw,/event\.waitUntil\(update\.catch\(\(\) => undefined\)\)/);
 assert.match(sw,/url\.pathname === '\/admin\.html' \|\| url\.pathname\.startsWith\('\/admin\/'\)/);
-assert.match(sw,/keys\.filter\(key => key\.startsWith\('freshway-'\) && key !== CACHE\)/);
+assert.match(sw,/keys\.filter\(key => key\.startsWith\('waternow-customer-'\) && key !== CACHE\)/);
 assert.doesNotMatch(sw,/\/admin\.css\?v=/);
 assert.doesNotMatch(sw,/\/admin\.js\?v=/);
 assert.match(sw,/if \(isVersionedCode\)/,'versioned assets must prefer a network response over a cached legacy script');
@@ -49,15 +49,15 @@ assert.doesNotMatch(sw,/cached && !freshCode/);
 assert.match(sw,/cache:\s*'no-store'/,'document navigation must bypass cached HTML and prefer a current network response');
 assert.doesNotMatch(sw,/\.catch\(\(\) => \{\}\)/);
 
-assert.match(auth,/COOKIE='__Host-freshway-admin-session'/);
+assert.match(auth,/COOKIE='__Host-waternow-customer-admin-session'/);
 assert.match(auth,/response\(\{ok:true,version:ADMIN_AUTH_VERSION\}/);
 assert.doesNotMatch(auth,/response\(\{ok:true,version:ADMIN_AUTH_VERSION,session\}/);
 assert.match(auth,/SameSite=Lax/);
 assert.match(response,/SameSite=Lax/);
 
-assert.match(ownerSw,/const CACHE = 'fw-owner-v74'/);
+assert.match(ownerSw,/const CACHE = 'waternow-owner-v1'/);
 assert.match(ownerSw,/delivery-management\.js\?v=20261106-store-reconciliation-v1/);
-assert.match(ownerSw,/admin\.css\?v=20261106-store-reconciliation-v1/);
+assert.match(ownerSw,/admin\.css\?v=waternow-v1/);
 assert.match(ownerSw,/if \(cached && isVersionedCode\) return cached/);
 assert.match(ownerSw,/if \(isDocument \|\| isManifest\)/);
 assert.match(ownerRouter,/OWNER_VERSIONED_ASSET_CACHE_CONTROL/);
@@ -67,7 +67,7 @@ assert.match(headers,/\/frontend\/\*\.js\n  Cache-Control: public, max-age=31536
 assert.match(headers,/\/sw\.js\n[\s\S]*?Cache-Control: no-store, max-age=0/);
 assert.match(ownerSw,/const CACHE = 'fw-owner-v\d+'/);
 assert.match(ownerSw,/key\.startsWith\('fw-owner-'\)/);
-assert.doesNotMatch(ownerSw,/caches\.delete\(key\).*freshway-/);
+assert.doesNotMatch(ownerSw,/caches\.delete\(key\).*waternow-customer-/);
 console.log('Owner reload, cache, performance and session-storage audit contracts OK');
 
 assert.ok(require('node:fs').readFileSync('worker/migrations/0021_hard_reset_obsolete_orders.sql','utf8').includes("'apple','banana','grapes','guava'"));
