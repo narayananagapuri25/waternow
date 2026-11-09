@@ -11,6 +11,8 @@ assert.ok(mapPickerSource.includes('L.tileLayer'),'the picker displays a tiled m
 assert.ok(mapPickerSource.includes("map.on('click'"),'tapping the map places the store pin');
 assert.ok(mapPickerSource.includes("marker.on('dragend'"),'the marker can be dragged for precision');
 assert.ok(mapPickerSource.includes('navigator.geolocation'),'the owner can use current location');
+assert.doesNotMatch(mapPickerSource,/\[17\.405,\s*78\.585\]/,'new stores must not start from a hardcoded city coordinate');
+assert.doesNotMatch(source,/default delivery radius is 5 km|Manage locations, 5 km|placeholder="Store 1"/,'store configuration copy must not hardcode store names or delivery radii');
 assert.ok(mapPickerSource.includes('circle.setRadius(radiusMetres())'),'the delivery radius is drawn on the map');
 
 function response(data, status = 200) {
