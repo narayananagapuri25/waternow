@@ -9,7 +9,7 @@ const DEFAULT_STORE_PROFILE = Object.freeze({
   shopLongitude: null,
   businessHours: '',
   deliveryInfo: '',
-  shareTitle: 'WaterNow | Fresh Groceries & Everyday Essentials Delivered Locally',
+  shareTitle: 'WaterNow | Drinking Water Delivered Locally',
   shareDescription: 'Order 20L drinking water cans or packs of two 10L cans from local suppliers with convenient home delivery.'
 });
 
