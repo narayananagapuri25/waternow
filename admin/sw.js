@@ -10,7 +10,6 @@ const SHELL = [
   '/admin/admin.js?v=waternow-v1',
   '/admin/frontend/admin/invoice-settings.js?v=20261105-auto-non-gst-disclosure-v1',
   '/admin/frontend/admin/water-network.js?v=waternow-v1',
-  '/admin/frontend/admin/water-network.js?v=waternow-v1',
   '/admin/frontend/admin/delivery-offers.js?v=20261027-coupon-buttons-v5',
   '/admin/frontend/admin/account-deletions.js?v=20261106-account-deletion-form-v1',
   '/admin/frontend/admin/order-alerts.js?v=20261105-history-empty-actions-v1',
@@ -25,10 +24,7 @@ const SHELL = [
   '/admin/frontend/admin/push.js?v=20260908-push-v1',
   '/admin/owner-lifecycle.js?v=20261103-assigned-store-lifecycle-v1',
   '/admin/owner-address-final.js?v=20260909-address-final-v6',
-  '/admin/frontend/media/catalogue/groundnut-oil.svg',
-  '/admin/frontend/media/catalogue/sunflower-oil.svg',
-  '/admin/frontend/media/catalogue/hmt-rice.svg',
-  '/admin/frontend/media/catalogue/sona-masuri.svg'
+  '/admin/frontend/media/catalogue/groundnut-oil.svg'
 ];
 const REQUIRED_SHELL = [
   '/admin/',
