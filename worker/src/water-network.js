@@ -103,7 +103,11 @@ async function updateSupplier(env,id,payload){
       compliance_status=?,compliance_note=?,verified_at=CASE WHEN ?='verified' THEN CURRENT_TIMESTAMP ELSE NULL END,
       is_active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
       .bind(license,expiry||null,testing,status,note,status,active,id),
-    env.DB.prepare('UPDATE delivery_stores SET is_active=?,updated_at=CURRENT_TIMESTAMP WHERE supplier_id=?').bind(active,id)
+    env.DB.prepare(`UPDATE delivery_stores SET
+      is_active=CASE WHEN ?=1 AND (delivery_model<>'platform_delivery' OR EXISTS (
+        SELECT 1 FROM water_delivery_partners p WHERE p.id=delivery_stores.delivery_partner_id AND p.is_active=1
+      )) THEN 1 ELSE 0 END,
+      updated_at=CURRENT_TIMESTAMP WHERE supplier_id=?`).bind(active,id)
   ]);
   return {supplier:await env.DB.prepare('SELECT * FROM water_suppliers WHERE id=?').bind(id).first()};
 }
@@ -139,14 +143,24 @@ async function linkSupplierStore(env,supplierId,payload){
   const storeId=clean(payload.storeId,120),model=String(payload.fulfilmentModel||supplier.fulfilment_model),partnerId=clean(payload.deliveryPartnerId,120);
   if(!storeId)throw new Error('Choose a delivery location to link.');
   if(!validType(model,['supplier_delivery','platform_delivery']))throw new Error('Choose a valid fulfilment model.');
-  const store=await env.DB.prepare('SELECT id FROM delivery_stores WHERE id=?').bind(storeId).first();
+  const store=await env.DB.prepare('SELECT id,supplier_id FROM delivery_stores WHERE id=?').bind(storeId).first();
+  if(!store)throw new Error('Delivery location not found. Add it in the Stores screen first.');
+  if(store.supplier_id&&String(store.supplier_id)!==String(supplierId))throw new Error('This delivery location is already linked to another supplier. Unlink the existing supplier before changing it.');
   const otherLinkedStore=await env.DB.prepare('SELECT id,name FROM delivery_stores WHERE supplier_id=? AND id<>? LIMIT 1').bind(supplierId,storeId).first();
   if(otherLinkedStore)throw new Error('This supplier is already linked to '+otherLinkedStore.name+'. Use one dispatch location per supplier; expand its service radius or register a separate dispatch location as another supplier.');
-  if(!store)throw new Error('Delivery location not found. Add it in the Stores screen first.');
   if(model==='platform_delivery'){
     if(!partnerId)throw new Error('Choose a verified WaterNow delivery partner for platform delivery.');
     const partner=await env.DB.prepare('SELECT id,is_active FROM water_delivery_partners WHERE id=?').bind(partnerId).first();
     if(!partner||Number(partner.is_active)!==1)throw new Error('Choose a verified and active delivery partner.');
+    const coverage=await env.DB.prepare(`SELECT 1 AS matched
+      FROM water_delivery_partner_service_areas pa
+      JOIN water_supplier_service_areas sa
+        ON lower(trim(pa.city))=lower(trim(sa.city))
+       AND (trim(pa.state)='' OR trim(sa.state)='' OR lower(trim(pa.state))=lower(trim(sa.state)))
+       AND (trim(pa.pincode)='' OR trim(sa.pincode)='' OR trim(pa.pincode)=trim(sa.pincode))
+      WHERE pa.partner_id=? AND pa.is_active=1 AND sa.supplier_id=? AND sa.is_active=1
+      LIMIT 1`).bind(partnerId,supplierId).first();
+    if(!coverage)throw new Error('The selected delivery partner does not cover this supplier’s service area.');
   }
   await ensureStoreCatalogueRows(env,storeId);
   const active=Number(supplier.is_active)===1?1:0;
@@ -191,8 +205,15 @@ async function updatePartner(env,id,payload){
   const status=String(payload.complianceStatus||current.compliance_status);
   if(!validType(status,['pending','verified','suspended']))throw new Error('Choose a valid delivery partner status.');
   const active=status==='verified'?1:0;
-  await env.DB.prepare('UPDATE water_delivery_partners SET compliance_status=?,is_active=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
-    .bind(status,active,clean(payload.notes??current.notes,1000),id).run();
+  await env.DB.batch([
+    env.DB.prepare('UPDATE water_delivery_partners SET compliance_status=?,is_active=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
+      .bind(status,active,clean(payload.notes??current.notes,1000),id),
+    env.DB.prepare(`UPDATE delivery_stores SET
+      is_active=CASE WHEN ?=1 THEN is_active ELSE 0 END,
+      updated_at=CURRENT_TIMESTAMP
+      WHERE delivery_model='platform_delivery' AND delivery_partner_id=?`)
+      .bind(active,id)
+  ]);
   return {partner:await env.DB.prepare('SELECT * FROM water_delivery_partners WHERE id=?').bind(id).first()};
 }
 
