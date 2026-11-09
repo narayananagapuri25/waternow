@@ -193,7 +193,7 @@ test('Owner redemption history endpoint returns recorded customer and order deta
     db.prepare("INSERT INTO coupon_redemptions(id,coupon_id,customer_id,order_id,code_snapshot,discount_amount) VALUES ('history-redemption','history-coupon','customer-1','history-order','HISTORY50',50)").run();
 
     const response=await handleAdminDeliveryOffersRequest(
-      new Request('https://freshway.example/api/admin/coupons/history-coupon/redemptions'),
+      new Request('https://waternow.example/api/admin/coupons/history-coupon/redemptions'),
       { DB: d1Adapter(db) }
     );
     assert.equal(response.status,200);
@@ -236,7 +236,7 @@ test('customer quote endpoint uses D1 catalogue prices and integrates coupon plu
     db.exec(migration);
     db.prepare("INSERT INTO coupons(id,code,title,discount_amount,starts_on) VALUES ('quote-coupon','SAVE50','Fixed offer',50,'2026-01-01')").run();
     const quote=async(items,couponCode='')=>handleCustomerDeliveryOffersRequest(
-      new Request('https://freshway.example/api/checkout/quote',{
+      new Request('https://waternow.example/api/checkout/quote',{
         method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({items,couponCode})
       }),
@@ -282,8 +282,8 @@ test('Owner delivery-offers routes are wired through the authenticated session g
     const env={
       DB:d1Adapter(db),
       ADMIN_SESSION_SECRET:secret,
-      APP_ORIGIN:'https://freshway.example',
-      APP_ORIGINS:'https://freshway.example'
+      APP_ORIGIN:'https://waternow.example',
+      APP_ORIGINS:'https://waternow.example'
     };
     const issued=String(Math.floor(Date.now()/1000));
     const key=await globalThis.crypto.subtle.importKey(
@@ -291,27 +291,27 @@ test('Owner delivery-offers routes are wired through the authenticated session g
     );
     const signature=new Uint8Array(await globalThis.crypto.subtle.sign('HMAC',key,new TextEncoder().encode(issued)));
     const sigHex=[...signature].map(value=>value.toString(16).padStart(2,'0')).join('');
-    const cookie='__Host-freshway-admin-session='+issued+'.'+sigHex;
+    const cookie='__Host-waternow-admin-session='+issued+'.'+sigHex;
 
     const unauthorized=await adminAuth.fetch(
-      new Request('https://freshway.example/api/admin/delivery-offers'),
+      new Request('https://waternow.example/api/admin/delivery-offers'),
       env,{}
     );
     assert.equal(unauthorized.status,401,'delivery pricing settings must remain Owner-session protected');
 
     const read=await adminAuth.fetch(
-      new Request('https://freshway.example/api/admin/delivery-offers',{headers:{Cookie:cookie}}),
+      new Request('https://waternow.example/api/admin/delivery-offers',{headers:{Cookie:cookie}}),
       env,{}
     );
     assert.equal(read.status,200,'the Owner gateway must dispatch delivery offers to the D1 handler');
-    assert.equal(read.headers.get('access-control-allow-origin'),'https://freshway.example');
+    assert.equal(read.headers.get('access-control-allow-origin'),'https://waternow.example');
     const settings=await read.json();
     assert.equal(settings.settings.standardDeliveryFee,30);
     assert.equal(settings.settings.freeDeliveryThreshold,800);
     assert.deepEqual(settings.coupons,[]);
 
     const create=await adminAuth.fetch(
-      new Request('https://freshway.example/api/admin/coupons',{
+      new Request('https://waternow.example/api/admin/coupons',{
         method:'POST',
         headers:{Cookie:cookie,'content-type':'application/json'},
         body:JSON.stringify({
@@ -329,7 +329,7 @@ test('Owner delivery-offers routes are wired through the authenticated session g
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM coupons').get().count,1);
 
     const settingsSave=await adminAuth.fetch(
-      new Request('https://freshway.example/api/admin/delivery-offers',{
+      new Request('https://waternow.example/api/admin/delivery-offers',{
         method:'PATCH',
         headers:{Cookie:cookie,'content-type':'application/json'},
         body:JSON.stringify({freeDeliveryEnabled:true,freeDeliveryThreshold:1000,standardDeliveryFee:45})
@@ -342,7 +342,7 @@ test('Owner delivery-offers routes are wired through the authenticated session g
     assert.equal(savedSettings.settings.standardDeliveryFee,45);
 
     const couponList=await adminAuth.fetch(
-      new Request('https://freshway.example/api/admin/coupons',{headers:{Cookie:cookie}}),
+      new Request('https://waternow.example/api/admin/coupons',{headers:{Cookie:cookie}}),
       env,{}
     );
     assert.equal(couponList.status,200,'Owner gateway must route coupon list reads');
@@ -354,7 +354,7 @@ test('Owner delivery-offers routes are wired through the authenticated session g
       VALUES ('owner-route-redemption',?,'customer-1','owner-route-order','FIXED50',50)`).run(created.coupon.id);
 
     const history=await adminAuth.fetch(
-      new Request('https://freshway.example/api/admin/coupons/'+created.coupon.id+'/redemptions',{headers:{Cookie:cookie}}),
+      new Request('https://waternow.example/api/admin/coupons/'+created.coupon.id+'/redemptions',{headers:{Cookie:cookie}}),
       env,{}
     );
     assert.equal(history.status,200,'Owner gateway must route coupon redemption history reads');
@@ -364,7 +364,7 @@ test('Owner delivery-offers routes are wired through the authenticated session g
     assert.equal(redemptionData.redemptions[0].discountAmount,50);
 
     const pause=await adminAuth.fetch(
-      new Request('https://freshway.example/api/admin/coupons/'+created.coupon.id,{
+      new Request('https://waternow.example/api/admin/coupons/'+created.coupon.id,{
         method:'PATCH',
         headers:{Cookie:cookie,'content-type':'application/json'},
         body:JSON.stringify({active:false})
