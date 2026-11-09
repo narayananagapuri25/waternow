@@ -1,7 +1,7 @@
 // Customer navigation boundary.
 // Keeps in-app route history deterministic without confusing explicit page-back actions with browser Back.
 (function(){
-  const HISTORY_FLAG='__freshwayCustomer';
+  const HISTORY_FLAG='__waterNowCustomer';
   const validViews=new Set(['home','cart','checkout','orders','messages','profile','about','contact','confirmation']);
   const currentView=()=>document.querySelector('.view.active-view')?.id.replace(/View$/,'')||'home';
   let activeHistoryState=null;
@@ -12,7 +12,7 @@
     const hash=String(window.location.hash||'').replace(/^#/,'');
     if(validViews.has(hash)&&hash!=='confirmation')return hash;
     try{
-      const saved=sessionStorage.getItem('freshway-current-view-v1');
+      const saved=sessionStorage.getItem('waternow-current-view-v1');
       if(validViews.has(saved))return saved;
     }catch(_){}
     return currentView();
@@ -110,5 +110,5 @@
     });
     return Object.freeze({setView,goBack});
   };
-  window.FreshWayCustomerNavigation=Object.freeze({create,HISTORY_FLAG});
+  window.WaterNowCustomerNavigation=Object.freeze({create,HISTORY_FLAG});
 })();
