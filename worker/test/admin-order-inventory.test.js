@@ -110,11 +110,11 @@ function fixture({ status = 'New', reservedQty = 2, stockQuantity = 3 } = {}) {
                 const row = sums.get(item.product_id) || {
                   product_id: item.product_id,
                   reserve_qty: 0,
-                  available_stock: product.stock_quantity,
+                  available_stock: 0,
                   product_name: product.name
                 };
                 row.reserve_qty += item.qty;
-                row.available_stock = product.stock_quantity;
+                row.available_stock = 0;
                 sums.set(item.product_id, row);
               }
             }
@@ -148,52 +148,46 @@ function fixture({ status = 'New', reservedQty = 2, stockQuantity = 3 } = {}) {
   return { env: { DB }, order, items, products, calls, batches };
 }
 
-test('cancelling a live order atomically restores reserved stock and clears reservation markers once', async () => {
+test('cancelling an unassigned legacy order releases reservation markers without changing global stock', async () => {
   const f = fixture({ status: 'New', reservedQty: 2, stockQuantity: 3 });
   const result = await updateOrder(f.env, f.order.id, { status: 'Cancelled' });
 
   assert.equal(result.status, 'Cancelled');
   assert.equal(f.order.delivery_status, 'Cancelled');
-  assert.equal(f.products.get('p1').stock_quantity, 5);
+  assert.equal(f.products.get('p1').stock_quantity, 3);
   assert.equal(f.items[0].stock_reserved_qty, 0);
   assert.equal(f.batches.length, 1);
-  assert.equal(f.batches[0].length, 4);
-  assert.match(f.batches[0][0].sql, /stock_quantity=stock_quantity\+\?/);
-  assert.match(f.batches[0][1].sql, /UPDATE order_items SET stock_reserved_qty=0/);
-  assert.match(f.batches[0][2].sql, /UPDATE orders SET/);
-  assert.match(f.batches[0][3].sql, /INSERT INTO order_audit_events/);
-  assert.ok(f.batches[0].slice(0, 2).every(statement => /EXISTS\(SELECT 1 FROM orders o WHERE o\.id=\? AND o\.delivery_status IS \?/.test(statement.sql)));
-  assert.match(f.batches[0][2].sql, /WHERE id=\? AND delivery_status IS \?/);
+  assert.equal(f.batches[0].length, 3);
+  assert.match(f.batches[0][0].sql, /UPDATE order_items SET stock_reserved_qty=0/);
+  assert.match(f.batches[0][1].sql, /UPDATE orders SET/);
+  assert.match(f.batches[0][2].sql, /INSERT INTO order_audit_events/);
+  assert.ok(!f.batches[0].some(statement => /UPDATE products SET stock_quantity/.test(statement.sql)));
 
   await updateOrder(f.env, f.order.id, { status: 'Cancelled' });
-  assert.equal(f.products.get('p1').stock_quantity, 5, 'repeating cancellation must not restore stock twice');
+  assert.equal(f.products.get('p1').stock_quantity, 3, 'repeated cancellation must not change the global field');
 });
 
-test('reopening a cancelled order reserves tracked inventory in the same batch as the order update', async () => {
+test('reopening an unassigned legacy order requires store reconciliation instead of using global stock', async () => {
   const f = fixture({ status: 'Cancelled', reservedQty: 0, stockQuantity: 5 });
   const result = await updateOrder(f.env, f.order.id, { status: 'Confirmed' });
 
   assert.equal(result.status, 'Confirmed');
   assert.equal(f.order.delivery_status, 'Confirmed');
-  assert.equal(f.products.get('p1').stock_quantity, 3);
-  assert.equal(f.items[0].stock_reserved_qty, 2);
+  assert.equal(f.products.get('p1').stock_quantity, 5);
+  assert.equal(f.items[0].stock_reserved_qty, 0);
   assert.equal(f.batches.length, 1);
-  assert.equal(f.batches[0].length, 4);
-  assert.match(f.batches[0][0].sql, /stock_quantity=stock_quantity-\?/);
-  assert.match(f.batches[0][1].sql, /UPDATE order_items SET stock_reserved_qty=qty/);
-  assert.match(f.batches[0][2].sql, /UPDATE orders SET/);
-  assert.match(f.batches[0][3].sql, /INSERT INTO order_audit_events/);
+  assert.equal(f.batches[0].length, 3);
+  assert.ok(f.batches[0].some(statement => /INSERT INTO order_operational_flags/.test(statement.sql)));
+  assert.ok(!f.batches[0].some(statement => /UPDATE products SET stock_quantity/.test(statement.sql)));
 });
 
-test('Owner can reopen an order with insufficient stock while recording an operational conflict', async () => {
-  const f = fixture({ status: 'Cancelled', reservedQty: 0, stockQuantity: 1 });
-
+test('unassigned legacy orders do not trust global stock when reopening', async () => {
+  const f = fixture({ status: 'Cancelled', reservedQty: 0, stockQuantity: 20 });
   const result = await updateOrder(f.env, f.order.id, { status: 'Confirmed' });
   assert.equal(result.status, 'Confirmed');
   assert.equal(f.order.delivery_status, 'Confirmed');
-  assert.equal(f.products.get('p1').stock_quantity, 1, 'Owner correction must not drive stock negative');
-  assert.equal(f.items[0].stock_reserved_qty, 0, 'insufficient stock must not be falsely reserved');
-  assert.equal(f.batches.length, 1);
+  assert.equal(f.products.get('p1').stock_quantity, 20, 'global product quantity is ignored');
+  assert.equal(f.items[0].stock_reserved_qty, 0, 'an unassigned order cannot reserve stock centrally');
   assert.ok(f.batches[0].some(statement => /INSERT INTO order_operational_flags/.test(statement.sql)));
 });
 

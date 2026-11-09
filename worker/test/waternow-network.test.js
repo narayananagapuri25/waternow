@@ -59,7 +59,7 @@ test('WaterNow clean-install schema exposes two priced-by-supplier water packs a
   }finally{db.close();}
 });
 
-test('WaterNow supplier approval gates customer delivery and links approved supplier pricing and stock to a delivery location',async()=>{
+test('WaterNow supplier approval links offer pricing while physical stock remains store-managed',async()=>{
   const db=new SQLiteD1();
   try{
     db.db.prepare(`INSERT INTO delivery_stores(id,name,address,latitude,longitude,service_radius_km,is_active)
@@ -114,7 +114,23 @@ test('WaterNow supplier approval gates customer delivery and links approved supp
     assert.equal(Number(twenty.is_available),1);
     assert.equal(Number(twenty.price_override),120);
     const inventory=db.db.prepare(`SELECT stock_quantity FROM delivery_store_inventory WHERE store_id='store-hyd' AND product_id='water-20l'`).get();
-    assert.equal(Number(inventory.stock_quantity),8);
+    assert.equal(Number(inventory.stock_quantity),0,'supplier form stock values must not be copied into store inventory');
+
+    const supplierInventory=db.db.prepare(`SELECT stock_quantity FROM water_supplier_products WHERE supplier_id=? AND product_id='water-20l'`).get(supplier.id);
+    assert.equal(Number(supplierInventory.stock_quantity),0,'supplier stock column is deprecated');
+
+    // Physical quantities are entered only in the selected store.
+    db.db.prepare("UPDATE delivery_store_inventory SET stock_quantity=9 WHERE store_id='store-hyd' AND product_id='water-20l'").run();
+    const priceUpdate=await handleWaterNetworkRequest(request('water-suppliers/'+supplier.id+'/products/water-20l',{
+      sellingPrice:125,stockQuantity:99
+    },'PATCH'),env(db));
+    assert.equal(priceUpdate.status,200);
+    assert.equal(Number(db.db.prepare("SELECT stock_quantity FROM delivery_store_inventory WHERE store_id='store-hyd' AND product_id='water-20l'").get().stock_quantity),9,
+      'supplier price updates must not overwrite the local physical count');
+    assert.equal(Number(db.db.prepare("SELECT stock_quantity FROM water_supplier_products WHERE supplier_id=? AND product_id='water-20l'").get(supplier.id).stock_quantity),0);
+    const listed=await handleWaterNetworkRequest(request('water-network',undefined,'GET'),env(db));
+    const listedProduct=(await listed.json()).supplierProducts.find(item=>item.supplier_id===supplier.id&&item.product_id==='water-20l');
+    assert.equal(Number(listedProduct.stock_quantity),9,'supplier network display reads stock only from the linked store');
   }finally{db.close();}
 });
 

@@ -356,8 +356,8 @@ CREATE TABLE IF NOT EXISTS delivery_stores (
 );
 
 -- Physical on-hand stock per store. Reservations are tracked separately so available
--- stock is on-hand less active reservations; orders still use products.stock_quantity
--- as the aggregate available-stock guard.
+-- stock is on-hand less active reservations. This is the sole stock authority for
+-- checkout; products.stock_quantity is retained only as a deprecated compatibility column.
 CREATE TABLE IF NOT EXISTS delivery_store_inventory (
   store_id TEXT NOT NULL REFERENCES delivery_stores(id) ON DELETE RESTRICT,
   product_id TEXT NOT NULL REFERENCES products(id) ON DELETE RESTRICT,

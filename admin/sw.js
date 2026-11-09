@@ -1,4 +1,4 @@
-const CACHE = 'waternow-owner-v2';
+const CACHE = 'waternow-owner-v3';
 const SHELL = [
   '/admin/',
   '/admin/manifest.webmanifest',
@@ -15,7 +15,7 @@ const SHELL = [
   '/admin/frontend/phone-display.js?v=20261009-phone-display-v1',
   '/admin/frontend/admin/store-profile.js?v=20261024-response-guard-v2',
   '/admin/frontend/admin/delivery-management.js?v=20261106-store-reconciliation-v1',
-  '/admin/frontend/admin/store-management.js?v=20261107-store-nav-guard-v1',
+  '/admin/frontend/admin/store-management.js?v=20261110-store-active-direct-v1',
   '/admin/frontend/admin/customer-messages.js?v=20261027-customer-messages-v1',
   '/admin/frontend/catalogue-media.js?v=20261008-ui-media-v1',
   '/admin/frontend/admin/catalogue.js?v=20261029-promo-alttext-v1',
@@ -35,7 +35,7 @@ const REQUIRED_SHELL = [
   '/admin/frontend/admin/catalogue.js?v=20261029-promo-alttext-v1',
   '/admin/frontend/admin/store-profile.js?v=20261024-response-guard-v2',
   '/admin/frontend/admin/delivery-management.js?v=20261106-store-reconciliation-v1',
-  '/admin/frontend/admin/store-management.js?v=20261107-store-nav-guard-v1',
+  '/admin/frontend/admin/store-management.js?v=20261110-store-active-direct-v1',
   '/admin/frontend/admin/customer-messages.js?v=20261027-customer-messages-v1',
   '/admin/frontend/admin/invoice-settings.js?v=20261105-auto-non-gst-disclosure-v1',
   '/admin/owner-lifecycle.js?v=20261103-assigned-store-lifecycle-v1'

@@ -35,7 +35,7 @@ export async function getStoreCatalogueRows(env, storeId) {
   if (!store) throw new Error('Delivery store not found.');
   const { results } = await env.DB.prepare(
     'SELECT p.id,p.name,p.unit,p.price central_price,p.emoji,p.active,p.category_id,p.display_order,' +
-    'p.image_data,p.image_mime_type,p.updated_at,p.stock_managed,p.stock_quantity,p.low_stock_threshold,' +
+    'p.image_data,p.image_mime_type,p.updated_at,p.stock_managed,p.low_stock_threshold,' +
     'p.hsn_code,p.gst_rate_bps,p.gst_rate_confirmed,c.name category_name,c.slug category_slug,c.active category_active,' +
     'sc.is_available,sc.price_override,COALESCE(sc.price_override,p.price) effective_price,' +
     'COALESCE(i.stock_quantity,0) on_hand,' +
@@ -57,7 +57,7 @@ export async function getStoreProductRows(env, storeId, quantities) {
   const placeholders=ids.map(()=>'?').join(',');
   const { results }=await env.DB.prepare(
     'SELECT p.id,p.name,p.unit,p.price central_price,p.emoji,p.active,p.category_id,'+
-    'p.stock_managed,p.stock_quantity,p.low_stock_threshold,p.hsn_code,p.gst_rate_bps,p.gst_rate_confirmed,'+
+    'p.stock_managed,p.low_stock_threshold,p.hsn_code,p.gst_rate_bps,p.gst_rate_confirmed,'+
     'c.name category_name,c.slug category_slug,c.active category_active,'+
     'sc.is_available,sc.price_override,COALESCE(sc.price_override,p.price) effective_price,'+
     'COALESCE(i.stock_quantity,0) on_hand,'+

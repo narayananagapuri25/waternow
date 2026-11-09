@@ -22,7 +22,7 @@
       const products=offers.map(item=>`<form class="water-offer-form" data-water-offer data-supplier-id="${esc(supplier.id)}" data-product-id="${esc(item.product_id)}">
         <strong>${esc(item.product_name)}</strong>
         <label>Price <input name="price" type="number" min="0" step="1" value="${Number(item.selling_price||0)}" aria-label="Price for ${esc(item.product_name)}"></label>
-        <label>Stock <input name="stock" type="number" min="0" step="1" value="${Number(item.stock_quantity||0)}" aria-label="Stock for ${esc(item.product_name)}"></label>
+        <small>Physical stock is managed in the linked store inventory.</small>
         <button type="submit" class="ghost">Save</button><small>${Number(item.is_available)===1?'Available':'Not orderable yet'}</small>
       </form>`).join('');
       return `<article class="water-network-card">
@@ -63,8 +63,8 @@
       fssaiLicenseNumber:value('wnSupplierFssai'),fssaiLicenseExpiry:value('wnSupplierExpiry'),
       testingSchemeAcknowledged:$('#wnTestingScheme')?.checked===true,
       fulfilmentModel:value('wnFulfilment'),
-      price20:value('wnPrice20'),stock20:value('wnStock20'),
-      price10:value('wnPrice10'),stock10:value('wnStock10')
+      price20:value('wnPrice20'),
+      price10:value('wnPrice10')
     };
     try{
       await api('/api/admin/water-suppliers',{method:'POST',body:JSON.stringify(payload)});
@@ -95,7 +95,7 @@
     const form=new FormData(offer);
     try{
       await api('/api/admin/water-suppliers/'+encodeURIComponent(offer.dataset.supplierId)+'/products/'+encodeURIComponent(offer.dataset.productId),{
-        method:'PATCH',body:JSON.stringify({sellingPrice:form.get('price'),stockQuantity:form.get('stock')})
+        method:'PATCH',body:JSON.stringify({sellingPrice:form.get('price')})
       });
       await load();
     }catch(error){window.alert(error.message)}
