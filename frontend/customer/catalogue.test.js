@@ -49,8 +49,8 @@ assert.doesNotMatch(source,/data:'\+x\.image_mime_type/,'the public category lis
 assert.doesNotMatch(app,/FALLBACK_PRODUCTS/);
 assert.match(app,/window\.FreshWayCustomerCatalogue/);
 assert.match(app,/FreshWayCustomerStateFreshness/);
-assert.match(app,/freshway:session-expired/);
-assert.match(app,/freshway:catalogue-sync/);
+assert.match(app,/waternow:session-expired/);
+assert.match(app,/waternow:catalogue-sync/);
 assert.match(freshness,/pageshow/);
 assert.match(freshness,/visibilitychange/);
 assert.match(freshness,/cart/);
