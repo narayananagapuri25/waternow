@@ -58,7 +58,7 @@ assert.match(response,/SameSite=Lax/);
 assert.match(ownerSw,/const CACHE = 'waternow-owner-v2'/,'removing the supplier module must invalidate the previous Owner app shell');
 assert.match(ownerSw,/delivery-management\.js\?v=20261106-store-reconciliation-v1/);
 assert.match(ownerSw,/admin\.css\?v=waternow-v1/);
-assert.doesNotMatch(ownerSw,/water-network\\.js\\?v=waternow-v1/,'the Owner shell must not precache the removed supplier onboarding module');
+assert.ok(!ownerSw.includes('water-network.js?v=waternow-v1'),'the Owner shell must not precache the removed supplier onboarding module');
 assert.match(ownerSw,/if \(cached && isVersionedCode\) return cached/);
 assert.match(ownerSw,/if \(isDocument \|\| isManifest\)/);
 assert.match(ownerRouter,/OWNER_VERSIONED_ASSET_CACHE_CONTROL/);
