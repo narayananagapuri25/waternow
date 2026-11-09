@@ -6,7 +6,7 @@ const css=fs.readFileSync('admin.css','utf8');
 assert.match(css,/--muted:#647169/,'secondary Owner text must meet WCAG AA contrast against white');
 assert.match(css,/\.login-card p,\.login-card small\{font-size:12px;line-height:1\.6\}/,'sign-in helper text must be readable on mobile');
 assert.match(css,/\.toast\{font-size:12px;z-index:1101;background:#123b2b;color:#fff\}/,'Owner toast must remain readable above the startup overlay');
-assert.match(source,/__freshwayOwner/);
+assert.match(source,/__waterNowOwner/);
 assert.match(source,/history\.pushState/);
 assert.match(source,/history\.back|popstate/);
 assert.match(source,/historyMode:'none'/);
