@@ -111,7 +111,7 @@
       if (Notification.permission === 'denied') {
         button.textContent = 'Notifications blocked';
         button.dataset.enabled = '0';
-        status.textContent = `Notifications are blocked for '+location.hostname+'. Allow them in browser site settings, then return here and tap Enable order alerts. Server has ${Number(info.ownerSubscriptionCount || 0)} Owner subscription(s).`;
+        status.textContent = `Notifications are blocked for ${location.hostname}. Allow them in browser site settings, then return here and tap Enable order alerts. Server has ${Number(info.ownerSubscriptionCount || 0)} Owner subscription(s).`;
         return;
       }
 
