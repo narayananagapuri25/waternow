@@ -165,7 +165,7 @@ test('production D1 audit covers all Store Profile API fields and deletion/addre
     'idx_account_deletion_requests_one_active',
     'idx_account_deletion_requests_status_created',
     'idx_account_deletion_requests_customer_created',
-    'idx_addresses_customer_deleted'
+    'idx_addresses_customer_saved_default'
   ]) {
     assert.ok(localAudit.includes("'" + index + "'"), 'local schema audit must verify ' + index);
   }
