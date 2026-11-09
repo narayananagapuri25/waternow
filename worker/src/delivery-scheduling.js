@@ -903,6 +903,26 @@ export async function handleAdminDeliveryRequest(request, env) {
     if (active === 1 && approximatePin && (!pinChanged || /approximate locality pin/i.test(address))) {
       throw new Error('Confirm the exact shop location: replace the approximate locality pin and move the map marker before activating delivery.');
     }
+    if (active === 1) {
+      const readiness = await env.DB.prepare(
+        'SELECT COUNT(*) listed_count,' +
+        'SUM(CASE WHEN p.stock_managed=1 AND ' +
+        'COALESCE(i.stock_quantity,0)-COALESCE((SELECT SUM(r.qty) FROM delivery_store_inventory_reservations r ' +
+        "WHERE r.store_id=sc.store_id AND r.product_id=sc.product_id AND r.status IN ('reserved','conflict')),0)<=0 " +
+        'THEN 1 ELSE 0 END) unstocked_count ' +
+        'FROM delivery_store_catalogue sc ' +
+        'JOIN products p ON p.id=sc.product_id ' +
+        'JOIN categories c ON c.id=p.category_id ' +
+        'LEFT JOIN delivery_store_inventory i ON i.store_id=sc.store_id AND i.product_id=sc.product_id ' +
+        'WHERE sc.store_id=? AND sc.is_available=1 AND p.active=1 AND c.active=1'
+      ).bind(storeId).first();
+      if (Number(readiness?.listed_count || 0) < 1) {
+        throw new Error('Make at least one active product available in this store before activating delivery.');
+      }
+      if (Number(readiness?.unstocked_count || 0) > 0) {
+        throw new Error('Enter positive physical stock for every available stock-managed product before activating delivery.');
+      }
+    }
     await env.DB.prepare('UPDATE delivery_stores SET name=?,address=?,latitude=?,longitude=?,service_radius_km=?,is_active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
       .bind(name,address,latitude,longitude,radius,active,storeId).run();
     await refreshProductAvailability(env);
