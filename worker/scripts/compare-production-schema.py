@@ -59,6 +59,16 @@ def indexes(conn: sqlite3.Connection, table: str) -> list[tuple]:
     return sorted(out, key=repr)
 
 
+def normalize_sql(sql: str) -> str:
+    # Collapse formatting outside single-quoted SQL literals without changing
+    # literal values. Wrangler's exporter reformats commas and line breaks.
+    parts = re.split(r"('(?:''|[^'])*')", sql.strip())
+    return "".join(
+        part if index % 2 else re.sub(r"\s+", "", part).lower()
+        for index, part in enumerate(parts)
+    )
+
+
 def object_sql(conn: sqlite3.Connection, kind: str) -> dict[str, str]:
     rows = conn.execute(
         "SELECT name, sql FROM sqlite_master WHERE type=? AND sql IS NOT NULL "
@@ -66,7 +76,7 @@ def object_sql(conn: sqlite3.Connection, kind: str) -> dict[str, str]:
         "AND name <> 'd1_migrations' ORDER BY name",
         (kind,),
     ).fetchall()
-    return {name: re.sub(r"\s+", " ", sql.strip()).lower() for name, sql in rows}
+    return {name: normalize_sql(sql) for name, sql in rows}
 
 
 def compare(expected: sqlite3.Connection, actual: sqlite3.Connection) -> list[str]:
