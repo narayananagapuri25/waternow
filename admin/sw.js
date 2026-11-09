@@ -10,6 +10,7 @@ const SHELL = [
   '/admin/admin.js?v=waternow-v1',
   '/admin/frontend/admin/invoice-settings.js?v=20261105-auto-non-gst-disclosure-v1',
   '/admin/frontend/admin/water-network.js?v=waternow-v1',
+  '/admin/frontend/admin/water-network.js?v=waternow-v1',
   '/admin/frontend/admin/delivery-offers.js?v=20261027-coupon-buttons-v5',
   '/admin/frontend/admin/account-deletions.js?v=20261106-account-deletion-form-v1',
   '/admin/frontend/admin/order-alerts.js?v=20261105-history-empty-actions-v1',
@@ -24,8 +25,6 @@ const SHELL = [
   '/admin/frontend/admin/push.js?v=20260908-push-v1',
   '/admin/owner-lifecycle.js?v=20261103-assigned-store-lifecycle-v1',
   '/admin/owner-address-final.js?v=20260909-address-final-v6',
-  '/admin/freshway-logo-master.webp?v=20261008-master-v1',
-  '/admin/freshway-logo-clean.svg?v=20261008-brand-v1',
   '/admin/frontend/media/catalogue/groundnut-oil.svg',
   '/admin/frontend/media/catalogue/sunflower-oil.svg',
   '/admin/frontend/media/catalogue/hmt-rice.svg',
@@ -35,8 +34,6 @@ const REQUIRED_SHELL = [
   '/admin/',
   '/admin/manifest.webmanifest',
   '/admin/owner-pwa-install.js?v=20261019-install-prompt-v2',
-  '/admin/admin.css?v=20261106-store-reconciliation-v1',
-  '/admin/admin.js?v=20261107-unsaved-store-guard-v1',
   '/admin/frontend/admin/delivery-offers.js?v=20261027-coupon-buttons-v5',
   '/admin/frontend/admin/account-deletions.js?v=20261106-account-deletion-form-v1',
   '/admin/frontend/admin/order-alerts.js?v=20261105-history-empty-actions-v1',
@@ -46,6 +43,7 @@ const REQUIRED_SHELL = [
   '/admin/frontend/admin/store-management.js?v=20261107-store-nav-guard-v1',
   '/admin/frontend/admin/customer-messages.js?v=20261027-customer-messages-v1',
   '/admin/frontend/admin/invoice-settings.js?v=20261105-auto-non-gst-disclosure-v1',
+  '/admin/frontend/admin/water-network.js?v=waternow-v1',
   '/admin/owner-lifecycle.js?v=20261103-assigned-store-lifecycle-v1'
 ];
 
@@ -59,7 +57,7 @@ self.addEventListener('install', event => {
         await cache.put(asset, response.clone());
         return true;
       } catch (error) {
-        console.error('FreshWay Owner service-worker shell asset failed:', asset, error);
+        console.error('WaterNow Owner service-worker shell asset failed:', asset, error);
         return false;
       }
     }));
@@ -139,11 +137,11 @@ self.addEventListener('push', event => {
   if (!event.data) return;
   let data = {};
   try { data = event.data.json(); } catch (_) { data = { body: event.data.text() }; }
-  event.waitUntil(self.registration.showNotification(data.title || 'FreshWay order alert', {
-    body: data.body || 'There is an update to a FreshWay order.',
+  event.waitUntil(self.registration.showNotification(data.title || 'WaterNow order alert', {
+    body: data.body || 'There is an update to a WaterNow order.',
     icon: data.icon || '/admin/icons/icon-192-brand-v2.png?v=20261026-brand-v2',
     badge: data.badge || '/admin/icons/icon-192-brand-v2.png?v=20261026-brand-v2',
-    tag: data.tag || 'freshway-owner-order-alert',
+    tag: data.tag || 'waternow-owner-order-alert',
     data: { url: data.url || '/admin/#orders', ...(data.data || {}) }
   }));
 });
