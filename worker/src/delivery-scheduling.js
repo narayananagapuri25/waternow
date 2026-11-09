@@ -280,7 +280,6 @@ export function checkoutDeliveryStatements(env,orderId,delivery,items) {
     const qty=Number(item.stockReservedQty??item.stock_reserved_qty??0);
     if(!Number.isSafeInteger(qty)||qty<1)continue;
     statements.push(env.DB.prepare("INSERT INTO delivery_store_inventory_reservations (id,order_id,store_id,product_id,qty,status,owner_override,override_reason) VALUES (?,?,?,?,?,'reserved',0,'')").bind(id('stockres'),orderId,delivery.storeId,item.id??item.product_id,qty));
-    statements.push(env.DB.prepare("UPDATE products SET stock_quantity=MAX(0,(SELECT COALESCE(SUM(i.stock_quantity),0) FROM delivery_store_inventory i JOIN delivery_stores s ON s.id=i.store_id AND s.is_active=1 WHERE i.product_id=?)-(SELECT COALESCE(SUM(r.qty),0) FROM delivery_store_inventory_reservations r JOIN delivery_stores s ON s.id=r.store_id AND s.is_active=1 WHERE r.product_id=? AND r.status IN ('reserved','conflict'))),updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(item.id??item.product_id,item.id??item.product_id,item.id??item.product_id));
   }
   statements.push(env.DB.prepare("INSERT INTO order_audit_events (id,order_id,actor_type,actor_id,action,reason,before_json,after_json) VALUES (?,?,'system','checkout','delivery_date_requested','',NULL,?)").bind(id('audit'),orderId,enc({date:delivery.date,storeId:delivery.storeId,storeName:delivery.storeName,status:'requested'})));
   return statements;
@@ -465,7 +464,6 @@ async function moveOrderSchedule(env, order, target, actorType, actorId, options
     if (/DELIVERY_STORE_STOCK_LOW/i.test(String(error?.message || ''))) throw new Error('ORDER_CONFLICT: That store no longer has enough stock for this order.');
     throw error;
   }
-  if(changingStore)await refreshProductAvailability(env);
   const after = await getOrderForAction(env, order.id);
   await notifyCustomerAndOwner(env, order.id, {
     customer_id: order.customer_id, delivery_status: order.delivery_status, payment_status: order.payment_status,
@@ -584,15 +582,9 @@ export async function handleCustomerDeliveryRequest(request, env, customerId) {
   return null;
 }
 
-async function refreshProductAvailability(env) {
-  const rows=(await env.DB.prepare('SELECT id FROM products WHERE stock_managed=1').all()).results||[];
-  const statements=rows.map(row=>env.DB.prepare("UPDATE products SET stock_quantity=MAX(0,(SELECT COALESCE(SUM(i.stock_quantity),0) FROM delivery_store_inventory i JOIN delivery_stores s ON s.id=i.store_id AND s.is_active=1 WHERE i.product_id=?)-(SELECT COALESCE(SUM(r.qty),0) FROM delivery_store_inventory_reservations r JOIN delivery_stores s ON s.id=r.store_id AND s.is_active=1 WHERE r.product_id=? AND r.status IN ('reserved','conflict'))),updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(row.id,row.id,row.id));
-  if(statements.length)await env.DB.batch(statements);
-}
-
 async function inventoryAvailabilityForStore(env, storeId) {
   return (await env.DB.prepare(
-    'SELECT p.id,p.name,p.unit,p.price,p.stock_managed,p.stock_quantity,p.low_stock_threshold,' +
+    'SELECT p.id,p.name,p.unit,p.price,p.stock_managed,p.low_stock_threshold,' +
     'COALESCE(i.stock_quantity,0) on_hand,' +
     'COALESCE((SELECT SUM(r.qty) FROM delivery_store_inventory_reservations r WHERE r.store_id=? AND r.product_id=p.id AND r.status IN (\'reserved\',\'conflict\')),0) reserved_qty ' +
     'FROM products p LEFT JOIN delivery_store_inventory i ON i.product_id=p.id AND i.store_id=? ORDER BY p.name'
@@ -821,7 +813,6 @@ export async function handleAdminDeliveryRequest(request, env) {
       }
       throw error;
     }
-    await refreshProductAvailability(env);
     const updated = await getOrderForAction(env,orderId);
     await notifyCustomerAndOwner(env,orderId,{
       customer_id:order.customer_id,delivery_status:order.delivery_status,
@@ -879,7 +870,6 @@ export async function handleAdminDeliveryRequest(request, env) {
       env.DB.prepare('INSERT INTO delivery_store_catalogue (store_id,product_id,is_available,price_override) SELECT ?,id,1,NULL FROM products').bind(storeId)
     ];
     await env.DB.batch(statements);
-    await refreshProductAvailability(env);
     return response({ok:true,store:{id:storeId,name,address,latitude,longitude,service_radius_km:radius,is_active:0},initialInventory:inventorySeed},201);
   }
   const storeMatch = path.match(new RegExp('^/api/admin/delivery/stores/([^/]+)$'));
@@ -897,40 +887,11 @@ export async function handleAdminDeliveryRequest(request, env) {
     if (!name) throw new Error('Enter the store name.');
     if (!Number.isFinite(latitude) || Math.abs(latitude) > 90 || !Number.isFinite(longitude) || Math.abs(longitude) > 180) throw new Error('Enter valid store map coordinates.');
     if (!Number.isFinite(radius) || radius < 0.1 || radius > 100) throw new Error('Invalid store delivery radius.');
-    const approximatePin = /approximate locality pin/i.test(String(current.address || ''));
-    const pinChanged = Math.abs(latitude - Number(current.latitude)) > 0.000001 ||
-      Math.abs(longitude - Number(current.longitude)) > 0.000001;
-    const isActivating = active === 1 && Number(current.is_active) !== 1;
-    let activationBlocked = '';
-    if (isActivating && approximatePin && (!pinChanged || /approximate locality pin/i.test(address))) {
-      activationBlocked = 'Confirm the exact shop location: replace the approximate locality pin and move the map marker before activating delivery.';
-    }
-    if (isActivating && !activationBlocked && body.confirmExactLocation !== true) {
-      activationBlocked = 'Confirm that the map marker is the exact shop entrance before activating delivery.';
-    }
-    if (isActivating && !activationBlocked) {
-      const readiness = await env.DB.prepare(
-        'SELECT COUNT(*) listed_count,' +
-        'SUM(CASE WHEN p.stock_managed=1 AND ' +
-        'COALESCE(i.stock_quantity,0)-COALESCE((SELECT SUM(r.qty) FROM delivery_store_inventory_reservations r ' +
-        "WHERE r.store_id=sc.store_id AND r.product_id=sc.product_id AND r.status IN ('reserved','conflict')),0)<=0 " +
-        'THEN 1 ELSE 0 END) unstocked_count ' +
-        'FROM delivery_store_catalogue sc ' +
-        'JOIN products p ON p.id=sc.product_id ' +
-        'JOIN categories c ON c.id=p.category_id ' +
-        'LEFT JOIN delivery_store_inventory i ON i.store_id=sc.store_id AND i.product_id=p.id ' +
-        'WHERE sc.store_id=? AND sc.is_available=1 AND p.active=1 AND c.active=1'
-      ).bind(storeId).first();
-      if (Number(readiness?.listed_count || 0) < 1) {
-        activationBlocked = 'Make at least one active product available in this store before activating delivery.';
-      } else if (Number(readiness?.unstocked_count || 0) > 0) {
-        activationBlocked = 'Enter positive physical stock for every available stock-managed product before activating delivery.';
-      }
-    }
-    const savedActive = activationBlocked ? 0 : active;
+    // Active/Inactive is an explicit store operating status. Product and stock
+    // readiness are checked when a customer attempts to order, not on save.
+    const savedActive = active;
     await env.DB.prepare('UPDATE delivery_stores SET name=?,address=?,latitude=?,longitude=?,service_radius_km=?,is_active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
       .bind(name,address,latitude,longitude,radius,savedActive,storeId).run();
-        await refreshProductAvailability(env);
     const pendingOrderCount=Number((await env.DB.prepare("SELECT COUNT(*) count FROM orders WHERE assigned_store_id=? AND delivery_status NOT IN ('Delivered','Cancelled')").bind(storeId).first())?.count||0);
     return response({ok:true,store:{...current,name,address,latitude,longitude,service_radius_km:radius,is_active:savedActive,pending_order_count:pendingOrderCount},pendingOrderCount,activationBlocked:activationBlocked||null});
   }
@@ -994,12 +955,6 @@ export async function handleAdminDeliveryRequest(request, env) {
     for (const [productId, quantity] of requested) {
       statements.push(env.DB.prepare('UPDATE delivery_store_inventory SET stock_quantity=?,updated_at=CURRENT_TIMESTAMP WHERE store_id=? AND product_id=?')
         .bind(quantity, storeId, productId));
-    }
-    for (const row of productRows) {
-      statements.push(env.DB.prepare(
-        'UPDATE products SET stock_quantity=MAX(0,(SELECT COALESCE(SUM(i.stock_quantity),0) FROM delivery_store_inventory i JOIN delivery_stores s ON s.id=i.store_id AND s.is_active=1 WHERE i.product_id=?)-' +
-        '(SELECT COALESCE(SUM(r.qty),0) FROM delivery_store_inventory_reservations r JOIN delivery_stores s ON s.id=r.store_id AND s.is_active=1 WHERE r.product_id=? AND r.status IN (\'reserved\',\'conflict\'))),updated_at=CURRENT_TIMESTAMP WHERE id=?'
-      ).bind(row.id, row.id, row.id));
     }
     try {
       await env.DB.batch(statements);
@@ -1125,7 +1080,6 @@ export async function handleAdminDeliveryRequest(request, env) {
       if(/DELIVERY_STORE_STOCK_LOW/i.test(String(error?.message||'')))throw new Error('Store stock changed. Refresh inventory and try again.');
       throw error;
     }
-    await refreshProductAvailability(env);
     const updated=await getOrderForAction(env,orderId);
     await notifyCustomerAndOwner(env,orderId,{customer_id:order.customer_id,delivery_status:order.delivery_status,payment_status:order.payment_status,delivery_plan:order.delivery_plan,is_test_order:order.is_test_order},action,sameStore?'Stock reservation reconfirmed at '+store.name+'.':'Your order is now assigned to '+store.name+'.',{customer_id:order.customer_id,delivery_status:order.delivery_status,payment_status:order.payment_status,delivery_plan:updated?.delivery_plan,is_test_order:order.is_test_order});
     return response({ok:true,orderId,store:{id:store.id,name:store.name},reconfirmed:sameStore,scheduledDelivery:updated?.scheduled_delivery_date||null});
