@@ -89,7 +89,7 @@ test('new Owner stores start inactive with zero stock when another store already
   } finally { db.close(); }
 });
 
-test('Owner saves store location edits but keeps activation blocked until exact pin and positive stock are verified', async () => {
+test('Owner can set Active without exact-pin confirmation, product listing or stock readiness', async () => {
   const db=new SQLiteD1();
   try {
     const createdResponse=await handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/stores',{
@@ -98,36 +98,21 @@ test('Owner saves store location edits but keeps activation blocked until exact 
     }),{DB:db});
     assert.equal(createdResponse.status,201);
     const storeId=(await createdResponse.json()).store.id;
-    const save=body=>handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/stores/'+encodeURIComponent(storeId),{
-      method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)
+    const response=await handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/stores/'+encodeURIComponent(storeId),{
+      method:'PATCH',headers:{'content-type':'application/json'},
+      body:JSON.stringify({name:'WaterNow Boduppal',address:'Brindavan Colony, Boduppal',latitude:17.415,longitude:78.585,serviceRadiusKm:5,isActive:true})
     }),{DB:db});
-    const blockedResponse=await save({
-      name:'WaterNow Boduppal',address:'Brindavan Colony, Boduppal, Telangana 500092',
-      latitude:17.416,longitude:78.586,serviceRadiusKm:5,isActive:true,confirmExactLocation:true
-    });
-    assert.equal(blockedResponse.status,200,'location edits must save instead of failing when stock is pending');
-    const blocked=await blockedResponse.json();
-    assert.equal(blocked.ok,true);
-    assert.match(blocked.activationBlocked,/positive physical stock/i);
-    assert.equal(blocked.store.is_active,0,'zero-stock locations must remain inactive');
+    assert.equal(response.status,200);
+    const result=await response.json();
+    assert.equal(result.activationBlocked,null);
+    assert.equal(result.store.is_active,1,'Active must be saved directly without stock or pin checks');
     const persisted=db.db.prepare('SELECT name,address,latitude,longitude,is_active FROM delivery_stores WHERE id=?').get(storeId);
     assert.equal(persisted.name,'WaterNow Boduppal');
-    assert.equal(persisted.latitude,17.416);
-    assert.equal(persisted.longitude,78.586);
-    assert.equal(persisted.is_active,0);
-
-    db.db.prepare("UPDATE delivery_store_inventory SET stock_quantity=6 WHERE store_id=? AND product_id='product-1'").run(storeId);
-    const readyResponse=await save({
-      name:'WaterNow Boduppal',address:'Brindavan Colony, Boduppal, Telangana 500092',
-      latitude:17.416,longitude:78.586,serviceRadiusKm:5,isActive:true,confirmExactLocation:true
-    });
-    assert.equal(readyResponse.status,200);
-    const ready=await readyResponse.json();
-    assert.equal(ready.activationBlocked,null);
-    assert.equal(ready.store.is_active,1,'a confirmed pin and positive physical stock allow activation');
+    assert.equal(persisted.latitude,17.415);
+    assert.equal(persisted.longitude,78.585);
+    assert.equal(persisted.is_active,1);
   } finally { db.close(); }
 });
-
 
 test('first Owner store also starts with zero physical stock instead of copying central catalogue quantities', async () => {
   const db=new SQLiteD1();
@@ -148,51 +133,22 @@ test('first Owner store also starts with zero physical stock instead of copying 
   } finally { db.close(); }
 });
 
-test('approximate Boduppal locality pin saves edits but remains inactive until exact pin and stock are confirmed', async () => {
+test('Boduppal approximate map pin does not block explicit store activation', async () => {
   const db=new SQLiteD1();
   try {
     db.db.prepare("INSERT INTO delivery_stores (id,name,address,latitude,longitude,service_radius_km,is_active) VALUES ('waternow-boduppal','WaterNow Boduppal','Brindavan Colony, Boduppal — approximate locality pin; confirm exact shop location',17.415,78.585,5,0)").run();
-    const send=body=>handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/stores/waternow-boduppal',{
-      method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)
+    db.db.prepare("INSERT INTO delivery_store_inventory (store_id,product_id,stock_quantity) VALUES ('waternow-boduppal','product-1',0)").run();
+    const response=await handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/stores/waternow-boduppal',{
+      method:'PATCH',headers:{'content-type':'application/json'},
+      body:JSON.stringify({name:'WaterNow Boduppal',address:'Brindavan Colony, Boduppal — approximate locality pin; confirm exact shop location',latitude:17.415,longitude:78.585,serviceRadiusKm:5,isActive:true})
     }),{DB:db});
-    const unchanged=await send({
-      name:'WaterNow Boduppal',
-      address:'Brindavan Colony, Boduppal — approximate locality pin; confirm exact shop location',
-      latitude:17.415,longitude:78.585,serviceRadiusKm:5,isActive:true
-    });
-    assert.equal(unchanged.status,200,'the Owner can save the form without activating an approximate pin');
-    assert.match((await unchanged.json()).activationBlocked,/exact shop location/i);
-    assert.equal(db.db.prepare("SELECT is_active FROM delivery_stores WHERE id='waternow-boduppal'").get().is_active,0);
-
-    db.db.prepare("INSERT INTO delivery_store_catalogue (store_id,product_id,is_available,price_override) VALUES ('waternow-boduppal','product-1',1,NULL)").run();
-    const moved=await send({
-      name:'WaterNow Boduppal',
-      address:'Brindavan Colony, Boduppal, Telangana 500092',
-      latitude:17.4151,longitude:78.5852,serviceRadiusKm:5,isActive:true
-    });
-    assert.equal(moved.status,200,'the corrected address and map pin must save');
-    assert.match((await moved.json()).activationBlocked,/exact shop entrance/i);
-    assert.equal(db.db.prepare("SELECT latitude FROM delivery_stores WHERE id='waternow-boduppal'").get().latitude,17.4151);
-
-    const noStock=await send({
-      name:'WaterNow Boduppal',
-      address:'Brindavan Colony, Boduppal, Telangana 500092',
-      latitude:17.4151,longitude:78.5852,serviceRadiusKm:5,isActive:true,confirmExactLocation:true
-    });
-    assert.equal(noStock.status,200);
-    assert.match((await noStock.json()).activationBlocked,/positive physical stock/i);
-    assert.equal(db.db.prepare("SELECT is_active FROM delivery_stores WHERE id='waternow-boduppal'").get().is_active,0,
-      'a corrected address and pin are not enough while the store has no verified stock');
-
-    db.db.prepare("INSERT INTO delivery_store_inventory (store_id,product_id,stock_quantity) VALUES ('waternow-boduppal','product-1',5)").run();
-    const activated=await send({
-      name:'WaterNow Boduppal',
-      address:'Brindavan Colony, Boduppal, Telangana 500092',
-      latitude:17.4151,longitude:78.5852,serviceRadiusKm:5,isActive:true,confirmExactLocation:true
-    });
-    assert.equal(activated.status,200);
-    assert.equal((await activated.json()).activationBlocked,null);
+    assert.equal(response.status,200);
+    const result=await response.json();
+    assert.equal(result.activationBlocked,null);
+    assert.equal(result.store.is_active,1,'an approximate locality label and zero stock cannot override the Owner status');
     assert.equal(db.db.prepare("SELECT is_active FROM delivery_stores WHERE id='waternow-boduppal'").get().is_active,1);
+    assert.equal(db.db.prepare("SELECT stock_quantity FROM delivery_store_inventory WHERE store_id='waternow-boduppal' AND product_id='product-1'").get().stock_quantity,0,
+      'activating a store must not fabricate physical stock');
   } finally { db.close(); }
 });
 
