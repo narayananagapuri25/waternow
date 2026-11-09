@@ -135,7 +135,7 @@
     const c=ensureUI();if(!c)return;
     let notice='';
     if(loading)notice='<p class="fw-location-needed" role="status">Checking delivery availability for your address…</p>';
-    else if(errorCode==='AREA_UNAVAILABLE')notice='<div class="fw-location-needed" role="status">Delivery is not available at this address yet. Contact WaterNow and we will check nearby options.<button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
+    else if(errorCode==='AREA_UNAVAILABLE')notice='<div class="fw-location-needed" role="status">Delivery is not available at this address yet. Ask us about a nearby RTC bus stand handover or postal delivery options. <button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
     else if(errorMessage)notice='<div class="fw-location-needed" role="status">Add or update your delivery address to check the two WaterNow packs available in your area.<button type="button" data-fw-needs-location="address">Add delivery address</button><button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';
     c.innerHTML=notice;
     c.hidden=!notice;
