@@ -21,6 +21,23 @@ function parseWranglerJson(output) {
   throw new Error('Wrangler did not return a readable JSON result for the production D1 migration ledger.');
 }
 
+function safeDiagnostic(value) {
+  return String(value ?? '')
+    .replace(/cfat_[A-Za-z0-9_-]+/g, '[REDACTED_CLOUDFLARE_TOKEN]')
+    .replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]')
+    .slice(-4000);
+}
+
+function logWranglerFailure(error) {
+  const stderr = error?.stderr?.toString?.().trim();
+  const stdout = error?.stdout?.toString?.().trim();
+  if (stderr) console.error('Wrangler stderr:', safeDiagnostic(stderr));
+  if (stdout) console.error('Wrangler stdout:', safeDiagnostic(stdout));
+  if (error?.status !== undefined) console.error('Wrangler exit status:', error.status);
+  if (error?.code !== undefined) console.error('Wrangler process code:', error.code);
+  if (!stderr && !stdout) console.error('Wrangler error:', safeDiagnostic(error?.message || error));
+}
+
 function readAppliedMigrations() {
   const sql = 'SELECT name FROM d1_migrations ORDER BY name';
   const output = execFileSync('npx', [
@@ -56,7 +73,7 @@ try {
   console.error('PRODUCTION D1 MIGRATION BASELINE CHECK FAILED.');
   console.error('Could not read the existing d1_migrations ledger. No production migrations have been applied.');
   console.error('This guard prevents historical cleanup migrations from being replayed against existing WaterNow data.');
-  console.error(error?.stderr?.toString?.() || error?.message || error);
+  logWranglerFailure(error);
   process.exit(1);
 }
 

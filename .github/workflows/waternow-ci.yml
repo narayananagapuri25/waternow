@@ -7,7 +7,14 @@ on:
     branches:
       - main
       - 'feature/**'
+      - 'fix/**'
   workflow_dispatch:
+    inputs:
+      run_read_only_d1_diagnostic:
+        description: "Run only the read-only production D1 migration-ledger query (never migrate or deploy)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,6 +39,30 @@ jobs:
       - name: Audit local D1 schema
         working-directory: worker
         run: node ./scripts/audit-local-schema.mjs
+      - name: Self-test production schema comparison
+        working-directory: worker
+        run: python3 ./scripts/compare-production-schema.py --expected ./schema.sql --actual ./schema.sql
+      - name: Validate production baseline bootstrap script syntax
+        working-directory: worker
+        run: node --check ./scripts/bootstrap-production-d1-baseline.mjs
+      - name: Verify production baseline migration inventory
+        working-directory: worker
+        run: |
+          node --input-type=module <<'NODE'
+          import { expectedBaseline } from './scripts/bootstrap-production-d1-baseline.mjs';
+          const names = expectedBaseline();
+          for (const required of ['0051_waternow_supplier_network.sql', '0052_waternow_catalogue_seed.sql']) {
+            if (!names.includes(required)) throw new Error('Baseline is missing ' + required);
+          }
+          if (names.includes('0053_delivery_store_supplier_partner_guards.sql')) {
+            throw new Error('Pending migration 0053 must not be marked as baseline-applied.');
+          }
+          if (names.length < 40) throw new Error('Unexpectedly small migration inventory: ' + names.length);
+          console.log('Verified ' + names.length + ' historical migrations through 0052; 0053 remains pending.');
+          NODE
+      - name: Build production Worker bundle without deploying
+        working-directory: worker
+        run: npx wrangler deploy --dry-run --config wrangler.production.jsonc
       - name: Run Worker tests
         working-directory: worker
         run: npm test
@@ -73,6 +104,133 @@ jobs:
         working-directory: e2e
         run: npx playwright test --config=playwright.store-fallback.config.js
 
+  production-d1-readonly-diagnostic:
+    name: Read-only production D1 migration ledger diagnostic
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - worker-tests
+      - owner-ui-regression
+      - browser-tests
+    if: >-
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.number == 4 &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'push' &&
+       github.ref == 'refs/heads/fix/d1-baseline-diagnostics-2026-11-09') ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref != 'refs/heads/main' &&
+       inputs.run_read_only_d1_diagnostic == true)
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Worker and Wrangler dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate read-only diagnostic credentials
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret is missing."; exit 1; }
+          test "${CLOUDFLARE_ACCOUNT_ID}" = "17f1561ed0052cf9d484cb4becbf8810" || { echo "::error::Cloudflare account ID does not match the pinned WaterNow production account."; exit 1; }
+          test -n "${CLOUDFLARE_API_TOKEN}" || { echo "::error::CLOUDFLARE_API_TOKEN secret is missing."; exit 1; }
+      - name: Check production D1 migration ledger (read only)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +x
+          echo "Checking whether WaterNow production has a Wrangler migration ledger."
+          echo "This step is read-only. An absent ledger is reported as a warning, not treated as proof that migrations are safe to replay."
+          ledger_state="$(npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT COUNT(*) AS ledger_present FROM sqlite_master WHERE type='table' AND name='d1_migrations'" --json)"
+          echo "$ledger_state"
+          if echo "$ledger_state" | grep -Eq '"ledger_present"[[:space:]]*:[[:space:]]*1'; then
+            npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT name FROM d1_migrations ORDER BY name" --json
+          else
+            echo "::warning::Production D1 has no d1_migrations table. The main-branch deploy workflow will run the guarded baseline bootstrap; it writes migration metadata only after schema, data, foreign-key, and recovery-point preflight all pass."
+          fi
+      - name: Compare production schema with canonical WaterNow snapshot (read only)
+        if: always()
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +x
+          npx wrangler d1 export waternow-production --remote --skip-confirmation --no-data --output=/tmp/waternow-production-schema.sql
+          python3 ./scripts/compare-production-schema.py --expected ./schema.sql --actual /tmp/waternow-production-schema.sql --allow-pending-0053
+      - name: Audit legacy migration data fingerprints and foreign keys (read only)
+        if: always()
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +x
+          audit_sql="$(cat <<'SQL'
+          SELECT
+            (SELECT COUNT(*) FROM products WHERE lower(trim(name)) IN ('apple','banana','grapes','guava','mango','orange','papaya','pineapple','pomegranate','watermelon')) AS retired_catalogue_products,
+            (SELECT COUNT(*) FROM orders WHERE id IN ('FW-12031400-6NE','FW-53962202-NM5','FW-53402034-XBH','FW-31938520-0L7','FW-87828109-18W','FW-67922479-XYN','FW-08623690-412','FW-57069654-MR4','FW-35019352-MJ4','FW-78689788-FCD','FW-77588644-BHS','FW-70361915-UDE')) AS legacy_0050_test_orders,
+            (SELECT COUNT(*) FROM addresses WHERE is_saved_address=1 AND (recipient_name IS NULL OR trim(recipient_name)='' OR delivery_phone IS NULL OR trim(delivery_phone)='')) AS incomplete_addresses_still_saved,
+            (SELECT COUNT(*) FROM account_deletion_requests WHERE status='completed') AS completed_deletion_requests_not_anonymized,
+            (SELECT COUNT(*) FROM delivery_stores s WHERE s.supplier_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM water_suppliers w WHERE w.id=s.supplier_id)) AS supplier_refs_without_supplier,
+            (SELECT COUNT(*) FROM delivery_stores s WHERE s.delivery_partner_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM water_delivery_partners p WHERE p.id=s.delivery_partner_id)) AS partner_refs_without_partner,
+            (SELECT COUNT(*) FROM orders o JOIN customers c ON c.id=o.customer_id WHERE c.phone IS NOT NULL AND trim(c.phone)<>'' AND o.customer_phone<>c.phone) AS orders_with_registered_phone_mismatch,
+            (SELECT COUNT(*) FROM products WHERE active=1 AND id NOT IN ('water-20l','water-10l-pair')) AS non_water_active_products,
+            (SELECT COUNT(*) FROM categories WHERE active=1 AND id NOT IN ('water-20l','water-10l-pair')) AS non_water_active_categories,
+            (SELECT COUNT(*) FROM delivery_scheduling_settings WHERE id=1) AS delivery_scheduling_settings_count,
+            (SELECT COUNT(*) FROM delivery_offer_settings WHERE id=1) AS delivery_offer_settings_count,
+            (SELECT COUNT(*) FROM delivery_stores s CROSS JOIN products p WHERE NOT EXISTS (SELECT 1 FROM delivery_store_catalogue c WHERE c.store_id=s.id AND c.product_id=p.id)) AS missing_store_catalogue_rows,
+            (SELECT COUNT(*) FROM invoice_settings i JOIN store_profile s ON s.id=1 WHERE i.id=1 AND i.enabled=0 AND length(trim(COALESCE(i.gstin,'')))=0 AND length(trim(COALESCE(s.store_name,'')))>0 AND length(trim(COALESCE(s.address,'')))>0) AS invoice_0028_still_eligible,
+            (SELECT COUNT(*) FROM invoice_settings WHERE id=1 AND (length(trim(COALESCE(legal_name,'')))=0 OR length(trim(COALESCE(business_address,'')))=0 OR length(trim(COALESCE(state_name,'')))=0 OR length(trim(COALESCE(state_code,'')))=0 OR length(trim(COALESCE(gstin,'')))=0 OR length(trim(COALESCE(footer,'')))=0)) AS invoice_seller_defaults_still_blank,
+            (SELECT COUNT(*) FROM invoice_settings WHERE id=1 AND (lower(trim(COALESCE(legal_name,'')))='freshway' OR lower(trim(COALESCE(business_address,''))) IN ('mancherial','mancherial telangana'))) AS legacy_invoice_placeholders,
+            (SELECT COUNT(*) FROM store_profile WHERE id=1 AND lower(trim(COALESCE(address,''))) IN ('mancherial','mancherial telangana')) AS legacy_store_address_placeholder,
+            (SELECT COUNT(*) FROM home_promotions WHERE active=1 AND ((id='promo-muzofq0q-rx6ie' AND alt_text='Buy 5ltr get ₹150 off') OR (id='promo-muzofqx8-0774i' AND alt_text='Buy 5ltr get ₹150 off') OR (id='promo-mvg9mrtf-5p0ae' AND COALESCE(TRIM(alt_text),'')=''))) AS legacy_promotion_alt_texts_remaining,
+            (SELECT COUNT(*) FROM delivery_stores) AS delivery_stores_rows,
+            (SELECT COUNT(*) FROM delivery_store_inventory) AS delivery_store_inventory_rows,
+            (SELECT COUNT(*) FROM delivery_store_catalogue) AS delivery_store_catalogue_rows,
+            (SELECT COUNT(*) FROM delivery_slots) AS delivery_slots_rows,
+            (SELECT COUNT(*) FROM delivery_slot_reservations) AS delivery_slot_reservations_rows,
+            (SELECT COUNT(*) FROM delivery_store_inventory_reservations) AS delivery_store_inventory_reservations_rows
+          SQL
+          )"
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "$audit_sql" --json
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "PRAGMA foreign_key_check" --json
+          echo "Invoice seller-field completeness (boolean flags only; no private seller values):"
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT enabled AS invoice_enabled, document_type AS invoice_document_type, CASE WHEN legal_name IS NULL OR trim(legal_name)='' THEN 1 ELSE 0 END AS legal_name_blank, CASE WHEN business_address IS NULL OR trim(business_address)='' THEN 1 ELSE 0 END AS business_address_blank, CASE WHEN state_name IS NULL OR trim(state_name)='' THEN 1 ELSE 0 END AS state_name_blank, CASE WHEN state_code IS NULL OR trim(state_code)='' THEN 1 ELSE 0 END AS state_code_blank, CASE WHEN gstin IS NULL OR trim(gstin)='' THEN 1 ELSE 0 END AS gstin_blank, CASE WHEN footer IS NULL OR trim(footer)='' THEN 1 ELSE 0 END AS footer_blank, (SELECT CASE WHEN length(trim(COALESCE(store_name,'')))>0 THEN 1 ELSE 0 END FROM store_profile WHERE id=1) AS store_name_present, (SELECT CASE WHEN length(trim(COALESCE(address,'')))>0 THEN 1 ELSE 0 END FROM store_profile WHERE id=1) AS store_address_present FROM invoice_settings WHERE id=1" --json
+      - name: Inventory production D1 tables (read only, even if ledger check fails)
+        if: always()
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +x
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name" --json
+      - name: Inspect WaterNow migration schema and seeded records (read only)
+        if: always()
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +x
+          echo "WaterNow 0051 table definitions and related production columns:"
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name IN ('water_suppliers','water_supplier_service_areas','water_supplier_products','water_delivery_partners','water_delivery_partner_service_areas','water_order_fulfilments','delivery_stores','store_profile') ORDER BY name" --json
+          echo "WaterNow 0051 indexes:"
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT name, sql FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_water_%' ORDER BY name" --json
+          echo "WaterNow catalogue and invoice seed state from 0051/0052:"
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT id,name,price,active,stock_managed,stock_quantity FROM products WHERE id IN ('water-20l','water-10l-pair') ORDER BY id" --json
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT id,name,slug,active FROM categories WHERE id IN ('water-20l','water-10l-pair') ORDER BY id" --json
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT id,series_prefix FROM invoice_settings WHERE id=1" --json
+      - name: Dry-run production D1 baseline bootstrap (read only)
+        if: always()
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node ./scripts/bootstrap-production-d1-baseline.mjs --dry-run
+
   production-deploy:
     name: Deploy production D1 and WaterNow API
     runs-on: ubuntu-latest
@@ -102,6 +260,8 @@ jobs:
           test -n "${CLOUDFLARE_API_TOKEN}" || { echo "::error::Add the CLOUDFLARE_API_TOKEN GitHub Actions secret."; exit 1; }
       - name: Install Worker and Wrangler dependencies
         run: npm install --no-audit --no-fund
+      - name: Bootstrap existing production D1 baseline when ledger is absent (preflight-gated)
+        run: node ./scripts/bootstrap-production-d1-baseline.mjs
       - name: Verify production D1 migration baseline
         run: node ./scripts/require-production-d1-baseline.mjs
       - name: Apply pending production D1 migrations
