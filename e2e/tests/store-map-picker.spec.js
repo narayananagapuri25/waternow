@@ -30,7 +30,7 @@ test('Owner store map supports tap-to-pin, marker dragging, address search, geol
         </label>
         <button type="button" data-map-search-button>Find on map</button>
         <button type="button" data-map-current-location>Use my location</button>
-        <div data-store-map-canvas role="application"></div>
+        <div data-store-map-canvas role="application" style="width: 600px; height: 280px;"></div>
         <p data-map-status role="status"></p>
         <input type="hidden" name="latitude" value="">
         <input type="hidden" name="longitude" value="">
