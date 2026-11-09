@@ -204,6 +204,34 @@ test('public category catalogue returns image URLs and avoids grouping on Base64
 });
 
 
+test('catalogue accepts configured units and a zero product price', async () => {
+  let statements=[];
+  const env={
+    DB:{
+      prepare(sql){
+        const statement={sql,args:[],bind(...args){this.args=args;return this},async first(){
+          if(sql.includes('FROM categories WHERE id=?'))return{id:'cat-1',name:'Water Can',active:1};
+          if(sql.includes('COUNT(*) count FROM delivery_stores WHERE is_active=1'))return{count:0};
+          if(sql.includes('COUNT(*) count FROM delivery_stores'))return{count:0};
+          throw new Error('Unexpected first() query: '+sql);
+        }};
+        return statement;
+      },
+      async batch(items){statements=items;return{success:true}}
+    }
+  };
+  const response=await handleCatalogueRequest(new Request('https://api.example.test/api/admin/catalogue/products',{
+    method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({name:'Configured water product',unit:'12-litre can',price:0,categoryId:'cat-1',stockManaged:false})
+  }),env);
+  assert.equal(response.status,201);
+  const body=await response.json();
+  assert.equal(body.product.unit,'12-litre can');
+  assert.equal(body.product.price,0);
+  assert.equal(statements[0].args[2],'12-litre can');
+  assert.equal(statements[0].args[3],0);
+});
+
 test('public image endpoint accepts valid unpadded Base64 data', async () => {
   const bytes = Uint8Array.from([1, 2, 3, 4, 5]);
   const { env } = imageEnv({ image_data: Buffer.from(bytes).toString('base64').replace(/=+$/, ''), image_mime_type: 'image/png' });
