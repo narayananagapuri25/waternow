@@ -106,7 +106,12 @@
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
         maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
       }).addTo(map);
-      if(hasPin)setPin(initial[0],initial[1],{pan:false});
+      if(hasPin){
+        setPin(initial[0],initial[1],{pan:false});
+        if(/approximate locality pin/i.test(String(address?.value||''))){
+          setStatus('This is an approximate locality-centre pin, not a verified shop entrance. Move the marker to the exact shop location and update the address before activating delivery.');
+        }
+      }
       map.on('click',event=>setPin(event.latlng.lat,event.latlng.lng));
       radius?.addEventListener('input',updateRadius);
       searchButton?.addEventListener('click',searchLocation);
