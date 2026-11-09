@@ -10,7 +10,7 @@ const migration39 = read('../migrations/0039_customer_preferred_delivery_date.sq
 const migration40 = read('../migrations/0040_order_delivered_at.sql');
 const migration46 = read('../migrations/0046_store_first_fulfilment.sql');
 const migration47 = read('../migrations/0047_store_inventory_reservation_floor.sql');
-const productionSchemaAudit = read('../scripts/audit-production-schema.mjs');
+const localSchemaAudit = read('../scripts/audit-local-schema.mjs');
 
 function legacyDatabase() {
   const db = new DatabaseSync(':memory:');
@@ -143,25 +143,25 @@ test('Owner date-only endpoint rejects edits to delivered or cancelled orders', 
   assert.ok(delivery.includes('Delivery date cannot be changed for a delivered or cancelled order.'));
 });
 
-test('production schema audit requires the delivery scheduling schema, migrations, indexes and integrity triggers', () => {
+test('local schema audit requires the delivery scheduling schema, migrations, indexes and integrity triggers', () => {
   for (const table of [
     'delivery_scheduling_settings','delivery_stores','delivery_store_inventory','delivery_slots',
     'delivery_slot_reservations','delivery_store_inventory_reservations','order_action_requests',
     'order_audit_events','order_operational_flags'
-  ]) assert.match(productionSchemaAudit, new RegExp(table + ': \\['), 'production audit must verify ' + table);
+  ]) assert.match(localSchemaAudit, new RegExp(table + ': \\['), 'local audit must verify ' + table);
   for (const column of [
     'scheduled_delivery_date','scheduled_slot_id','assigned_store_id','scheduled_start_minute',
     'scheduled_end_minute','schedule_status'
-  ]) assert.ok(productionSchemaAudit.includes("'" + column + "'"), 'production audit must verify orders.' + column);
+  ]) assert.ok(localSchemaAudit.includes("'" + column + "'"), 'local audit must verify orders.' + column);
   for (const migration of [
     '0037_order_delivery_scheduling.sql','0038_anonymize_delivery_requests.sql','0039_customer_preferred_delivery_date.sql','0040_order_delivered_at.sql',
     '0046_store_first_fulfilment.sql','0047_store_inventory_reservation_floor.sql'
-  ]) assert.ok(productionSchemaAudit.includes(migration), 'production audit must require ' + migration);
+  ]) assert.ok(localSchemaAudit.includes(migration), 'local audit must require ' + migration);
   for (const trigger of [
     'delivery_slot_capacity_before_insert','delivery_slot_capacity_before_update',
     'delivery_store_stock_before_insert','delivery_store_stock_before_update',
     'delivery_store_inventory_stock_floor_before_update',
     'delivery_order_store_active_before_insert','delivery_order_store_active_before_update',
     'delivery_store_active_before_insert','delivery_store_active_before_update'
-  ]) assert.ok(productionSchemaAudit.includes(trigger), 'production audit must require ' + trigger);
+  ]) assert.ok(localSchemaAudit.includes(trigger), 'local audit must require ' + trigger);
 });
