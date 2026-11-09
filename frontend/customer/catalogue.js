@@ -4,7 +4,7 @@
   const STORE_STORAGE_KEY='waternow-selected-store-v1';
   const readStoreId=()=>{try{return window.localStorage.getItem(STORE_STORAGE_KEY)||''}catch(_){return''}};
   let selectedStoreIdValue=readStoreId(),selectedStore=null,pendingStore=null;
-  let categories=[],products=[],selected=null,ready=false,loading=true,errorMessage='',errorCode='',loadToken=0;
+  let categories=[],products=[],selected=null,ready=false,loading=true,errorMessage='',errorCode='',loadToken=0,orderBlocked=false,browseMessage='';
   const media=window.WaterNowCatalogueMedia;
   const style=document.createElement('style');
   style.textContent='.fw-home-catalogue{margin-top:2px}.fw-cat-heading{display:flex;justify-content:space-between;align-items:end;margin:0 0 12px}.fw-cat-heading h2{margin:3px 0 0;font-size:22px}.fw-category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.fw-category-card{border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px;box-shadow:var(--shadow);text-align:left;cursor:pointer;height:128px;min-height:128px;display:flex;flex-direction:column;justify-content:space-between}.fw-category-card:active{transform:scale(.99)}.fw-category-icon{width:54px;height:54px;border-radius:15px;background:var(--mint);display:grid;place-items:center;font-size:29px}.fw-category-card strong{font-size:14px;margin-top:8px}.fw-category-card small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.fw-category-card .fw-cat-arrow{color:var(--green);font-weight:900;float:right}.fw-category-empty,.fw-category-loading,.fw-category-error{background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px 20px;text-align:center;color:var(--muted);font-size:11px;line-height:1.5}.fw-category-empty{border-style:dashed}.fw-category-loading::before{content:"↻";display:block;font-size:26px;color:var(--green);margin-bottom:6px}.fw-category-error{border-color:#f0d5d5}.fw-category-error strong{display:block;color:var(--ink);margin-bottom:5px}.fw-catalogue-retry{margin-top:14px;border:0;background:var(--green);color:#fff;border-radius:11px;padding:10px 16px;font-size:11px;font-weight:900}.fw-category-back{display:flex;align-items:center;gap:8px;margin:0 0 12px}.fw-category-back button{border:1px solid var(--line);background:#fff;width:38px;height:38px;border-radius:12px;font-size:22px}.fw-category-back strong{font-size:18px}.fw-category-back small{display:block;color:var(--muted);font-size:9px;margin-top:2px}.fw-category-home-hidden{display:none!important}@media(max-width:380px){.fw-category-grid{gap:8px}.fw-category-card{height:108px;padding:8px;min-height:108px}}';
@@ -66,6 +66,7 @@
     }
     selectedStore=store;
     selectedStoreIdValue=storeId;
+    orderBlocked=false;browseMessage='';
     pendingStore=null;
     try{window.localStorage.setItem(STORE_STORAGE_KEY,storeId)}catch(_){}
     categories=[];
@@ -78,6 +79,17 @@
     setMode(null,{history:'none'});
     if(changes.length)window.dispatchEvent(new CustomEvent('freshway:store-catalogue-changed',{detail:{store,changes}}));
     return {ok:true,changed:changedStore||changes.length>0,store,changes};
+  }
+  async function showBrowseOnlyCatalogue(request,code,message){
+    const result=await request('/api/products');
+    if(!Array.isArray(result?.products))throw new Error('The WaterNow product catalogue could not be loaded. Please retry.');
+    selectedStore=null;pendingStore=null;selectedStoreIdValue='';
+    try{window.localStorage.removeItem(STORE_STORAGE_KEY)}catch(_){}
+    categories=[];products=result.products;selected=null;orderBlocked=true;
+    browseMessage=String(message||'Delivery is not configured for this address yet.');
+    window.FreshWayCustomerCatalogue?.setProducts(products);
+    loading=false;ready=true;errorMessage='';errorCode=String(code||'CATALOGUE_ONLY');
+    renderHome();setMode(null,{history:'none'});applyMode();
   }
   async function load({reviewChange=true,preserveExisting=true}={}){
     const token=++loadToken;
@@ -98,11 +110,8 @@
       const resolved=await request('/api/delivery/store',{method:'POST',body:JSON.stringify({address})});
       if(token!==loadToken)return;
       if(resolved?.available!==true||!resolved?.store?.id){
-        selectedStore=null;pendingStore=null;categories=[];products=[];
-        window.FreshWayCustomerCatalogue?.clear();
-        errorMessage=String(resolved?.message||'Confirm your delivery location to see products available near you.');
-        errorCode=String(resolved?.code||'');
-        loading=false;ready=false;renderHome();applyMode();return;
+        await showBrowseOnlyCatalogue(request,String(resolved?.code||''),String(resolved?.message||'Confirm your delivery location to see products available near you.'));
+        return;
       }
       const result=await switchToStore(resolved.store,{review:reviewChange});
       if(token!==loadToken)return;
@@ -124,19 +133,20 @@
         setMode(null,{history:'none'});
         applyMode();return;
       }
-      ready=false;
-      errorMessage=error?.message||'We could not load the WaterNow catalogue. Please retry.';
-      errorCode='';
-      renderHome();applyMode();
+      ready=false;errorMessage=error?.message||'We could not check delivery for this address.';errorCode='';
+      try{await showBrowseOnlyCatalogue(request,'CATALOGUE_ONLY',errorMessage)}
+      catch(catalogueError){orderBlocked=true;browseMessage='';errorMessage=catalogueError?.message||'We could not load the WaterNow product catalogue. Please retry.';renderHome();applyMode()}
     }
   }
   function renderHome(){
     const c=ensureUI();if(!c)return;
     let notice='';
     if(loading)notice='<p class="fw-location-needed" role="status">Checking delivery availability for your address…</p>';
-    else if(errorCode==='NO_ACTIVE_STORE')notice='<div class="fw-location-needed" role="status"><strong>WaterNow delivery is not configured yet.</strong><p>There is no active WaterNow delivery point serving orders right now. Contact WaterNow for help.</p><button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
-    else if(errorCode==='AREA_UNAVAILABLE')notice='<div class="fw-location-needed" role="status"><strong>WaterNow does not serve this map pin yet.</strong><p>Contact WaterNow to confirm the current delivery area for your address.</p><button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
-    else if(errorCode==='LOCATION_REQUIRED')notice='<div class="fw-location-needed" role="status"><strong>Confirm your delivery pin</strong><p>Your address is saved, but its map location is not confirmed yet. Choose the exact spot on the map so we can check delivery coverage.</p><button type="button" data-fw-needs-location="address">Confirm location on map</button></div>';
+    else if(errorCode==='NO_ACTIVE_STORE')notice='<div class="fw-location-needed" role="status"><strong>WaterNow delivery is not configured yet.</strong><p>You can view the products and prices below while delivery setup is pending. Ordering will open after a delivery location is configured and physical stock is entered.</p><button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
+    else if(errorCode==='AREA_UNAVAILABLE')notice='<div class="fw-location-needed" role="status"><strong>WaterNow does not serve this map pin yet.</strong><p>You can still view the products and prices below. Contact WaterNow to confirm delivery coverage for your address.</p><button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
+    else if(errorCode==='LOCATION_REQUIRED')notice='<div class="fw-location-needed" role="status"><strong>Confirm your delivery pin</strong><p>Your address is saved, but its map location is not confirmed yet. Products and prices are shown below for browsing; ordering remains disabled until the pin is confirmed.</p><button type="button" data-fw-needs-location="address">Confirm location on map</button></div>';
+    else if(errorCode==='CATALOGUE_ONLY')notice='<div class="fw-location-needed" role="status">'+esc(browseMessage||'Delivery availability could not be confirmed. Products are shown for browsing; ordering remains disabled.')+'</div>';
+    else if(errorCode==='NO_STORE_CATALOGUE'||errorCode==='OUT_OF_STOCK')notice='<div class="fw-location-needed" role="status"><strong>Delivery is not ready for this location.</strong><p>You can still view the products and prices below. Ordering will open when a nearby store can fulfil the basket.</p><button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
     else if(errorMessage)notice='<div class="fw-location-needed" role="status">We could not check delivery for this address. Update the address or map pin, then retry.<button type="button" data-fw-needs-location="address">Change delivery location</button><button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';
     c.innerHTML=notice;
     c.hidden=!notice;
@@ -173,7 +183,7 @@
     ensureUI();
     document.addEventListener('click',e=>{if(e.target.closest('[data-fw-delivery-contact]')){e.preventDefault();window.setView?.('contact');return}if(e.target.closest('#fwCatalogueRetry')){e.preventDefault();load();return}if(e.target.closest('[data-fw-needs-location]')){e.preventDefault();e.stopImmediatePropagation();$('#addressBtn')?.click();return}},true);
   }
-  window.FreshWayCustomerStoreCatalogue=Object.freeze({selectedStoreId:()=>selectedStore?.id||selectedStoreIdValue||'',selectedStore:()=>selectedStore,switchToStore,refresh:load});
+  window.FreshWayCustomerStoreCatalogue=Object.freeze({selectedStoreId:()=>selectedStore?.id||selectedStoreIdValue||'',selectedStore:()=>selectedStore,canOrder:()=>!orderBlocked&&!!selectedStore?.id,switchToStore,refresh:load});
   window.addEventListener('freshway:address-changed',()=>{void load({reviewChange:true,preserveExisting:false})});
   window.freshWayCustomerCatalogueRefresh=load;
   window.freshWayCustomerCatalogueGoHome=()=>setMode(null,{history:'none'});
