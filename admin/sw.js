@@ -1,13 +1,13 @@
-const CACHE = 'waternow-owner-v1';
+const CACHE = 'waternow-owner-v2';
 const SHELL = [
   '/admin/',
   '/admin/manifest.webmanifest',
-  '/admin/waternow-logo.svg','/admin/waternow-icon.svg','/admin/frontend/media/catalogue/water-20l.svg','/admin/frontend/media/catalogue/water-10l-pair.svg',
+  '/admin/waternow-logo.svg','/admin/waternow-icon.svg',
   '/waternow-icon.svg',
   '/admin/owner-pwa-install.js?v=20261019-install-prompt-v2',
   '/admin/owner-pwa-install.css?v=20261019-install-prompt-v2',
-  '/admin/admin.css?v=waternow-v1',
-  '/admin/admin.js?v=waternow-v1',
+  '/admin/admin.css?v=20261109-configurable-v2',
+  '/admin/admin.js?v=20261109-configurable-v2',
   '/admin/frontend/admin/invoice-settings.js?v=20261105-auto-non-gst-disclosure-v1',
   '/admin/frontend/admin/water-network.js?v=waternow-v1',
   '/admin/frontend/admin/delivery-offers.js?v=20261027-coupon-buttons-v5',
@@ -16,15 +16,15 @@ const SHELL = [
   '/admin/frontend/phone-display.js?v=20261009-phone-display-v1',
   '/admin/frontend/admin/store-profile.js?v=20261024-response-guard-v2',
   '/admin/frontend/admin/delivery-management.js?v=20261106-store-reconciliation-v1',
-  '/admin/frontend/admin/store-management.js?v=20261107-store-nav-guard-v1',
+  '/admin/frontend/admin/store-management.js?v=20261109-configurable-store-v2',
   '/admin/frontend/admin/customer-messages.js?v=20261027-customer-messages-v1',
-  '/admin/frontend/catalogue-media.js?v=20261008-ui-media-v1',
-  '/admin/frontend/admin/catalogue.js?v=20261029-promo-alttext-v1',
+  '/admin/frontend/catalogue-media.js?v=waternow-configurable-v1',
+  '/admin/frontend/admin/catalogue.js?v=20261109-configurable-v2',
   '/admin/frontend/admin/owner-lifecycle-autosave.js?v=20260909-owner-lifecycle-v1',
   '/admin/frontend/admin/push.js?v=20260908-push-v1',
   '/admin/owner-lifecycle.js?v=20261103-assigned-store-lifecycle-v1',
   '/admin/owner-address-final.js?v=20260909-address-final-v6',
-  '/admin/frontend/media/catalogue/water-20l.svg','/admin/frontend/media/catalogue/water-10l-pair.svg','/admin/frontend/media/catalogue/groundnut-oil.svg'
+  
 ];
 const REQUIRED_SHELL = [
   '/admin/',
