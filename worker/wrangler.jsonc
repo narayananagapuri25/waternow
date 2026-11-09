@@ -1,11 +1,11 @@
 {
-  "name": "commerce-api-local-template",
+  "name": "waternow-api-local",
   "main": "src/admin-auth.js",
   "compatibility_date": "2026-09-06",
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [{
     "binding": "DB",
-    "database_name": "commerce-development",
+    "database_name": "waternow-development",
     "database_id": "00000000-0000-4000-8000-000000000001"
   }],
   "vars": {
