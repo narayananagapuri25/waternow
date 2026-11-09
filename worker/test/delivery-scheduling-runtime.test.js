@@ -168,7 +168,7 @@ test('Owner can reassign a pending order only to an active store with enough sto
     db.db.prepare("INSERT INTO delivery_stores (id,name,address,latitude,longitude,service_radius_km,is_active) VALUES ('store-2','Second Store','Second Address',17.39,78.49,5,1)").run();
     db.db.prepare("INSERT INTO delivery_store_inventory (store_id,product_id,stock_quantity) VALUES ('store-2','product-1',1)").run();
     const assign=()=>handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/orders/order-reassign/store',{
-      method:'PATCH',headers:{'content-type':'application/json','X-Freshway-Owner-Id':'owner-test'},
+      method:'PATCH',headers:{'content-type':'application/json','X-WaterNow-Owner-Id':'owner-test'},
       body:JSON.stringify({storeId:'store-2',reason:'Move to a store with stock'})
     }),{DB:db});
     await assert.rejects(assign,/cannot fulfil the complete order/i);
@@ -202,7 +202,7 @@ test('Owner slot reassignment checks store radius and keeps store stock reservat
     db.db.prepare("INSERT INTO delivery_slots (id,store_id,delivery_date,start_minute,end_minute,capacity,is_active) VALUES ('slot-near','store-near',?,600,720,5,1)").run(date);
 
     const assign=slotId=>handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/orders/order-slot-store/schedule',{
-      method:'PATCH',headers:{'content-type':'application/json','X-Freshway-Owner-Id':'owner-test'},
+      method:'PATCH',headers:{'content-type':'application/json','X-WaterNow-Owner-Id':'owner-test'},
       body:JSON.stringify({slotId})
     }),{DB:db});
     const response=await assign('slot-near');
@@ -246,7 +246,7 @@ test('reopening checks the assigned store and Owner can reconfirm that store aft
 
     db.db.prepare("UPDATE delivery_store_inventory SET stock_quantity=8 WHERE store_id='store-1' AND product_id='product-1'").run();
     const response=await handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/orders/order-reopen-stock/store',{
-      method:'PATCH',headers:{'content-type':'application/json','X-Freshway-Owner-Id':'owner-test'},
+      method:'PATCH',headers:{'content-type':'application/json','X-WaterNow-Owner-Id':'owner-test'},
       body:JSON.stringify({storeId:'store-1',reason:'Recheck inventory after replenishment'})
     }),{DB:db});
     assert.equal(response.status,200);
@@ -410,7 +410,7 @@ test('checkout creates an order with a server-validated preferred date and reser
       preferredDeliveryDate:requestedDate,
       clientOrderId:'checkout-test-0001'
     };
-    const placed=await createOrder({DB:db,APP_ORIGIN:'https://fwcoldpressed.in'},payload,ctx);
+    const placed=await createOrder({DB:db,APP_ORIGIN:'https://waternow.pages.dev'},payload,ctx);
     if(deferred)await deferred;
     assert.ok(placed.id);
     assert.equal(placed.total,205);
@@ -442,7 +442,7 @@ test('checkout creates an order with a server-validated preferred date and reser
     assert.equal(db.db.prepare('SELECT COUNT(*) count FROM delivery_slot_reservations WHERE order_id=?').get(placed.id).count,0);
     assert.deepEqual(db.db.prepare('PRAGMA foreign_key_check').all(),[]);
 
-    const retried=await createOrder({DB:db,APP_ORIGIN:'https://fwcoldpressed.in'},payload,{waitUntil(promise){deferred=promise;}});
+    const retried=await createOrder({DB:db,APP_ORIGIN:'https://waternow.pages.dev'},payload,{waitUntil(promise){deferred=promise;}});
     assert.equal(retried.id,placed.id,'idempotent checkout retry must return the original order');
     assert.equal(retried.total,205);
     assert.equal(retried.pricingBreakdownKnown,true);
@@ -494,7 +494,7 @@ test('Owner reconciliation requires explicit customer confirmation, a future dat
       .run(dateInIndia(-1));
     const request=body=>handleAdminDeliveryRequest(new Request(
       'https://api.example.test/api/admin/delivery/orders/order-reconcile-guard/reconcile',
-      {method:'PATCH',headers:{'content-type':'application/json','X-Freshway-Owner-Id':'owner-test'},body:JSON.stringify(body)}
+      {method:'PATCH',headers:{'content-type':'application/json','X-WaterNow-Owner-Id':'owner-test'},body:JSON.stringify(body)}
     ),{DB:db});
     await assert.rejects(request({
       customerConfirmed:false,storeId:'store-1',deliveryDate:dateInIndia(1),
@@ -525,7 +525,7 @@ test('Owner reconciliation atomically assigns the eligible store, moves reservat
       .run(dateInIndia(-3));
     const response=await handleAdminDeliveryRequest(new Request(
       'https://api.example.test/api/admin/delivery/orders/order-reconcile-success/reconcile',
-      {method:'PATCH',headers:{'content-type':'application/json','X-Freshway-Owner-Id':'owner-test'},
+      {method:'PATCH',headers:{'content-type':'application/json','X-WaterNow-Owner-Id':'owner-test'},
         body:JSON.stringify({
           customerConfirmed:true,storeId:'store-1',deliveryDate:tomorrow,
           confirmationNote:'Customer reconfirmed the delivery location and tomorrow date by phone.'
