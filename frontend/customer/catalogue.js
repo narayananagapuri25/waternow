@@ -139,6 +139,8 @@
     else if(errorMessage)notice='<div class="fw-location-needed" role="status">Add or update your delivery address to check the two WaterNow packs available in your area.<button type="button" data-fw-needs-location="address">Add delivery address</button><button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';
     c.innerHTML=notice;
     c.hidden=!notice;
+    const grid=$('#productGrid');
+    if(grid)grid.classList.toggle('fw-category-home-hidden',!ready||loading||!!errorMessage);
   }
   function setMode(_categoryId,{history='none'}={}){
     selected=null;
