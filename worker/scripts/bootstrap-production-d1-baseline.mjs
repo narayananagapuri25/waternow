@@ -78,7 +78,32 @@ function verifyDataFingerprints() {
     (SELECT COUNT(*) FROM categories WHERE id IN ('water-20l','water-10l-pair') AND active=1) AS active_water_category_count,
     (SELECT COUNT(*) FROM products WHERE id IN ('water-20l','water-10l-pair') AND active=1 AND price=0 AND stock_managed=1 AND stock_quantity=0) AS unpriced_water_product_count,
     (SELECT COUNT(*) FROM invoice_settings WHERE id=1 AND series_prefix='WN') AS waternow_invoice_prefix_count,
-    (SELECT COUNT(*) FROM store_profile WHERE id=1 AND store_name='WaterNow') AS waternow_store_profile_count`;
+    (SELECT COUNT(*) FROM store_profile WHERE id=1 AND store_name='WaterNow') AS waternow_store_profile_count,
+    (SELECT COUNT(*) FROM products WHERE active=1 AND id NOT IN ('water-20l','water-10l-pair')) AS non_water_active_products,
+    (SELECT COUNT(*) FROM categories WHERE active=1 AND id NOT IN ('water-20l','water-10l-pair')) AS non_water_active_categories,
+    (SELECT COUNT(*) FROM delivery_scheduling_settings WHERE id=1) AS delivery_scheduling_settings_count,
+    (SELECT COUNT(*) FROM delivery_offer_settings WHERE id=1) AS delivery_offer_settings_count,
+    (SELECT COUNT(*) FROM delivery_stores s CROSS JOIN products p
+      WHERE NOT EXISTS (SELECT 1 FROM delivery_store_catalogue c WHERE c.store_id=s.id AND c.product_id=p.id)) AS missing_store_catalogue_rows,
+    (SELECT COUNT(*) FROM invoice_settings i JOIN store_profile s ON s.id=1
+      WHERE i.id=1 AND i.enabled=0 AND length(trim(COALESCE(i.gstin,'')))=0
+        AND length(trim(COALESCE(s.store_name,'')))>0 AND length(trim(COALESCE(s.address,'')))>0) AS invoice_0028_still_eligible,
+    (SELECT COUNT(*) FROM invoice_settings WHERE id=1 AND (
+      length(trim(COALESCE(legal_name,'')))=0 OR length(trim(COALESCE(business_address,'')))=0
+      OR length(trim(COALESCE(state_name,'')))=0 OR length(trim(COALESCE(state_code,'')))=0
+      OR length(trim(COALESCE(gstin,'')))=0 OR length(trim(COALESCE(footer,'')))=0
+    )) AS invoice_seller_defaults_still_blank,
+    (SELECT COUNT(*) FROM invoice_settings WHERE id=1 AND (
+      lower(trim(COALESCE(legal_name,'')))='freshway'
+      OR lower(trim(COALESCE(business_address,''))) IN ('mancherial','mancherial telangana')
+    )) AS legacy_invoice_placeholders,
+    (SELECT COUNT(*) FROM store_profile WHERE id=1
+      AND lower(trim(COALESCE(address,''))) IN ('mancherial','mancherial telangana')) AS legacy_store_address_placeholder,
+    (SELECT COUNT(*) FROM home_promotions WHERE active=1 AND (
+      (id='promo-muzofq0q-rx6ie' AND alt_text='Buy 5ltr get ₹150 off')
+      OR (id='promo-muzofqx8-0774i' AND alt_text='Buy 5ltr get ₹150 off')
+      OR (id='promo-mvg9mrtf-5p0ae' AND COALESCE(TRIM(alt_text),'')='')
+    )) AS legacy_promotion_alt_texts_remaining`;
   const rows = query(auditSql, 'historical migration data fingerprints');
   if (rows.length !== 1) throw new Error('Production baseline preflight returned an unexpected data-audit result.');
   const row = rows[0];
@@ -90,7 +115,15 @@ function verifyDataFingerprints() {
     'completed_deletion_requests_not_anonymized',
     'supplier_refs_without_supplier',
     'partner_refs_without_partner',
-    'orders_with_registered_phone_mismatch'
+    'orders_with_registered_phone_mismatch',
+    'non_water_active_products',
+    'non_water_active_categories',
+    'missing_store_catalogue_rows',
+    'invoice_0028_still_eligible',
+    'invoice_seller_defaults_still_blank',
+    'legacy_invoice_placeholders',
+    'legacy_store_address_placeholder',
+    'legacy_promotion_alt_texts_remaining'
   ]) assertZero(row, key);
 
   for (const [key, expected] of [
@@ -98,7 +131,9 @@ function verifyDataFingerprints() {
     ['active_water_category_count', 2],
     ['unpriced_water_product_count', 2],
     ['waternow_invoice_prefix_count', 1],
-    ['waternow_store_profile_count', 1]
+    ['waternow_store_profile_count', 1],
+    ['delivery_scheduling_settings_count', 1],
+    ['delivery_offer_settings_count', 1]
   ]) {
     if (Number(row[key]) !== expected) {
       throw new Error('Production baseline preflight failed: ' + key + ' must equal ' + expected + '; found ' + row[key] + '.');
