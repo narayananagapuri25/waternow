@@ -100,9 +100,9 @@ assert.match(productView,/data-plus/);
 assert.match(productView,/stock-cart-warning/);
 
 const media=fs.readFileSync('frontend/catalogue-media.js','utf8');
-assert.match(media,/cat-oils/);
-assert.match(media,/p-1788808795819-x0yy/);
-assert.match(media,/groundnut-oil\.svg/);
+assert.match(media,/'water-20l'\s*:/,'the 20L WaterNow catalogue image is mapped');
+assert.match(media,/'water-10l-pair'\s*:/,'the 10L pair WaterNow catalogue image is mapped');
+assert.match(media,/water-20l\.svg/);
 assert.doesNotMatch(media, new RegExp('api/admin|r2|D1', 'i'));
 assert.match(productView,/FreshWayCatalogueMedia/);
 assert.match(productView,/image_data&&p\.image_mime_type/);
