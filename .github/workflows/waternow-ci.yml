@@ -8,6 +8,12 @@ on:
       - main
       - 'feature/**'
   workflow_dispatch:
+    inputs:
+      run_read_only_d1_diagnostic:
+        description: "Run only the read-only production D1 migration-ledger query (never migrate or deploy)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -72,6 +78,49 @@ jobs:
       - name: Run isolated delivery and store fallback tests
         working-directory: e2e
         run: npx playwright test --config=playwright.store-fallback.config.js
+
+  production-d1-readonly-diagnostic:
+    name: Read-only production D1 migration ledger diagnostic
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - worker-tests
+      - owner-ui-regression
+      - browser-tests
+    if: >-
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.number == 4 &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref != 'refs/heads/main' &&
+       inputs.run_read_only_d1_diagnostic == true)
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Worker and Wrangler dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate read-only diagnostic credentials
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret is missing."; exit 1; }
+          test "${CLOUDFLARE_ACCOUNT_ID}" = "17f1561ed0052cf9d484cb4becbf8810" || { echo "::error::Cloudflare account ID does not match the pinned WaterNow production account."; exit 1; }
+          test -n "${CLOUDFLARE_API_TOKEN}" || { echo "::error::CLOUDFLARE_API_TOKEN secret is missing."; exit 1; }
+      - name: Query production D1 migration ledger (read only)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +x
+          echo "Running SELECT-only diagnostic against the configured WaterNow production D1 database."
+          echo "No migrations, SQL writes, Worker deployments, or secret values will be output."
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT name FROM d1_migrations ORDER BY name" --json
 
   production-deploy:
     name: Deploy production D1 and WaterNow API
