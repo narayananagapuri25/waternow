@@ -79,7 +79,9 @@
     observer.observe(container,{childList:true,subtree:true});
     const existing=findCard();if(existing)finish(existing);
   }
-  const customerMessages=Object.freeze({load,refreshBadge,refreshBadgeCount:refreshBadge});\n  window.FreshWayCustomerMessages=customerMessages;\n  window.WaterNowCustomerMessages=customerMessages;
+  const customerMessages=Object.freeze({load,refreshBadge,refreshBadgeCount:refreshBadge});
+  window.FreshWayCustomerMessages=customerMessages;
+  window.WaterNowCustomerMessages=customerMessages;
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{void refreshBadge();openMessageFromNotification();},{once:true});else {void refreshBadge();openMessageFromNotification();}
 })();
