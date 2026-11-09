@@ -56,7 +56,7 @@ async function ensureRoom(env, customerId) {
   if (Number(own?.total || 0) >= CUSTOMER_MAX) {
     const oldest = await env.DB.prepare("SELECT id FROM customer_messages WHERE customer_id=? AND status='replied' AND expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now') ORDER BY updated_at ASC LIMIT 1").bind(customerId).first();
     if (oldest?.id) await removeMessage(env, oldest.id);
-    else problem('You have too many open messages. Please wait for FreshWay to reply before sending another.', 429);
+    else problem('You have too many open messages. Please wait for WaterNow to reply before sending another.', 429);
   }
   const all = await env.DB.prepare("SELECT COUNT(*) AS total FROM customer_messages WHERE expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')").first();
   if (Number(all?.total || 0) >= GLOBAL_MAX) {
@@ -67,7 +67,7 @@ async function ensureRoom(env, customerId) {
       env.DB.prepare("DELETE FROM notification_events WHERE event_type IN ('customer_message_reply','customer_message_new') AND event_key LIKE ?").bind('customer-message:' + id + ':%')
     ]));
     const after = await env.DB.prepare("SELECT COUNT(*) AS total FROM customer_messages WHERE expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')").first();
-    if (Number(after?.total || 0) >= GLOBAL_MAX) problem('FreshWay support is busy. Please try again later.', 503);
+    if (Number(after?.total || 0) >= GLOBAL_MAX) problem('WaterNow support is busy. Please try again later.', 503);
   }
 }
 
@@ -88,7 +88,7 @@ export async function createCustomerMessage(env, customerId, payloadValue) {
   const recent = await env.DB.prepare(
     "SELECT COUNT(*) AS total FROM customer_messages WHERE customer_id=? AND created_at >= strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 day')"
   ).bind(customerId).first();
-  if (Number(recent?.total || 0) >= DAILY_SUBMISSION_MAX) problem('You have reached today’s message limit. Please wait for FreshWay to reply.', 429);
+  if (Number(recent?.total || 0) >= DAILY_SUBMISSION_MAX) problem('You have reached today’s message limit. Please wait for WaterNow to reply.', 429);
   await ensureRoom(env, customerId);
   const id = uuid();
   const name = clean(customer.name, 120) || 'Customer';
@@ -106,8 +106,8 @@ export async function createCustomerMessage(env, customerId, payloadValue) {
       title: 'OWNER · New customer message',
       body: 'Open Owner Admin to read and reply.', url: '/admin/#messages'
     });
-  } catch (error) { console.error('FreshWay new customer message alert failed:', error?.message || error); }
-  return { ok: true, id, message: 'Message sent to FreshWay. You can view the reply in Profile → Messages.' };
+  } catch (error) { console.error('WaterNow new customer message alert failed:', error?.message || error); }
+  return { ok: true, id, message: 'Message sent to WaterNow. You can view the reply in Profile → Messages.' };
 }
 
 export async function listCustomerMessages(env, customerId) {
@@ -192,12 +192,12 @@ async function sendReplyNotification(env, customerId, messageId, body, kind = 'm
       orderId: null,
       eventType: 'customer_message_reply',
       eventKey: (kind==='order_request'?'order-request:':'customer-message:')+messageId+':reply:'+Date.now()+':'+uuid(),
-      title: 'FreshWay replied to your message',
-      body: 'Open FreshWay to read your reply.',
+      title: 'WaterNow replied to your message',
+      body: 'Open WaterNow to read your reply.',
       url: '/?openMessage=' + encodeURIComponent(messageId) + '#messages'
     });
   } catch (error) {
-    console.error('FreshWay message reply notification failed:', error?.message || error);
+    console.error('WaterNow message reply notification failed:', error?.message || error);
     return { status: 'failed', sent: 0, failed: 1 };
   }
 }
@@ -258,7 +258,7 @@ export async function handleCustomerMessages(request, env, customerId) {
     return { status: 405, data: { error: 'Method not allowed.' } };
   } catch (error) {
     const status = Number(error?.status || 500);
-    if (status >= 500) console.error('FreshWay customer message operation failed:', error?.message || error);
+    if (status >= 500) console.error('WaterNow customer message operation failed:', error?.message || error);
     return { status, data: { error: status === 500 ? 'Could not process your message. Please try again.' : String(error.message || 'Request could not be completed.') } };
   }
 }
@@ -287,7 +287,7 @@ export async function handleAdminCustomerMessages(request, env) {
     return { status: 405, data: { error: 'Method not allowed.' } };
   } catch (error) {
     const status = Number(error?.status || (error?.message === 'CUSTOMER_MESSAGE_NOT_FOUND' ? 404 : 500));
-    if (status >= 500) console.error('FreshWay Owner message operation failed:', error?.message || error);
+    if (status >= 500) console.error('WaterNow Owner message operation failed:', error?.message || error);
     return { status, data: { error: status === 500 ? 'Could not process this message. Refresh and try again.' : error.message === 'CUSTOMER_MESSAGE_NOT_FOUND' ? 'Customer message not found.' : String(error.message || 'Request could not be completed.') } };
   }
 }
