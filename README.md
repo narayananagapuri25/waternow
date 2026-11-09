@@ -5,7 +5,7 @@ WaterNow is a local drinking-water ordering PWA and supplier operations starter,
 ## Safety and reuse
 - This is a development/template copy, not a live WaterNow deployment.
 - Production deployment workflows and production/live-data audit suites were intentionally omitted.
-- No production credentials or production D1 database identifier are included.
+- No production credentials are included. `worker/wrangler.production.jsonc` contains a D1 UUID that has not been verified against the WaterNow Cloudflare account; confirm or replace it before deployment.
 - Configure your own Cloudflare account, D1 database, domain, secrets, and notification providers before deployment.
 - Never point local, preview, or test environments at a production database.
 
