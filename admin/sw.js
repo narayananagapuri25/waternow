@@ -1,8 +1,8 @@
-const CACHE = 'fw-owner-v75';
+const CACHE = 'waternow-owner-v1';
 const SHELL = [
   '/admin/',
   '/admin/manifest.webmanifest',
-  '/waternow-logo.svg',
+  '/admin/waternow-logo.svg','/admin/waternow-icon.svg','/admin/frontend/media/catalogue/water-20l.svg','/admin/frontend/media/catalogue/water-10l-pair.svg',
   '/waternow-icon.svg',
   '/admin/owner-pwa-install.js?v=20261019-install-prompt-v2',
   '/admin/owner-pwa-install.css?v=20261019-install-prompt-v2',
@@ -24,7 +24,7 @@ const SHELL = [
   '/admin/frontend/admin/push.js?v=20260908-push-v1',
   '/admin/owner-lifecycle.js?v=20261103-assigned-store-lifecycle-v1',
   '/admin/owner-address-final.js?v=20260909-address-final-v6',
-  '/admin/frontend/media/catalogue/groundnut-oil.svg'
+  '/admin/frontend/media/catalogue/water-20l.svg','/admin/frontend/media/catalogue/water-10l-pair.svg','/admin/frontend/media/catalogue/groundnut-oil.svg'
 ];
 const REQUIRED_SHELL = [
   '/admin/',
@@ -59,7 +59,7 @@ self.addEventListener('install', event => {
     }));
 
     if (!REQUIRED_SHELL.every(asset => results[SHELL.indexOf(asset)])) {
-      throw new Error('FreshWay Owner critical app shell could not be cached.');
+      throw new Error('WaterNow Owner critical app shell could not be cached.');
     }
   })());
   self.skipWaiting();
@@ -68,7 +68,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key.startsWith('fw-owner-') && key !== CACHE).map(key => caches.delete(key))))
+      .then(keys => Promise.all(keys.filter(key => key.startsWith('waternow-owner-') && key !== CACHE).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -99,7 +99,7 @@ self.addEventListener('fetch', event => {
       }
       return response;
     }).catch(error => {
-      console.error('FreshWay Owner request failed:', request.url, error);
+      console.error('WaterNow Owner request failed:', request.url, error);
       throw error;
     });
 
