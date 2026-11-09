@@ -53,6 +53,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Run customer service-worker regression tests
+        run: node sw-notification-refresh.test.js
       - name: Install Playwright dependencies
         working-directory: e2e
         run: npm ci
