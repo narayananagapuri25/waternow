@@ -425,3 +425,38 @@ button,input,textarea,select{touch-action:manipulation}
 .account-deletion-form-error{color:#a62828;font-weight:800}
 .account-deletion-confirmation .owner-alert-control-actions{display:grid;grid-template-columns:1fr;gap:8px}
 .account-deletion-confirmation .owner-alert-control-actions button{width:100%;min-height:44px}
+
+/* WaterNow supplier network */
+.water-network-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.water-network-form,.water-network-list{min-width:0}
+.water-network-form{display:grid;gap:12px}
+.water-network-form label{display:grid;gap:6px;font-size:12px;font-weight:700;color:var(--ink)}
+.water-network-form input,.water-network-form select{width:100%;min-width:0;min-height:42px;border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:#fff;color:var(--ink);font:inherit}
+.water-network-form .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.water-network-form .water-check{display:flex;align-items:flex-start;gap:9px;padding:11px;border:1px solid var(--line);border-radius:12px;background:#f5fbfc;font-weight:600;line-height:1.45}
+.water-network-form .water-check input{width:18px;min-height:18px;flex:0 0 18px;margin:1px 0 0}
+.water-network-form [role=status]{min-height:16px;margin:0;color:var(--muted);font-size:11px}
+.water-network-list{margin-top:16px}
+.water-network-cards{display:grid;gap:12px}
+.water-network-card{min-width:0;border:1px solid var(--line);border-radius:16px;background:#fff;padding:14px}
+.water-network-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.water-network-card h3{margin:0;font-size:15px}
+.water-network-card p{margin:5px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
+.water-network-meta{display:flex;gap:7px;flex-wrap:wrap;margin:11px 0}
+.water-network-meta span{border-radius:999px;background:#f2f6f6;padding:5px 9px;font-size:10px;color:#385660}
+.water-status{flex:0 0 auto;padding:5px 9px;border-radius:999px;font-size:10px;font-weight:800}
+.water-status.is-active{background:#e7f7ef;color:#147447}
+.water-status.is-pending{background:#fff4dc;color:#875a0c}
+.water-network-compliance{padding:9px 11px;border-radius:10px;background:#f7fafb}
+.water-offer-list{display:grid;gap:8px;margin-top:10px}
+.water-offer-form{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(75px,.7fr) minmax(65px,.6fr) auto;align-items:end;gap:8px;padding:9px 0;border-top:1px solid var(--line)}
+.water-offer-form strong{font-size:11px;align-self:center}
+.water-offer-form label{display:grid;gap:4px;font-size:9px;color:var(--muted)}
+.water-offer-form input{width:100%;min-width:0;min-height:34px;border:1px solid var(--line);border-radius:8px;padding:6px 7px;font-size:11px}
+.water-offer-form button{min-height:34px;padding:0 11px}
+.water-offer-form small{grid-column:2/-1;font-size:9px;color:var(--muted)}
+.water-network-actions{display:flex;justify-content:flex-end;margin-top:12px}
+.water-compliance-confirmed{font-size:11px;font-weight:700;color:#147447}
+.water-compliance-note{margin:14px 0;color:var(--muted);font-size:11px;line-height:1.55}
+@media(max-width:900px){.water-network-layout{grid-template-columns:1fr}}
+@media(max-width:560px){.water-network-form .two{grid-template-columns:1fr}.water-offer-form{grid-template-columns:1fr 1fr}.water-offer-form strong{grid-column:1/-1}.water-offer-form button{justify-self:start}.water-offer-form small{grid-column:1/-1}.water-network-card-head{align-items:flex-start}}
