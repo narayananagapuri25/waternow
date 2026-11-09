@@ -1,4 +1,4 @@
-import webpush from 'web-push';
+import * as webpush from 'web-push';
 import { getStoreProfile } from './store-profile.js';
 import { buildOrderPlacedAlerts, dispatchOrderAlert } from './order-alerts.js';
 import { buildOrderChangeAlerts } from './admin-notifications.js';
