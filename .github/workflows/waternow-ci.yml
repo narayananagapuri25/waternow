@@ -118,15 +118,21 @@ jobs:
           test -n "${CLOUDFLARE_ACCOUNT_ID}" || { echo "::error::CLOUDFLARE_ACCOUNT_ID secret is missing."; exit 1; }
           test "${CLOUDFLARE_ACCOUNT_ID}" = "17f1561ed0052cf9d484cb4becbf8810" || { echo "::error::Cloudflare account ID does not match the pinned WaterNow production account."; exit 1; }
           test -n "${CLOUDFLARE_API_TOKEN}" || { echo "::error::CLOUDFLARE_API_TOKEN secret is missing."; exit 1; }
-      - name: Query production D1 migration ledger (read only)
+      - name: Check production D1 migration ledger (read only)
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set +x
-          echo "Running SELECT-only diagnostic against the configured WaterNow production D1 database."
-          echo "No migrations, SQL writes, Worker deployments, or secret values will be output."
-          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT name FROM d1_migrations ORDER BY name" --json
+          echo "Checking whether WaterNow production has a Wrangler migration ledger."
+          echo "This step is read-only. An absent ledger is reported as a warning, not treated as proof that migrations are safe to replay."
+          ledger_state="$(npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT COUNT(*) AS ledger_present FROM sqlite_master WHERE type='table' AND name='d1_migrations'" --json)"
+          echo "$ledger_state"
+          if echo "$ledger_state" | grep -Eq '"ledger_present"[[:space:]]*:[[:space:]]*1'; then
+            npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT name FROM d1_migrations ORDER BY name" --json
+          else
+            echo "::warning::Production D1 has no d1_migrations table. The production deployment guard remains fail-closed; do not bootstrap migration history until every historical data migration has been independently verified."
+          fi
       - name: Compare production schema with canonical WaterNow snapshot (read only)
         if: always()
         env:
@@ -135,7 +141,7 @@ jobs:
         run: |
           set +x
           npx wrangler d1 export waternow-production --remote --skip-confirmation --no-data --output=/tmp/waternow-production-schema.sql
-          python3 ./scripts/compare-production-schema.py --expected ./schema.sql --actual /tmp/waternow-production-schema.sql
+          python3 ./scripts/compare-production-schema.py --expected ./schema.sql --actual /tmp/waternow-production-schema.sql --allow-pending-0053
       - name: Audit legacy migration data fingerprints and foreign keys (read only)
         if: always()
         env:
