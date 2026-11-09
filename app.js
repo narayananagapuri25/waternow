@@ -14,7 +14,7 @@ const customerOrderDisplay=window.FreshWayCustomerOrderDisplay;
 const customerCartView=window.FreshWayCustomerCartView;
 const customerFeedback=window.FreshWayCustomerFeedback;
 const customerProductView=window.WaterNowCustomerProductView;
-const customerNavigation=window.FreshWayCustomerNavigation;
+const customerNavigation=window.WaterNowCustomerNavigation;
 const customerModal=window.FreshWayCustomerModal;
 const customerKeyboard=window.FreshWayCustomerKeyboard;
 const customerAddress=window.FreshWayCustomerAddress;
@@ -91,7 +91,7 @@ let customerFreshness=null;
 function handleView(name){if(name==='orders'){renderOrders();customerOrderData.load();customerOrderData.start()}else customerOrderData.stop();if(name==='cart')renderCart();if(name==='checkout'){prefillCheckout();updateCartBar();window.FreshWayAddressSystem?.syncCheckout?.();const quoteRefresh=window.FreshWayCustomerDeliveryOffers?.refreshCheckoutQuote?.(cartItems(),money);const availabilityCheck=customerDeliveryBooking?.checkAvailability?.();Promise.resolve(availabilityCheck).then(result=>result?.status==='empty'?Promise.resolve(quoteRefresh).then(()=>customerDeliveryBooking?.checkAvailability?.()):result).catch(error=>console.warn('FreshWay delivery availability refresh failed:',error?.message||error))}if(name==='profile'){renderProfile();window.FreshWayAddressSystem?.renderDisplays?.();customerMessages?.refreshBadge?.()}if(name==='messages')customerMessages?.load();if(name==='about'||name==='contact')customerStoreInfo?.show(name,{api,toast}).catch(error=>toast(error.message));updateCartBar();customerFreshness?.onView(name)}
 const navigation=customerNavigation.create({document,onView:handleView,afterView:name=>window.FreshWaySeo?.setView(name)});
 customerFreshness=customerStateFreshness?.create({document,getView:()=>document.querySelector('.view.active-view')?.id?.replace(/View$/,'')||'home',refreshCatalogue:()=>window.freshWayCustomerCatalogueRefresh?.(),refreshOrders:()=>customerOrderData.load(),refreshPromotions:()=>customerPromotions?.refresh?.(),renderProfile});
-function setView(name,options){if(name==='home'&&options?.history!=='none')window.freshWayCustomerCatalogueGoHome?.();navigation.setView(name,options)}
+function setView(name,options){if(name==='home'&&options?.history!=='none')window.waterNowCustomerCatalogueGoHome?.();navigation.setView(name,options)}
 function changeQty(id,delta){const key=String(id);const current=Number(state.cart[key]||0);const next=catalogueCart.nextQuantity(current,delta);if(delta>0&&current>=99){toast('Maximum quantity is 99');return}if(next<=0){delete state.cart[key];cartPersistence.removeProduct(key)}else{state.cart[key]=next;const product=PRODUCTS.find(item=>String(item.id)===key);if(product)cartPersistence.rememberProduct(key,product)}save();renderProducts('');if($('#cartView')?.classList.contains('active-view'))renderCart();if($('#checkoutView')?.classList.contains('active-view'))void customerDeliveryBooking?.refreshCheckout?.()}
 function buyAgain(b){
 const o=state.orders.find(x=>String(x.id)===b.dataset.customerOrderBuyAgain);if(!o){toast('Order not found.');return}
