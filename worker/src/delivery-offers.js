@@ -1,7 +1,7 @@
 import { getStoreProductRows } from './store-catalogue.js';
 
 // Delivery rules and fixed-amount coupon management.
-// All monetary values follow the existing FreshWay convention: whole rupees in D1.
+// All monetary values follow the existing WaterNow convention: whole rupees in D1.
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store' }
