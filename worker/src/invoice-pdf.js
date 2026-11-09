@@ -93,8 +93,8 @@ function drawRupee(page,x,baseline,size,color){
 }
 async function createReceiptPdf(invoice){
   const doc=await PDFDocument.create();
-  doc.setTitle('FreshWay commercial order record '+invoice.invoiceNumber);
-  doc.setAuthor(safe(invoice.seller.legalName||invoice.seller.storeName||'FreshWay'));
+  doc.setTitle('WaterNow commercial order record '+invoice.invoiceNumber);
+  doc.setAuthor(safe(invoice.seller.legalName||invoice.seller.storeName||'WaterNow'));
   doc.setSubject('Order '+invoice.orderId);
   const regular=await doc.embedFont(StandardFonts.Helvetica),bold=await doc.embedFont(StandardFonts.HelveticaBold);
   const contentWidth=PAGE_W-MARGIN*2;
@@ -131,14 +131,14 @@ async function createReceiptPdf(invoice){
   const paymentStatusLabel=normalizeInvoicePaymentStatus(invoice.buyer.paymentStatus);
   const balanceDuePaise=paymentStatusLabel==='Not Collected'?totalPaise:0;
   const totalItems=(invoice.items||[]).reduce((sum,item)=>sum+Math.max(0,Number(item.qty)||0),0);
-  const sellerName=invoice.seller.legalName||invoice.seller.storeName||'FreshWay';
+  const sellerName=invoice.seller.legalName||invoice.seller.storeName||'WaterNow';
   const sellerPhone=formatSellerPhone(invoice.seller.phone);
   const title='COMMERCIAL RECEIPT / ORDER RECORD';
   let page,y,pageNo=0;
 
   const footer=()=>{
     line(page,MARGIN,43,PAGE_W-MARGIN,43,LINE,0.7);
-    drawText(page,'FreshWay | Non-GST commercial order record',MARGIN,29,7,regular,MUTED);
+    drawText(page,'WaterNow | Non-GST commercial order record',MARGIN,29,7,regular,MUTED);
     drawRight(page,'Page '+pageNo,PAGE_W-MARGIN,29,7,regular,MUTED);
   };
   const newPage=(continued=false)=>{
@@ -146,7 +146,7 @@ async function createReceiptPdf(invoice){
     page=doc.addPage([PAGE_W,PAGE_H]);
     pageNo++;
     rect(page,0,PAGE_H-86,PAGE_W,86,GREEN);
-    drawText(page,'FreshWay',MARGIN,PAGE_H-40,22,bold,WHITE);
+    drawText(page,'WaterNow',MARGIN,PAGE_H-40,22,bold,WHITE);
     drawText(page,'Eat Fresh, Stay Healthy',MARGIN,PAGE_H-59,8.5,regular,WHITE);
     drawRight(page,title,PAGE_W-MARGIN,PAGE_H-39,12.5,bold,WHITE);
     drawRight(page,invoice.invoiceNumber,PAGE_W-MARGIN,PAGE_H-58,8.5,regular,WHITE);
@@ -273,7 +273,7 @@ async function createReceiptPdf(invoice){
   drawText(page,paymentStatusLabel==='Not Collected'?'Collect on delivery':'No balance due',paymentCol2,y-42,7.4,regular,MUTED);
   y-=paymentBoxHeight+13;
 
-  const noteText='NON-GST COMMERCIAL ORDER RECORD - NOT A GST TAX INVOICE OR BILL OF SUPPLY. '+(invoice.seller.footer||'Thank you for shopping with FreshWay.');
+  const noteText='NON-GST COMMERCIAL ORDER RECORD - NOT A GST TAX INVOICE OR BILL OF SUPPLY. '+(invoice.seller.footer||'Thank you for shopping with WaterNow.');
   const noteLines=wrap(noteText,regular,7.6,contentWidth-22).slice(0,2);
   const noteHeight=23+noteLines.length*10;
   rect(page,MARGIN,y-noteHeight,contentWidth,noteHeight,PALE);
@@ -292,8 +292,8 @@ const formalDateText=value=>{
 };
 async function createFormalInvoicePdf(invoice){
   const doc=await PDFDocument.create();
-  doc.setTitle('FreshWay '+invoice.documentType.replaceAll('_',' ')+' '+invoice.invoiceNumber);
-  doc.setAuthor(safe(invoice.seller.legalName||'FreshWay'));
+  doc.setTitle('WaterNow '+invoice.documentType.replaceAll('_',' ')+' '+invoice.invoiceNumber);
+  doc.setAuthor(safe(invoice.seller.legalName||'WaterNow'));
   doc.setSubject('Order '+invoice.orderId);
   const regular=await doc.embedFont(StandardFonts.Helvetica),bold=await doc.embedFont(StandardFonts.HelveticaBold);
   const drawText=(page,text,x,y,size=9,font=regular,color=INK)=>page.drawText(safe(text),{x,y,size,font,color});
@@ -302,11 +302,11 @@ async function createFormalInvoicePdf(invoice){
   const rect=(page,x,y,width,height,color)=>page.drawRectangle({x,y,width,height,color});
   const title=invoice.documentType==='gst_tax_invoice'?'TAX INVOICE':invoice.documentType==='bill_of_supply'?'BILL OF SUPPLY':'COMMERCIAL INVOICE';
   let page,y,pageNo=0;
-  const footer=()=>{line(page,MARGIN,45,PAGE_W-MARGIN,45);drawText(page,invoice.seller.footer||'Thank you for shopping with FreshWay.',MARGIN,30,8,regular,MUTED);drawRight(page,'Page '+pageNo,PAGE_W-MARGIN,30,8,regular,MUTED)};
+  const footer=()=>{line(page,MARGIN,45,PAGE_W-MARGIN,45);drawText(page,invoice.seller.footer||'Thank you for shopping with WaterNow.',MARGIN,30,8,regular,MUTED);drawRight(page,'Page '+pageNo,PAGE_W-MARGIN,30,8,regular,MUTED)};
   const newPage=()=>{
     if(page)footer();page=doc.addPage([PAGE_W,PAGE_H]);pageNo++;
     rect(page,0,PAGE_H-84,PAGE_W,84,GREEN);
-    drawText(page,'FreshWay',MARGIN,PAGE_H-42,22,bold,WHITE);
+    drawText(page,'WaterNow',MARGIN,PAGE_H-42,22,bold,WHITE);
     drawText(page,'Eat Fresh, Stay Healthy',MARGIN,PAGE_H-61,8,regular,WHITE);
     drawRight(page,title,PAGE_W-MARGIN,PAGE_H-43,14,bold,WHITE);
     drawRight(page,invoice.invoiceNumber,PAGE_W-MARGIN,PAGE_H-61,8,regular,WHITE);
