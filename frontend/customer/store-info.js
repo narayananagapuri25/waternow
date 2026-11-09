@@ -49,8 +49,8 @@
 
   function brandHero(root,name){
     const hero=document.createElement('section');hero.className='store-about-hero';
-    hero.innerHTML='<img class="store-about-logo" alt=""><div><span class="eyebrow">FRESHWAY</span><h2></h2><p>Fresh groceries & everyday essentials</p></div>';
-    const img=hero.querySelector('img');img.src='freshway-logo-master.webp?v=20261008-master-v1';img.alt=name+' logo';
+    hero.innerHTML='<img class="store-about-logo" alt=""><div><span class="eyebrow">WATERNOW</span><h2></h2><p>Pure drinking water, delivered locally</p></div>';
+    const img=hero.querySelector('img');img.src='waternow-logo.svg';img.alt=name+' logo';
     hero.querySelector('h2').textContent=name;
     root.appendChild(hero);
   }
@@ -58,15 +58,15 @@
   function renderAbout(profile){
     const root=q('aboutContent');if(!root)return;
     root.replaceChildren();
-    const name=clean(profile.storeName)||'FreshWay';
+    const name=clean(profile.storeName)||'WaterNow';
     text('aboutTitle','About '+name);
     brandHero(root,name);
 
     root.appendChild(
       infoSection(
-        'ABOUT FRESHWAY',
-        clean(profile.about)||('Welcome to '+name+'. Shop fresh groceries and everyday essentials through the FreshWay app.'),
-        '🥬',
+        'ABOUT WATERNOW',
+        clean(profile.about)||('Welcome to '+name+'. Shop drinking water from trusted local suppliers through the WaterNow app.'),
+        '💧',
         'store-info-about'
       )
     );
@@ -91,7 +91,7 @@
     if(details.children.length)root.appendChild(details);
 
     const contactLink=document.createElement('a');contactLink.className='store-contact-cta';contactLink.href='#';
-    contactLink.textContent='Need help? Contact FreshWay →';
+    contactLink.textContent='Need help? Contact WaterNow →';
     contactLink.onclick=e=>{e.preventDefault();window.setView?.('contact');};
     root.appendChild(contactLink);
   }
@@ -99,16 +99,16 @@
   async function renderContact(profile,api,toast){
     const root=q('contactContent');if(!root)return;
     root.replaceChildren();
-    const name=clean(profile.storeName)||'FreshWay';
+    const name=clean(profile.storeName)||'WaterNow';
     text('contactTitle','Contact Us');
-    intro(root,'GET IN TOUCH','Reach FreshWay','Choose the quickest way to get in touch, or send us a message here.');
+    intro(root,'GET IN TOUCH','Reach WaterNow','Choose the quickest way to get in touch, or send us a message here.');
     const actions=document.createElement('div');actions.className='store-action-grid store-contact-actions';
     [['Call',profile.phone,telHref(profile.phone),'☎️'],['WhatsApp',profile.whatsapp||profile.phone,waHref(profile.whatsapp||profile.phone),'💬'],['Email',profile.email,mailHref(profile.email),'✉️']].forEach(x=>{
       const a=action(x[0],x[1],x[2],x[3]);if(a)actions.appendChild(a);
     });
     if(actions.children.length)root.appendChild(actions);
     const formSection=document.createElement('section');formSection.className='fw-customer-message-compose';
-    formSection.innerHTML='<div class="fw-customer-message-compose-head"><span class="eyebrow">MESSAGE US</span><h2>Send a message</h2><p>We’ll reply in FreshWay. Open Profile → Messages to read our response.</p></div><form data-customer-message-form><label>Subject<input name="subject" required minlength="3" maxlength="120" autocomplete="off" placeholder="e.g. Product question"></label><label>Your message<textarea name="message" required minlength="5" maxlength="2000" rows="4" placeholder="Tell us how we can help (max 2,000 characters)"></textarea></label><p class="fw-customer-message-form-status" data-compose-status role="status" aria-live="polite"></p><button class="primary-btn full" type="submit" data-compose-submit>Send message</button></form><button class="text-btn" type="button" data-compose-messages>View messages and replies →</button>';
+    formSection.innerHTML='<div class="fw-customer-message-compose-head"><span class="eyebrow">MESSAGE US</span><h2>Send a message</h2><p>We’ll reply in WaterNow. Open Profile → Messages to read our response.</p></div><form data-customer-message-form><label>Subject<input name="subject" required minlength="3" maxlength="120" autocomplete="off" placeholder="e.g. Product question"></label><label>Your message<textarea name="message" required minlength="5" maxlength="2000" rows="4" placeholder="Tell us how we can help (max 2,000 characters)"></textarea></label><p class="fw-customer-message-form-status" data-compose-status role="status" aria-live="polite"></p><button class="primary-btn full" type="submit" data-compose-submit>Send message</button></form><button class="text-btn" type="button" data-compose-messages>View messages and replies →</button>';
     root.appendChild(formSection);
     const form=formSection.querySelector('[data-customer-message-form]'),submit=formSection.querySelector('[data-compose-submit]'),status=formSection.querySelector('[data-compose-status]');
     const setStatus=(message,isError=false)=>{status.textContent=message;status.classList.toggle('is-error',isError);};
@@ -124,13 +124,13 @@
         try{result=await api('/api/customer/messages',options);}
         catch(error){
           if(Number(error?.status)!==401)throw error;
-          await window.FreshWayCustomerAuth?.login?.();
+          await window.WaterNowCustomerAuth?.login?.();
           result=await api('/api/customer/messages',options);
         }
         form.reset();
         setStatus(result.message||'Message sent. We’ll reply in Profile → Messages.');
-        window.FreshWayCustomerMessages?.refreshBadge?.();
-        if(typeof toast==='function')toast('Message sent to FreshWay');
+        window.WaterNowCustomerMessages?.refreshBadge?.();
+        if(typeof toast==='function')toast('Message sent to WaterNow');
       }catch(error){setStatus(error.message||'Could not send your message. Please try again.',true);}
       finally{submit.disabled=false;}
     });
@@ -142,7 +142,7 @@
       document.head.appendChild(style);
     }
     const hint=document.createElement('a');hint.className='store-contact-note';hint.href='#';
-    hint.innerHTML='<strong>Need store details?</strong><p>View the address, business hours and delivery information.</p><span>About FreshWay →</span>';
+    hint.innerHTML='<strong>Need store details?</strong><p>View the address, business hours and delivery information.</p><span>About WaterNow →</span>';
     hint.onclick=e=>{e.preventDefault();window.setView?.('about');};
     root.appendChild(hint);
     if(!actions.children.length)root.insertBefore(infoSection('CONTACT','Contact information will appear here once the store profile is completed.','☎️'),formSection);
@@ -157,5 +157,5 @@
     return profile;
   }
 
-  window.FreshWayCustomerStoreInfo=Object.freeze({show,renderAbout,renderContact,mapHref,validShopCoordinates,get lastProfile(){return lastProfile;}});
+  window.WaterNowCustomerStoreInfo=Object.freeze({show,renderAbout,renderContact,mapHref,validShopCoordinates,get lastProfile(){return lastProfile;}});
 })();
