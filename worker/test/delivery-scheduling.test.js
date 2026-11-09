@@ -62,7 +62,7 @@ test('store distance uses a bounded Haversine distance and rejects invalid coord
 
 test('delivery slot endpoint stays safely disabled until Owner configures scheduling', async () => {
   const env = envWithSettings({ id: 1, enabled: 0, booking_horizon_days: 7, same_day_cutoff_minutes: 120, timezone: 'Asia/Kolkata' });
-  const request = new Request('https://freshway.example/api/delivery/slots', {
+  const request = new Request('https://waternow.example/api/delivery/slots', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ date: '2026-10-27', items: [{ id: 'rice', qty: 1 }], address: {} })
   });
@@ -86,7 +86,7 @@ test('delivery slot endpoint fails closed without leaking database schema errors
       }
     }
   };
-  const request = new Request('https://freshway.example/api/delivery/slots', {
+  const request = new Request('https://waternow.example/api/delivery/slots', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ address: {}, items: [{ id: 'rice', qty: 1 }] })
   });
@@ -158,7 +158,7 @@ test('customer checkout and My Orders use a simple preferred delivery date and a
   assert.ok(html.includes('frontend/customer/delivery-booking.js'));
   assert.ok(html.includes('frontend/customer/order-actions.js'));
   assert.ok(app.includes('FreshWayCustomerDeliveryBookingInstance'));
-  assert.ok(app.includes('freshway:order-actions-changed'));
+  assert.ok(app.includes('waternow:order-actions-changed'));
   assert.ok(picker.includes('Choose delivery day'));
   assert.ok(picker.includes('Tomorrow'));
   assert.ok(picker.includes('Choose date'));
