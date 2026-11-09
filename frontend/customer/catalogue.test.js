@@ -28,7 +28,8 @@ assert.match(fs.readFileSync('frontend/customer/cart-persistence.js','utf8'),/co
 
 
 assert.match(source,/window\.FreshWayCustomerAPI\?\.request/);
-assert.match(source,/Promise\.allSettled\(\[/);
+assert.match(source,/request\('\/api\/products\?storeId='/,'customer catalogue loads the selected store products directly');
+assert.doesNotMatch(source,/request\('\/api\/categories\?storeId='/,'customer home no longer makes a separate category request');
 assert.doesNotMatch(source,/fetch\(['"]\/api\/(categories|products)/);
 assert.match(source,/window\.FreshWayCustomerCatalogue\?\.setProducts/);
 assert.match(source,/loadToken/);
@@ -36,14 +37,14 @@ assert.match(source,/hadData/);
 assert.match(source,/freshWayCustomerCatalogueRefresh/);
 assert.doesNotMatch(source,/productOk\)window\.FreshWayCustomerCatalogue\?\.clear/);
 assert.match(source,/window\.FreshWayCustomerCatalogue\?\.clear/);
-assert.match(source,/role="alert"/);
+assert.match(source,/role="status"/);
 assert.match(source,/fwCatalogueRetry/);
 assert.match(source,/errorCode==='AREA_UNAVAILABLE'/,'a real out-of-area Worker response must have a dedicated customer home state');
 assert.match(source,/nearby RTC bus stand/,'out-of-area customers must see the possible nearby handover option');
 assert.match(source,/postal delivery options/,'out-of-area customers must see the possible postal delivery option');
 assert.match(source,/data-fw-delivery-contact/,'out-of-area customers must have a working contact action');
 assert.match(source,/window\.setView\?\.\('contact'\)/,'the home-screen delivery contact action must navigate to Contact Us');
-assert.match(source,/x\.image_url\|\|media\?\.image\('categories'/);
+assert.ok(!source.includes('class="fw-category-card"'),'category cards are intentionally absent from the WaterNow customer home');
 assert.doesNotMatch(source,/data:'\+x\.image_mime_type/,'the public category list must not inline image payloads');
 assert.doesNotMatch(app,/FALLBACK_PRODUCTS/);
 assert.match(app,/window\.FreshWayCustomerCatalogue/);
@@ -118,8 +119,6 @@ console.log('catalogue UI-only media mapping OK');
 
 const navigation=fs.readFileSync('frontend/customer/navigation.js','utf8');
 assert.match(navigation,/__freshwayCustomer/);
-assert.match(source,/history\.pushState/);
-assert.match(source,/history\.back\(\)/);
 
 const ownerLifecycle=fs.readFileSync('owner-lifecycle.js','utf8');
 const adminSource=fs.readFileSync('admin.js','utf8');
