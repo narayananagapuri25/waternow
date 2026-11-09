@@ -76,7 +76,7 @@ async function validateOrderItems(env, rawItems, storeId = '') {
 
 function scheduleOrderAlerts(ctx, env, alerts) {
   const work = Promise.all(alerts.map(alert => dispatchOrderAlert(env, alert).catch(error => {
-    console.error('FreshWay order alert failed:', error?.message || error);
+    console.error('WaterNow order alert failed:', error?.message || error);
     return { status: 'failed', sent: 0, failed: 0 };
   })));
   if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(work);
@@ -265,7 +265,7 @@ async function updateOrder(env,id,payload){
   if(!classificationOnlyChange){
     const after={...current,delivery_status:status||current.delivery_status,payment_status:payment||current.payment_status,delivery_plan:deliveryPlan||current.delivery_plan,is_test_order:nextTestFlag};
     const alerts=buildOrderChangeAlerts(id,current,after,`${Date.now()}-${Math.random().toString(36).slice(2,8)}`);
-    try{await Promise.all(alerts.map(alert=>dispatchOrderAlert(env,alert)))}catch(error){console.error('FreshWay order status alert failed:',error?.message||error)}
+    try{await Promise.all(alerts.map(alert=>dispatchOrderAlert(env,alert)))}catch(error){console.error('WaterNow order status alert failed:',error?.message||error)}
   }
   return {ok:true,status:status||current.delivery_status,payment:payment||current.payment_status,deliveryPlan:deliveryPlan||current.delivery_plan,isTestOrder:nextTestFlag,testClassificationChanged};
 }
@@ -380,7 +380,7 @@ async function broadcastPush(env,payload){
   }));
   if(dead.size){
     try{await env.DB.batch([...dead].map(endpoint=>env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint=?').bind(endpoint)))}
-    catch(error){console.error('FreshWay invalid push subscriptions could not be cleaned up:',error?.message||error)}
+    catch(error){console.error('WaterNow invalid push subscriptions could not be cleaned up:',error?.message||error)}
   }
   await env.DB.prepare('INSERT INTO notification_log (channel,title,body,recipient_count,success_count,failure_count) VALUES (?,?,?,?,?,?)').bind('app',payload.title||'WaterNow',payload.body||'',subscriptions.length,success,failure).run();
   return{channel:'app',recipients:subscriptions.length,success,failure};
