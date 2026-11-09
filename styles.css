@@ -151,3 +151,4 @@ html.fw-cart-bar-visible main{padding-bottom:calc(184px + env(safe-area-inset-bo
 .store-info-about{margin-top:0}
 
 .order-card.notification-target-order{border-color:#0f7a4b;box-shadow:0 0 0 3px rgba(15,122,75,.12)}
+.cart-product-media-empty{display:block;background:linear-gradient(145deg,#f4f8f5,#eef5f1);border:1px solid #e7eee9}
