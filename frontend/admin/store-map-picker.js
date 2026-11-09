@@ -80,7 +80,7 @@
     }
     function searchLocation(){
       if(lookupBusy)return;
-      const query=String(search?.value||address?.value||'').trim();
+      const query=String(address?.value||search?.value||'').trim();
       if(!query){setStatus('Enter the store address first, then select Find on map.');return;}
       lookupBusy=true;
       if(searchButton)searchButton.disabled=true;
@@ -110,6 +110,8 @@
       map.on('click',event=>setPin(event.latlng.lat,event.latlng.lng));
       radius?.addEventListener('input',updateRadius);
       searchButton?.addEventListener('click',searchLocation);
+      search?.addEventListener('input',()=>{if(address)address.value=search.value;});
+      address?.addEventListener('input',()=>{if(search)search.value=address.value;});
       search?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();searchLocation();}});
       currentButton?.addEventListener('click',()=>{
         if(!navigator.geolocation){setStatus('Your browser does not support current-location detection. Tap the map to place the pin.');return;}
