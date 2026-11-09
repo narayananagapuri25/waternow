@@ -11,6 +11,7 @@ test('Owner store map supports tap-to-pin, marker dragging, address search, geol
     return route.fulfill({
       status: 200,
       contentType: 'application/json',
+      headers: { 'access-control-allow-origin': '*' },
       body: JSON.stringify([{
         lat: '17.422222',
         lon: '78.544444',
