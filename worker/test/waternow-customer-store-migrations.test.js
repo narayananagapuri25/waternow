@@ -6,6 +6,7 @@ import test from 'node:test';
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const m55 = read('../migrations/0055_waternow_legacy_10l_pack.sql');
 const m56 = read('../migrations/0056_waternow_boduppal_store.sql');
+const m57 = read('../migrations/0057_waternow_store_inventory_source.sql');
 
 function database() {
   const db = new DatabaseSync(':memory:');
@@ -75,5 +76,25 @@ test('0056 creates an inactive Boduppal placeholder and never invents store inve
     assert.equal(db.prepare('SELECT COUNT(*) count FROM delivery_store_catalogue').get().count, 2);
     assert.equal(db.prepare('SELECT COUNT(*) count FROM delivery_store_inventory').get().count, 2);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
+  } finally { db.close(); }
+});
+
+
+test('0057 activates Boduppal directly and clears the obsolete global stock quantity', () => {
+  const db = database();
+  try {
+    db.exec(m55);
+    db.exec(m56);
+    db.exec(m57);
+    const store = db.prepare("SELECT is_active FROM delivery_stores WHERE id='waternow-boduppal'").get();
+    assert.equal(store.is_active,1,'the store status must follow the explicit activation migration');
+    const global = db.prepare('SELECT SUM(stock_quantity) quantity FROM products').get();
+    assert.equal(global.quantity,0,'the legacy central quantity is no longer a stock source');
+    const local = db.prepare("SELECT SUM(stock_quantity) quantity FROM delivery_store_inventory WHERE store_id='waternow-boduppal'").get();
+    assert.equal(local.quantity,0,'activation must not invent physical store stock');
+    db.exec(m57);
+    assert.equal(db.prepare("SELECT is_active FROM delivery_stores WHERE id='waternow-boduppal'").get().is_active,1);
+    assert.equal(db.prepare('SELECT SUM(stock_quantity) quantity FROM products').get().quantity,0);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
   } finally { db.close(); }
 });
