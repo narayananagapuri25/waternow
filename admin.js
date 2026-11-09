@@ -1,6 +1,6 @@
-const TEST_ORDER_MODE_KEY='freshway-owner-test-orders-mode-v1';
+const TEST_ORDER_MODE_KEY='waternow-owner-test-orders-mode-v1';
 function readTestOrderMode(){try{return sessionStorage.getItem(TEST_ORDER_MODE_KEY)==='1'}catch(_){return false}}
-let orders=[],customers=[],products=[],orderPage=1,customerPage=1,deliveryPage=1,testOrderMode=readTestOrderMode();let orderLoading=false,customerLoading=false,deliveryLoading=false;let orderLoadSequence=0,orderLoadPending=false;const PAGE=25;const AUTH_HINT='freshway-admin-auth';const LEGACY_SESSION_KEY='freshway-admin-session';const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));const displayPhone=v=>window.FreshWayPhoneDisplay?.format(v)||String(v??'').trim();const money=n=>`₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0})}`;const norm=v=>String(v??'').toLowerCase();const session=()=>{try{sessionStorage.removeItem(LEGACY_SESSION_KEY);localStorage.removeItem(LEGACY_SESSION_KEY);return sessionStorage.getItem(AUTH_HINT)==='1'||localStorage.getItem(AUTH_HINT)==='1'?'1':''}catch(_){return''}};const persistSession=()=>{try{sessionStorage.setItem(AUTH_HINT,'1');localStorage.setItem(AUTH_HINT,'1');sessionStorage.removeItem(LEGACY_SESSION_KEY);localStorage.removeItem(LEGACY_SESSION_KEY)}catch(_){}};const clearSession=()=>{try{sessionStorage.removeItem(AUTH_HINT);localStorage.removeItem(AUTH_HINT);sessionStorage.removeItem(LEGACY_SESSION_KEY);localStorage.removeItem(LEGACY_SESSION_KEY)}catch(_){} };
+let orders=[],customers=[],products=[],orderPage=1,customerPage=1,deliveryPage=1,testOrderMode=readTestOrderMode();let orderLoading=false,customerLoading=false,deliveryLoading=false;let orderLoadSequence=0,orderLoadPending=false;const PAGE=25;const AUTH_HINT='waternow-admin-auth';const LEGACY_SESSION_KEY='freshway-admin-session';const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));const displayPhone=v=>window.FreshWayPhoneDisplay?.format(v)||String(v??'').trim();const money=n=>`₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0})}`;const norm=v=>String(v??'').toLowerCase();const session=()=>{try{sessionStorage.removeItem(LEGACY_SESSION_KEY);localStorage.removeItem(LEGACY_SESSION_KEY);const authenticated=sessionStorage.getItem(AUTH_HINT)==='1'||localStorage.getItem(AUTH_HINT)==='1'||sessionStorage.getItem('freshway-admin-auth')==='1'||localStorage.getItem('freshway-admin-auth')==='1';if(authenticated){sessionStorage.setItem(AUTH_HINT,'1');localStorage.setItem(AUTH_HINT,'1');sessionStorage.removeItem('freshway-admin-auth');localStorage.removeItem('freshway-admin-auth')}return authenticated?'1':''}catch(_){return''}};const persistSession=()=>{try{sessionStorage.setItem(AUTH_HINT,'1');localStorage.setItem(AUTH_HINT,'1');sessionStorage.removeItem('freshway-admin-auth');localStorage.removeItem('freshway-admin-auth');sessionStorage.removeItem(LEGACY_SESSION_KEY);localStorage.removeItem(LEGACY_SESSION_KEY)}catch(_){}};const clearSession=()=>{try{sessionStorage.removeItem(AUTH_HINT);localStorage.removeItem(AUTH_HINT);sessionStorage.removeItem('freshway-admin-auth');localStorage.removeItem('freshway-admin-auth');sessionStorage.removeItem(LEGACY_SESSION_KEY);localStorage.removeItem(LEGACY_SESSION_KEY)}catch(_){} };
 async function api(path,opt={}){const h={'Content-Type':'application/json',...(opt.headers||{})};const r=await fetch(`/api${path}`,{...opt,cache:'no-store',credentials:'include',headers:h});const d=await r.json().catch(()=>({}));if(r.status===401){clearSession();auth(false)}if(!r.ok)throw Error(d.error?(d.errorId?`${d.error} (Reference: ${d.errorId})`:d.error):`Request failed (${r.status})`);return d}
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(window.__toast);setTimeout(()=>t.classList.remove('show'),2600)}
 function ownerOverlayElement(){
@@ -9,13 +9,13 @@ function ownerOverlayElement(){
 function openOwnerOverlay(el){
   if(!el)return;
   const wasOpen=!!ownerOverlayElement();
-  if(wasOpen)history.replaceState({...history.state,__freshwayOwnerOverlay:true},'',location.href);
-  else history.pushState({...history.state,__freshwayOwnerOverlay:true},'',location.href);
+  if(wasOpen)history.replaceState({...history.state,__waterNowOwnerOverlay:true},'',location.href);
+  else history.pushState({...history.state,__waterNowOwnerOverlay:true},'',location.href);
   el.classList.remove('hidden');
 }
 function closeOwnerOverlay(el){
   if(!el)return;
-  if(history.state?.__freshwayOwnerOverlay){history.back();return}
+  if(history.state?.__waterNowOwnerOverlay){history.back();return}
   el.classList.add('hidden');
 }
 function closeOwnerOverlayNow(){
@@ -32,7 +32,7 @@ function navigateAdminScreen(id,{historyMode='push',deferOrdersLoad=false}={}){
  if(window.FreshWayOwnerDeliveryOffers?.beforeNavigate&&!window.FreshWayOwnerDeliveryOffers.beforeNavigate())return false;
  const previousState=history.state||{};
  const screen=setAdminScreenVisual(id);
- const state={__freshwayOwner:true,screen};
+ const state={__waterNowOwner:true,screen};
  if(historyMode==='push'){
   const leavingStoreWorkspace=screen==='stores'&&currentScreen==='stores'&&!!previousState.storeId;
   if(currentScreen!==screen||leavingStoreWorkspace)history.pushState(state,'','#'+screen);
@@ -251,18 +251,18 @@ function bind(){document.addEventListener('click',e=>{const attention=e.target.c
 function debounce(fn,ms=300){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
 async function saveToken(){const token=$('#adminToken').value.trim();if(!token)return toast('Enter the Worker ADMIN_TOKEN');try{const d=await api('/admin/login',{method:'POST',body:JSON.stringify({token})});persistSession();$('#adminToken').value='';auth(true);window.dispatchEvent(new Event('freshway:admin-authenticated'));await bootstrap()}catch(e){toast(e.message);auth(false)}}
 async function logout(){try{await api('/admin/logout',{method:'POST'})}catch(_){}clearSession();auth(false);toast('Signed out')}
-async function bootstrap(force=false){if(!session()&&!force)return;const target=setAdminScreenVisual(location.hash.slice(1)||'overview');try{if(target==='overview'){await Promise.all([loadSummary(),loadBusiness(),loadHome()]);}else if(target==='settings'){await loadStoreProfileSettings();}else if(target==='orders'){await loadOrders(true);const pendingOrderId=new URL(location.href).searchParams.get('openOrder');if(pendingOrderId){await showOrder(pendingOrderId);const targetUrl=new URL(location.href);targetUrl.searchParams.delete('openOrder');history.replaceState({...history.state,__freshwayOwner:true,screen:'orders'},'',targetUrl.pathname+targetUrl.search+'#orders')}}else if(target==='delivery'){await loadDelivery(true);await window.FreshWayOwnerDeliveryManagement?.load();}else if(target==='suppliers'){await window.FreshWayOwnerWaterNetwork?.load();}else if(target==='stores'){await window.FreshWayOwnerStoreManagement?.load();const restoreStoreId=history.state?.__freshwayOwner&&history.state?.screen==='stores'?history.state?.storeId:null;if(restoreStoreId)await window.FreshWayOwnerStoreManagement?.open(restoreStoreId);}else if(target==='requests'){await window.FreshWayOwnerCustomerRequests?.load();}else if(target==='messages'){await window.FreshWayOwnerCustomerMessages?.load();}else if(target==='cash'){await loadCash();}else if(target==='customers'){await loadCustomers(true);}else if(target==='catalogue'){/* The dedicated frontend/admin/catalogue.js module owns this screen. Do not render the legacy product list on reload. */}else if(target==='notifications'){await loadHistory();await window.FreshWayOwnerPushManagement?.loadCatalogue();}else if(target==='owner-alert-history'){/* Transactional alert module owns this paginated screen. */}else if(target==='reports'){await loadReports();}else if(target==='offers'){await window.FreshWayOwnerDeliveryOffers?.load();}auth(true);}catch(e){if(/Unauthorized/i.test(e.message)){clearSession();auth(false)}else toast(e.message)}}
+async function bootstrap(force=false){if(!session()&&!force)return;const target=setAdminScreenVisual(location.hash.slice(1)||'overview');try{if(target==='overview'){await Promise.all([loadSummary(),loadBusiness(),loadHome()]);}else if(target==='settings'){await loadStoreProfileSettings();}else if(target==='orders'){await loadOrders(true);const pendingOrderId=new URL(location.href).searchParams.get('openOrder');if(pendingOrderId){await showOrder(pendingOrderId);const targetUrl=new URL(location.href);targetUrl.searchParams.delete('openOrder');history.replaceState({...history.state,__waterNowOwner:true,screen:'orders'},'',targetUrl.pathname+targetUrl.search+'#orders')}}else if(target==='delivery'){await loadDelivery(true);await window.FreshWayOwnerDeliveryManagement?.load();}else if(target==='suppliers'){await window.FreshWayOwnerWaterNetwork?.load();}else if(target==='stores'){await window.FreshWayOwnerStoreManagement?.load();const restoreStoreId=history.state?.__waterNowOwner&&history.state?.screen==='stores'?history.state?.storeId:null;if(restoreStoreId)await window.FreshWayOwnerStoreManagement?.open(restoreStoreId);}else if(target==='requests'){await window.FreshWayOwnerCustomerRequests?.load();}else if(target==='messages'){await window.FreshWayOwnerCustomerMessages?.load();}else if(target==='cash'){await loadCash();}else if(target==='customers'){await loadCustomers(true);}else if(target==='catalogue'){/* The dedicated frontend/admin/catalogue.js module owns this screen. Do not render the legacy product list on reload. */}else if(target==='notifications'){await loadHistory();await window.FreshWayOwnerPushManagement?.loadCatalogue();}else if(target==='owner-alert-history'){/* Transactional alert module owns this paginated screen. */}else if(target==='reports'){await loadReports();}else if(target==='offers'){await window.FreshWayOwnerDeliveryOffers?.load();}auth(true);}catch(e){if(/Unauthorized/i.test(e.message)){clearSession();auth(false)}else toast(e.message)}}
 window.addEventListener('popstate',event=>{
   if(ownerOverlayElement()){closeOwnerOverlayNow();return}
   const s=event.state;
   const current=document.querySelector('.screen.active')?.id||location.hash.slice(1)||'overview';
-  const requested=s?.__freshwayOwner?(s.screen||location.hash.slice(1)||'overview'):(location.hash.slice(1)||'overview');
+  const requested=s?.__waterNowOwner?(s.screen||location.hash.slice(1)||'overview'):(location.hash.slice(1)||'overview');
   const navigation=navigateAdminScreen(requested,{historyMode:'none'});
   // A cancelled confirmation happens after the browser has moved to the prior
   // entry. Restore the visible screen and, for Store management, its exact ID.
   if(navigation===false){
     const context=current==='stores'?(window.FreshWayOwnerStoreManagement?.historyContext?.()||{}):{};
-    const state={__freshwayOwner:true,screen:current,...context};
+    const state={__waterNowOwner:true,screen:current,...context};
     history.pushState(state,'','#'+current);
     return;
   }
@@ -270,11 +270,11 @@ window.addEventListener('popstate',event=>{
   const activeAfter=document.querySelector('.screen.active')?.id||'overview';
   if(activeAfter===current&&requested!==current){
     const context=current==='stores'?(window.FreshWayOwnerStoreManagement?.historyContext?.()||{}):{};
-    const state={__freshwayOwner:true,screen:current,...context};
+    const state={__waterNowOwner:true,screen:current,...context};
     history.pushState(state,'','#'+current);
   }
 });
-function initOwnerHistory(){const screen=location.hash.slice(1)||'overview';if(!history.state?.__freshwayOwner){const state={__freshwayOwner:true,screen};history.replaceState(state,'',location.href);history.pushState(state,'',location.href)}}
+function initOwnerHistory(){const screen=location.hash.slice(1)||'overview';if(!history.state?.__waterNowOwner){const state={__waterNowOwner:true,screen};history.replaceState(state,'',location.href);history.pushState(state,'',location.href)}}
 bind();
 function startOwnerApp(){
   // Supporting Owner modules are loaded by later script tags in admin.html.
