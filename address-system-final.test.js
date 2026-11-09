@@ -67,6 +67,9 @@ assert.match(source, /window\.FreshWayAddressGeocode/);
 assert.match(source, /fetch\('\/api\/geocode\/reverse\?lat='/, 'reverse geocoding must go through the same-origin Worker proxy');
 assert.doesNotMatch(source, /const preserve = labelFields\.map/, 'old address fields must not overwrite a newly geocoded location');
 assert.match(source, /if \(locationLookupPending\) return toast/, 'save must be blocked while the map lookup is pending');
+assert.doesNotMatch(source, /existingLegacyWithoutPin/, 'legacy saved text addresses must not bypass the confirmed map-pin requirement');
+assert.match(source, /if \(!validCoords\(address\.latitude, address\.longitude\)\)[\s\S]*?Confirm your delivery location using GPS, search or the map pin before saving/, 'every saved delivery address must have a verified coordinate pair');
+assert.match(source, /mapSearchInput\.value = \[[\s\S]*?source\.houseFlat[\s\S]*?source\.area[\s\S]*?source\.city[\s\S]*?source\.pincode[\s\S]*?'India'/, 'legacy address text must prefill map search');
 assert.match(source, /editorCoordinates = previousCoordinates/, 'failed geocoding must restore the last verified pin');
 assert.match(source, /if \(previousCoordinates && validCoords\(previousCoordinates\.latitude, previousCoordinates\.longitude\)\)[\s\S]*?previous pin and address were restored/,
   'failed lookup with a verified prior pin must restore that pin and address together');

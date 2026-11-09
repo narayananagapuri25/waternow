@@ -134,6 +134,7 @@
     const c=ensureUI();if(!c)return;
     let notice='';
     if(loading)notice='<p class="fw-location-needed" role="status">Checking delivery availability for your address…</p>';
+    else if(errorCode==='NO_ACTIVE_STORE')notice='<div class="fw-location-needed" role="status"><strong>WaterNow delivery is not configured yet.</strong><p>There is no active WaterNow delivery point serving orders right now. Contact WaterNow for help.</p><button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
     else if(errorCode==='AREA_UNAVAILABLE')notice='<div class="fw-location-needed" role="status"><strong>WaterNow does not serve this map pin yet.</strong><p>Contact WaterNow to confirm the current delivery area for your address.</p><button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
     else if(errorCode==='LOCATION_REQUIRED')notice='<div class="fw-location-needed" role="status"><strong>Confirm your delivery pin</strong><p>Your address is saved, but its map location is not confirmed yet. Choose the exact spot on the map so we can check delivery coverage.</p><button type="button" data-fw-needs-location="address">Confirm location on map</button></div>';
     else if(errorMessage)notice='<div class="fw-location-needed" role="status">We could not check delivery for this address. Update the address or map pin, then retry.<button type="button" data-fw-needs-location="address">Change delivery location</button><button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';
