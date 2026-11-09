@@ -287,7 +287,9 @@ jobs:
           echo "${preview_state}" | grep -Eq '"water10_ok"[[:space:]]*:[[:space:]]*1'
           echo "${preview_state}" | grep -Eq '"boduppal_placeholder_ok"[[:space:]]*:[[:space:]]*1'
           echo "${preview_state}" | grep -Eq '"zero_stock_rows"[[:space:]]*:[[:space:]]*2'
-          rm -f .waternow-preview-baseline.sql
+          npx wrangler d1 export DB --remote --skip-confirmation --config "${config_file}" --no-data --output=/tmp/waternow-preview-schema.sql
+          python3 scripts/compare-production-schema.py --expected schema.sql --actual /tmp/waternow-preview-schema.sql --allow-pending-0053 --allow-legacy-waternow-share-description-default
+          rm -f /tmp/waternow-preview-schema.sql .waternow-preview-baseline.sql
       - name: Check production D1 migration ledger (read only)
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
