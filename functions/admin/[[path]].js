@@ -16,6 +16,7 @@ const OWNER_ASSETS = new Map([
   ['frontend/admin/store-profile.js', '/frontend/admin/store-profile.js'],
   ['frontend/admin/delivery-management.js', '/frontend/admin/delivery-management.js'],
   ['frontend/admin/store-management.js', '/frontend/admin/store-management.js'],
+  ['frontend/admin/store-map-picker.js', '/frontend/admin/store-map-picker.js'],
   ['frontend/admin/customer-messages.js', '/frontend/admin/customer-messages.js'],
   ['frontend/admin/invoice-settings.js', '/frontend/admin/invoice-settings.js'],
   ['frontend/admin/delivery-offers.js', '/frontend/admin/delivery-offers.js'],
