@@ -24,7 +24,7 @@
     if(enabled)enabled.checked=bool(s.enabled);
     if(taxInclusive)taxInclusive.checked=s.pricesIncludeTax!==false&&Number(s.pricesIncludeTax)!==0;
     assign('invoiceDocumentType',s.documentType||'commercial_invoice');
-    assign('invoiceSeriesPrefix',s.seriesPrefix||'FW');
+    assign('invoiceSeriesPrefix',s.seriesPrefix||'WN');
     assign('invoiceLegalName',s.legalName);
     assign('invoiceBusinessAddress',s.businessAddress);
     assign('invoiceStateName',s.stateName);
@@ -58,7 +58,7 @@
     return {
       enabled:!!$('#invoiceEnabled')?.checked,
       documentType:$('#invoiceDocumentType')?.value||'commercial_invoice',
-      seriesPrefix:$('#invoiceSeriesPrefix')?.value.trim()||'FW',
+      seriesPrefix:$('#invoiceSeriesPrefix')?.value.trim()||'WN',
       legalName:$('#invoiceLegalName')?.value.trim()||'',
       businessAddress:$('#invoiceBusinessAddress')?.value.trim()||'',
       stateName:$('#invoiceStateName')?.value.trim()||'',
