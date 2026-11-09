@@ -15,8 +15,9 @@ WaterNow is a local drinking-water ordering PWA and supplier operations starter,
 3. Create an isolated local/preview D1 database.
 4. Create local-only secrets in worker/.dev.vars (ignored by Git; never commit it).
 5. Install Worker dependencies: cd worker && npm install.
-6. Initialize local D1 from worker/schema.sql and run the Worker locally.
-7. Run unit and isolated Playwright tests before configuring deployment.
+6. Initialize local D1 from worker/schema.sql, then apply worker/migrations/0052_waternow_catalogue_seed.sql for the two WaterNow water packs.
+7. Run the Worker locally.
+8. Run unit and isolated Playwright tests before configuring deployment.
 
 ## Source snapshot
 Imported from nagapurinarayana-ship-it/freshway, branch main, during 2026-11-07. This is a snapshot, not a fork; future changes do not synchronize automatically.
