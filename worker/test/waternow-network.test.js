@@ -9,6 +9,7 @@ class SQLiteD1 {
     this.db=new DatabaseSync(':memory:');
     this.db.exec('PRAGMA foreign_keys = ON;');
     this.db.exec(readFileSync(new URL('../schema.sql',import.meta.url),'utf8'));
+    this.db.exec(readFileSync(new URL('../migrations/0046_waternow_catalogue_seed.sql',import.meta.url),'utf8'));
   }
   prepare(sql){
     const owner=this;let args=[];
