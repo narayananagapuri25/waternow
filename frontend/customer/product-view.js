@@ -2,19 +2,7 @@
 // Owns only product-grid DOM rendering; cart state and quantity behavior remain in app.js.
 (function(){
   const media=window.FreshWayCatalogueMedia;
-  const productNameAliases=Object.freeze({
-    'oil ground nut organic':'Organic Groundnut Oil',
-    'ground nut oil organic':'Organic Groundnut Oil',
-    'groundnut oil organic':'Organic Groundnut Oil',
-    'sunflower oil organic':'Organic Sunflower Oil',
-    'hmt rice':'HMT Rice',
-    'sona masuri':'Sona Masuri Rice',
-    'sona masuri rice':'Sona Masuri Rice'
-  });
-  const displayName=product=>{
-    const name=String(product?.name??'').trim().replace(/\s+/g,' ');
-    return productNameAliases[name.toLocaleLowerCase('en-IN')]||name;
-  };
+  const displayName=product=>String(product?.name??'').trim().replace(/\\s+/g,' ');
   const render=(products,state,filter,{esc,money,changeQty,updateCartBar})=>{
     const grid=document.querySelector('#productGrid');
     if(!grid)return;
