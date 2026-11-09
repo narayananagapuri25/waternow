@@ -13,7 +13,7 @@
     catch(_){return window.navigator?.standalone===true}
   };
   const bind=({document,auth,notifications})=>{
-    if(!document||!auth||!notifications||document.__freshwayAccountActionsBound)return;
+    if(!document||!auth||!notifications||document.__waterNowAccountActionsBound)return;
     document.__freshwayAccountActionsBound=true;
     const refreshNotificationStatus=async()=>{
       const element=document.querySelector('#notificationStatus');
@@ -43,7 +43,7 @@
       modal.setAttribute('role','dialog');
       modal.setAttribute('aria-modal','true');
       modal.setAttribute('aria-labelledby','notificationPermissionTitle');
-      modal.innerHTML='<div class="modal-sheet"><div class="modal-head"><div><span class="eyebrow">FRESHWAY NOTIFICATIONS</span><h2 id="notificationPermissionTitle">Allow order updates</h2></div><button type="button" class="icon-btn" data-notification-permission-close aria-label="Close">×</button></div><p id="notificationPermissionIntro"></p><div id="notificationPermissionSteps"></div><p id="notificationPermissionCheckStatus" role="status" aria-live="polite"></p><button type="button" class="primary-btn full" data-notification-permission-check>Check again</button><button type="button" class="secondary-btn full" data-notification-permission-close>Not now</button></div>';
+      modal.innerHTML='<div class="modal-sheet"><div class="modal-head"><div><span class="eyebrow">WATERNOW NOTIFICATIONS</span><h2 id="notificationPermissionTitle">Allow order updates</h2></div><button type="button" class="icon-btn" data-notification-permission-close aria-label="Close">×</button></div><p id="notificationPermissionIntro"></p><div id="notificationPermissionSteps"></div><p id="notificationPermissionCheckStatus" role="status" aria-live="polite"></p><button type="button" class="primary-btn full" data-notification-permission-check>Check again</button><button type="button" class="secondary-btn full" data-notification-permission-close>Not now</button></div>';
       modal.querySelector('#notificationPermissionIntro').textContent=intro;
       modal.querySelector('#notificationPermissionSteps').innerHTML=steps;
       const close=()=>modal.remove();
@@ -150,5 +150,7 @@
     else void refreshNotificationStatus();
   };
   window.WaterNowCustomerAccountActions=Object.freeze({bind});
-  if(window.WaterNowCustomerAuth&&window.WaterNowCustomerNotifications)bind({document,auth:window.WaterNowCustomerAuth,notifications:window.WaterNowCustomerNotifications});
+  const customerAuth=window.WaterNowCustomerAuth||window.FreshWayCustomerAuth;
+  const customerNotifications=window.WaterNowCustomerNotifications||window.FreshWayCustomerNotifications;
+  if(customerAuth&&customerNotifications)bind({document,auth:customerAuth,notifications:customerNotifications});
 })();
