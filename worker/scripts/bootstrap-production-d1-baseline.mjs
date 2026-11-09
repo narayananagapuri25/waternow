@@ -88,11 +88,16 @@ function verifyDataFingerprints() {
     (SELECT COUNT(*) FROM invoice_settings i JOIN store_profile s ON s.id=1
       WHERE i.id=1 AND i.enabled=0 AND length(trim(COALESCE(i.gstin,'')))=0
         AND length(trim(COALESCE(s.store_name,'')))>0 AND length(trim(COALESCE(s.address,'')))>0) AS invoice_0028_still_eligible,
-    (SELECT COUNT(*) FROM invoice_settings WHERE id=1 AND (
-      length(trim(COALESCE(legal_name,'')))=0 OR length(trim(COALESCE(business_address,'')))=0
-      OR length(trim(COALESCE(state_name,'')))=0 OR length(trim(COALESCE(state_code,'')))=0
-      OR length(trim(COALESCE(gstin,'')))=0 OR length(trim(COALESCE(footer,'')))=0
-    )) AS invoice_seller_defaults_still_blank,
+    (SELECT COUNT(*) FROM invoice_settings i
+      WHERE i.id=1 AND i.enabled=0 AND i.document_type='commercial_invoice'
+        AND length(trim(COALESCE(i.legal_name,'')))=0
+        AND length(trim(COALESCE(i.business_address,'')))=0
+        AND length(trim(COALESCE(i.state_name,'')))=0
+        AND length(trim(COALESCE(i.state_code,'')))=0
+        AND length(trim(COALESCE(i.gstin,'')))=0
+        AND length(trim(COALESCE(i.footer,'')))=0
+        AND (SELECT COUNT(*) FROM store_profile WHERE id=1 AND store_name='WaterNow'
+          AND length(trim(COALESCE(address,'')))=0)=1) AS waternow_invoice_profile_unconfigured,
     (SELECT COUNT(*) FROM invoice_settings WHERE id=1 AND (
       lower(trim(COALESCE(legal_name,'')))='freshway'
       OR lower(trim(COALESCE(business_address,''))) IN ('mancherial','mancherial telangana')
@@ -120,7 +125,6 @@ function verifyDataFingerprints() {
     'non_water_active_categories',
     'missing_store_catalogue_rows',
     'invoice_0028_still_eligible',
-    'invoice_seller_defaults_still_blank',
     'legacy_invoice_placeholders',
     'legacy_store_address_placeholder',
     'legacy_promotion_alt_texts_remaining'
@@ -132,6 +136,7 @@ function verifyDataFingerprints() {
     ['unpriced_water_product_count', 2],
     ['waternow_invoice_prefix_count', 1],
     ['waternow_store_profile_count', 1],
+    ['waternow_invoice_profile_unconfigured', 1],
     ['delivery_scheduling_settings_count', 1],
     ['delivery_offer_settings_count', 1]
   ]) {
@@ -221,7 +226,8 @@ function main() {
   if (!bookmark.trim()) throw new Error('Could not capture the pre-bootstrap D1 Time Travel bookmark.');
 
   console.log('Preflight passed. Recording ' + migrations.length +
-    ' existing migration names as already applied. No historical migration SQL will run.');
+    ' historical migration names as baseline-accounted. No historical migration SQL will run.');
+  console.log('WaterNow invoice setup is intentionally disabled and blank. Historical migrations 0030-0032 contain legacy FreshWay seller defaults; they are accounted for in the baseline and will not be replayed or copied into WaterNow.');
   recordBaseline(migrations);
   console.log('Verified: production D1 baseline contains ' + migrations.length +
     ' historical migrations through 0052. New migration 0053 remains pending.');
