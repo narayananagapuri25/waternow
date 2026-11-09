@@ -14,7 +14,7 @@ test('signed-in deletion requests require JSON and an allowed browser origin', (
 test('account deletion completion calls the fulfilment helper and exposes safe failure diagnostics', () => {
   assert.match(adminAuth, /fulfillAccountDeletion/);
   assert.match(adminAuth, /status==='completed'/);
-  assert.match(adminAuth, /freshway_account_deletion_fulfilment_failed/);
+  assert.match(adminAuth, /waternow_account_deletion_fulfilment_failed/);
   assert.match(adminAuth, /no account data was changed/i);
   assert.match(adminAuth, /foreignKeyConflict=\/foreign key constraint failed\/i.test\(message\)/);
   assert.match(adminAuth, /integrityConflict=\/not null constraint failed\|check constraint failed\|unique constraint failed\/i.test\(message\)/);
