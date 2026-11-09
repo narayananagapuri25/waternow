@@ -29,7 +29,7 @@
         <div class="water-network-card-head"><div><h3>${esc(supplier.name)}</h3><p>${esc(supplier.city)}${supplier.state?', '+esc(supplier.state):''} · ${esc(supplier.phone)}</p></div><span class="water-status ${active?'is-active':'is-pending'}">${active?'Active':statusLabel(supplier.compliance_status)}</span></div>
         <div class="water-network-meta"><span>${esc(supplier.supplier_type)}</span><span>${supplier.fulfilment_model==='platform_delivery'?'WaterNow delivery':'Supplier delivery'}</span><span>${Number(supplier.service_area_count||0)} service areas</span></div>
         <p class="water-network-compliance">FSSAI: ${esc(supplier.fssai_license_number||'Not entered')} · Expires: ${esc(supplier.fssai_license_expiry||'Not entered')} · Water testing records: ${Number(supplier.water_testing_scheme_acknowledged)===1?'Confirmed':'Not confirmed'}</p>
-        <div class="water-offer-list">${products||'<p class="empty">No water pack prices entered.</p>'}</div>
+        <div class="water-offer-list">${products||'<p class="empty">No active catalogue products. Add products in Catalogue first.</p>'}</div>
         <div class="water-network-actions">${active?'<span class="water-compliance-confirmed">Verified supplier</span>':`<button type="button" class="primary" data-water-verify-supplier="${esc(supplier.id)}">Verify compliance</button>`}</div>
         ${network.deliveryStores.length?`<form class="water-link-store-form" data-water-link-store data-supplier-id="${esc(supplier.id)}"><label>Delivery location<select name="storeId" required><option value="">Choose configured store</option>${storeOptions}</select></label><label>Delivery model<select name="fulfilmentModel"><option value="supplier_delivery" ${(supplier.linked_delivery_model||'supplier_delivery')==='supplier_delivery'?'selected':''}>Supplier delivers</option><option value="platform_delivery" ${supplier.linked_delivery_model==='platform_delivery'?'selected':''}>WaterNow delivery</option></select></label><label>WaterNow delivery partner<select name="deliveryPartnerId"><option value="">Choose partner when using WaterNow delivery</option>${partnerOptions}</select></label><button type="submit" class="ghost">Link location</button></form>`:'<p class="water-network-compliance">Create a delivery location with a precise map pin in Stores before linking this supplier.</p><button class="ghost" type="button" data-screen="stores">Open delivery locations</button>'}
       </article>`;
@@ -63,8 +63,7 @@
       fssaiLicenseNumber:value('wnSupplierFssai'),fssaiLicenseExpiry:value('wnSupplierExpiry'),
       testingSchemeAcknowledged:$('#wnTestingScheme')?.checked===true,
       fulfilmentModel:value('wnFulfilment'),
-      price20:value('wnPrice20'),stock20:value('wnStock20'),
-      price10:value('wnPrice10'),stock10:value('wnStock10')
+      
     };
     try{
       await api('/api/admin/water-suppliers',{method:'POST',body:JSON.stringify(payload)});
@@ -136,8 +135,8 @@
     document.addEventListener('click',handleClick);
     document.addEventListener('change',event=>{if(event.target.matches('select[name="fulfilmentModel"]')){const form=event.target.closest('[data-water-link-store]');const partner=form?.querySelector('select[name="deliveryPartnerId"]');if(partner)partner.disabled=event.target.value!=='platform_delivery'}});
     $('#wnRefresh')?.addEventListener('click',()=>load().catch(error=>window.alert(error.message)));
-    document.addEventListener('freshway:admin-authenticated',()=>{load().catch(()=>{})});
-    window.FreshWayOwnerWaterNetwork=Object.freeze({load,refresh:load});
+    document.addEventListener('waternow:admin-authenticated',()=>{load().catch(()=>{})});
+    window.WaterNowOwnerWaterNetwork=Object.freeze({load,refresh:load});
   }
   init();
 })();
