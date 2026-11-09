@@ -36,7 +36,7 @@
       const legacyImage=p.image_data&&p.image_mime_type?'data:'+p.image_mime_type+';base64,'+p.image_data:'';
       const image=p.image_url||legacyImage||media?.image('products',p.id,p);
       const visual=image?`<img src="${esc(image)}" alt="${esc(name)}" loading="lazy" decoding="async">`:`<span class="product-image-fallback" aria-hidden="true">${esc(p.emoji||'🛍️')}</span>`;
-      return `<article class="product-card"><div class="product-image" aria-label="${esc(name)} product image">${visual}</div><h3>${esc(name)}</h3><div class="product-actions"><div class="product-action-info"><span class="product-price">${money(p.price)}<small> / ${esc(p.unit)}</small></span><span class="stock-pill ${stockClass}">${stockLabel}</span></div><div class="product-action-control">${action}</div></div></article>`;
+      return `<article class="product-card"><div class="product-image" aria-label="${esc(name)} product image">${visual}</div><h3>${esc(name)}</h3><div class="product-actions"><div class="product-action-info"><span class="product-price">${pricePending?"Price soon":money(p.price)}<small>${pricePending?"":" / "+esc(p.unit)}</small></span><span class="stock-pill ${stockClass}">${stockLabel}</span></div><div class="product-action-control">${action}</div></div></article>`;
     }).join('')||'<div class="empty" style="grid-column:1/-1"><strong>No products found</strong><br>Try another search.</div>';
     updateCartBar();
   };
