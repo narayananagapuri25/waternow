@@ -7,10 +7,14 @@ const mapPickerSource = fs.readFileSync('frontend/admin/store-map-picker.js', 'u
 assert.ok(source.includes('data-waternow-store-map-picker'),'store forms include an interactive map selector');
 assert.ok(source.includes('data-store-map-canvas'),'store forms render the map canvas');
 assert.ok(source.includes('data-map-current-location'),'the owner can use current location to set the shop pin');
+assert.ok(source.includes('name="confirmExactLocation"'),'activating a store requires explicit confirmation of the exact shop entrance');
+assert.ok(source.includes("confirmExactLocation:f.get('confirmExactLocation')==='1'"),'the exact-location confirmation must be sent to the server');
 assert.ok(mapPickerSource.includes('L.tileLayer'),'the picker displays a tiled map');
 assert.ok(mapPickerSource.includes("map.on('click'"),'tapping the map places the store pin');
 assert.ok(mapPickerSource.includes("marker.on('dragend'"),'the marker can be dragged for precision');
 assert.ok(mapPickerSource.includes('navigator.geolocation'),'the owner can use current location');
+assert.ok(mapPickerSource.includes('approximate locality-centre pin'), 'an approximate locality pin must be explicitly identified before activation');
+assert.ok(source.includes('Approximate pin — needs confirmation'), 'the store card must distinguish an approximate map pin from a verified pin');
 assert.ok(mapPickerSource.includes('circle.setRadius(radiusMetres())'),'the delivery radius is drawn on the map');
 
 function response(data, status = 200) {

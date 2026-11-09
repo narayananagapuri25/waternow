@@ -10,7 +10,7 @@ const DEFAULT_STORE_PROFILE = Object.freeze({
   businessHours: '',
   deliveryInfo: '',
   shareTitle: 'WaterNow | Drinking Water Delivered Locally',
-  shareDescription: 'Order 20L drinking water cans or packs of two 10L cans from local suppliers with convenient home delivery.'
+  shareDescription: 'Order 20L drinking water cans or packs of two 10L cans directly from WaterNow with convenient home delivery.'
 });
 
 const LIMITS = Object.freeze({

@@ -22,7 +22,7 @@
     if(hero&&hero.parentElement===home&&hero.nextSibling!==c){
       home.insertBefore(c,hero.nextSibling);
     }
-    if(hero){const fruit=$('.hero-fruit');if(fruit)fruit.textContent='💧🚰';const h=hero.querySelector('h1');if(h)h.innerHTML='Drinking water,<br><em>delivered locally.</em>';const p=hero.querySelector('p');if(p)p.textContent='Choose your can size. Order in a few taps. Your local supplier takes care of the rest.';const eyebrow=hero.querySelector('.eyebrow');if(eyebrow)eyebrow.textContent='WATERNOW';}
+    if(hero){const fruit=$('.hero-fruit');if(fruit)fruit.textContent='💧🚰';const h=hero.querySelector('h1');if(h)h.innerHTML='Drinking water,<br><em>delivered locally.</em>';const p=hero.querySelector('p');if(p)p.textContent='Choose your can size and order directly from WaterNow. We deliver to your door.';const eyebrow=hero.querySelector('.eyebrow');if(eyebrow)eyebrow.textContent='WATERNOW';}
     return c;
   }
   function cartChangesForStore(nextProducts){
@@ -134,8 +134,10 @@
     const c=ensureUI();if(!c)return;
     let notice='';
     if(loading)notice='<p class="fw-location-needed" role="status">Checking delivery availability for your address…</p>';
-    else if(errorCode==='AREA_UNAVAILABLE')notice='<div class="fw-location-needed" role="status">Delivery is not available at this address yet. Ask us about a nearby RTC bus stand handover or postal delivery options. <button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
-    else if(errorMessage)notice='<div class="fw-location-needed" role="status">Add or update your delivery address to check WaterNow products available in your area.<button type="button" data-fw-needs-location="address">Add delivery address</button><button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';
+    else if(errorCode==='NO_ACTIVE_STORE')notice='<div class="fw-location-needed" role="status"><strong>WaterNow delivery is not configured yet.</strong><p>There is no active WaterNow delivery point serving orders right now. Contact WaterNow for help.</p><button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
+    else if(errorCode==='AREA_UNAVAILABLE')notice='<div class="fw-location-needed" role="status"><strong>WaterNow does not serve this map pin yet.</strong><p>Contact WaterNow to confirm the current delivery area for your address.</p><button type="button" data-fw-delivery-contact>Contact WaterNow</button></div>';
+    else if(errorCode==='LOCATION_REQUIRED')notice='<div class="fw-location-needed" role="status"><strong>Confirm your delivery pin</strong><p>Your address is saved, but its map location is not confirmed yet. Choose the exact spot on the map so we can check delivery coverage.</p><button type="button" data-fw-needs-location="address">Confirm location on map</button></div>';
+    else if(errorMessage)notice='<div class="fw-location-needed" role="status">We could not check delivery for this address. Update the address or map pin, then retry.<button type="button" data-fw-needs-location="address">Change delivery location</button><button type="button" class="fw-catalogue-retry" id="fwCatalogueRetry">Retry</button></div>';
     c.innerHTML=notice;
     c.hidden=!notice;
     const grid=$('#productGrid');

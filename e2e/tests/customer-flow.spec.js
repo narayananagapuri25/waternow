@@ -1631,8 +1631,9 @@ test('customer sees helpful out-of-area options and can contact WaterNow from ch
   const help = page.locator('.fw-delivery-area-help');
   await expect(help).toBeVisible();
   await expect(help).toContainText('Outside our current delivery area?');
-  await expect(help).toContainText('nearby supplier network');
-  await expect(help).toContainText('supplier coverage');
+  await expect(help).toContainText('WaterNow does not currently serve this map pin');
+  await expect(help).toContainText('confirm the delivery coverage');
+  await expect(help).not.toContainText(/supplier/i);
   await expect(page.locator('[data-fw-delivery-availability]')).toHaveClass(/is-unavailable/);
   await expect(page.getByRole('button', { name: 'Contact WaterNow' })).toBeVisible();
 

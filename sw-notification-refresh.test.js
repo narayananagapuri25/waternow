@@ -88,12 +88,12 @@ async function dispatchPush(payload) {
   assert.match(app, /customerOrderData\.load\(\)/);
   assert.match(index, /app\.js\?v=107/);
   assert.ok(index.includes('frontend/customer/navigation.js?v=20261107-history-back-v1'), 'customer HTML must load the deterministic history module');
-  assert.ok(index.includes('frontend/customer/delivery-booking.js?v=20261109-waternow-supplier-copy-v1'), 'customer HTML must load the current WaterNow delivery help copy');
+  assert.ok(index.includes('frontend/customer/delivery-booking.js?v=20261109-direct-delivery-coverage-v2'), 'customer HTML must load the current WaterNow delivery help copy');
   assert.ok(index.includes('frontend/customer/order-actions.js?v=20261109-waternow-order-actions-v1'), 'customer HTML must load the current WaterNow order actions copy');
   assert.match(sw, /const CACHE = 'waternow-customer-v2';/, 'customer service worker must publish the current history-fix cache version');
   assert.ok(sw.includes('/app.js?v=107'), 'service worker must precache the same cache-busted customer app asset');
   assert.ok(sw.includes('/frontend/customer/navigation.js?v=20261107-history-back-v1'), 'service worker must precache the exact history-fix module loaded by HTML');
-  assert.ok(sw.includes('/frontend/customer/delivery-booking.js?v=20261109-waternow-supplier-copy-v1'), 'service worker must precache the updated WaterNow delivery help module');
+  assert.ok(sw.includes('/frontend/customer/delivery-booking.js?v=20261109-direct-delivery-coverage-v2'), 'service worker must precache the updated WaterNow delivery help module');
   assert.ok(sw.includes('/frontend/customer/order-actions.js?v=20261109-waternow-order-actions-v1'), 'service worker must precache the updated WaterNow order actions module');
   assert.doesNotMatch(app, /customerSearch\.bind\(/, 'customer app must not bind the removed customer search module');
   assert.match(app, /customerCartActions\.bind\(/, 'cart click handlers must remain registered after app startup');
