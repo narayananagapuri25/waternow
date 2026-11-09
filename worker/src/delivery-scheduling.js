@@ -893,7 +893,7 @@ export async function handleAdminDeliveryRequest(request, env) {
     await env.DB.prepare('UPDATE delivery_stores SET name=?,address=?,latitude=?,longitude=?,service_radius_km=?,is_active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
       .bind(name,address,latitude,longitude,radius,savedActive,storeId).run();
     const pendingOrderCount=Number((await env.DB.prepare("SELECT COUNT(*) count FROM orders WHERE assigned_store_id=? AND delivery_status NOT IN ('Delivered','Cancelled')").bind(storeId).first())?.count||0);
-    return response({ok:true,store:{...current,name,address,latitude,longitude,service_radius_km:radius,is_active:savedActive,pending_order_count:pendingOrderCount},pendingOrderCount,activationBlocked:activationBlocked||null});
+    return response({ok:true,store:{...current,name,address,latitude,longitude,service_radius_km:radius,is_active:savedActive,pending_order_count:pendingOrderCount},pendingOrderCount,activationBlocked:null});
   }
   const catalogueMatch = path.match(new RegExp('^/api/admin/delivery/stores/([^/]+)/catalogue$'));
   if (catalogueMatch && request.method === 'GET') {
