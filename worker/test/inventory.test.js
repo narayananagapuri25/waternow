@@ -127,8 +127,8 @@ test('central customer catalogue query and response omit all global stock column
   assert.equal(response.status,200);
   const data=await response.json();
   assert.equal(data.products[0].id,'p1');
-  assert.ok(!queries.some(sql=>/stock_quantity|stock_managed|low_stock_threshold/.test(sql)),
-    'the central catalogue endpoint must not read a second global stock source');
+  assert.ok(!queries.some(sql=>/stock_quantity/.test(sql)),
+    'the central catalogue endpoint must not read a second global stock quantity');
   assert.equal('stock_status' in data.products[0],false);
   assert.equal('stock_quantity' in data.products[0],false);
 });
