@@ -1,7 +1,7 @@
 // Customer product-view boundary.
 // Owns only product-grid DOM rendering; cart state and quantity behavior remain in app.js.
 (function(){
-  const media=window.FreshWayCatalogueMedia;
+  const media=window.WaterNowCatalogueMedia;
   const displayName=product=>String(product?.name??'').trim().replace(/\\s+/g,' ');
   const render=(products,state,filter,{esc,money,changeQty,updateCartBar})=>{
     const grid=document.querySelector('#productGrid');
@@ -15,18 +15,17 @@
       const qty=Number(state.cart[p.id]||0);
       const stock=String(p.stock_status||'not_tracked');
       const out=stock==='out_of_stock';
-      const pricePending=!Number.isFinite(Number(p.price))||Number(p.price)<=0;
-      const stockLabel=pricePending?'Price being confirmed':stock==='out_of_stock'?'Out of stock':stock==='low_stock'?'Low stock':stock==='in_stock'?'In stock':'Available';
+      const stockLabel=stock==='out_of_stock'?'Out of stock':stock==='low_stock'?'Low stock':stock==='in_stock'?'In stock':'Available';
       const stockClass=out?'stock-out':stock==='low_stock'?'stock-low':'stock-ok';
       const action=qty
         ? `<div class="qty-control"><button data-minus="${esc(p.id)}" aria-label="Remove one ${esc(name)}">−</button><span>${qty}</span>${out?'<span class="stock-cart-warning">Unavailable</span>':'<button data-plus="'+esc(p.id)+'" aria-label="Add one '+esc(name)+'">+</button>'}</div>`
-        : `<button class="add-btn" data-add="${esc(p.id)}" ${(out||pricePending)?'disabled aria-disabled="true"':''}>${out?'OUT OF STOCK':pricePending?'PRICE SOON':'ADD'}</button>`;
+        : `<button class="add-btn" data-add="${esc(p.id)}" ${out?'disabled aria-disabled="true"':''}>${out?'OUT OF STOCK':'ADD'}</button>`;
       const legacyImage=p.image_data&&p.image_mime_type?'data:'+p.image_mime_type+';base64,'+p.image_data:'';
       const image=p.image_url||legacyImage||media?.image('products',p.id,p);
-      const visual=image?`<img src="${esc(image)}" alt="${esc(name)}" loading="lazy" decoding="async">`:`<span class="product-image-fallback" aria-hidden="true">${esc(p.emoji||'🛍️')}</span>`;
+      const visual=image?`<img src="${esc(image)}" alt="${esc(name)}" loading="lazy" decoding="async">`:`<span class="product-image-empty" aria-hidden="true"></span>`;
       return `<article class="product-card"><div class="product-image" aria-label="${esc(name)} product image">${visual}</div><h3>${esc(name)}</h3><div class="product-actions"><div class="product-action-info"><span class="product-price">${money(p.price)}<small>${p.unit?" / "+esc(p.unit):""}</small></span><span class="stock-pill ${stockClass}">${stockLabel}</span></div><div class="product-action-control">${action}</div></div></article>`;
     }).join('')||'<div class="empty" style="grid-column:1/-1"><strong>No products found</strong><br>Try another search.</div>';
     updateCartBar();
   };
-  window.FreshWayCustomerProductView=Object.freeze({render});
+  window.WaterNowCustomerProductView=Object.freeze({render});
 })();
