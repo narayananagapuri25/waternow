@@ -115,9 +115,8 @@ test('approximate Boduppal locality pin cannot be activated until address and ma
     const send=body=>handleAdminDeliveryRequest(new Request('https://api.example.test/api/admin/delivery/stores/waternow-boduppal',{
       method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(body)
     }),{DB:db});
-    const blocked=await send({isActive:true});
-    assert.equal(blocked.status,400);
-    assert.match((await blocked.json()).error,/exact shop location/i);
+    await assert.rejects(() => send({isActive:true}), /exact shop location/i,
+      'the direct handler must reject an unconfirmed approximate shop pin');
     assert.equal(db.db.prepare("SELECT is_active FROM delivery_stores WHERE id='waternow-boduppal'").get().is_active,0);
     const activated=await send({
       name:'WaterNow Boduppal',
