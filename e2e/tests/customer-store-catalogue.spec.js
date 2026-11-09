@@ -4,7 +4,8 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   const quoteStoreIds=[];
   const products=[
     {id:'water-20l',name:'20L Drinking Water Can',unit:'can',price:189,emoji:'💧',active:1,category_id:'water-20l',category_name:'20L Water Can',category_slug:'20l-water-can',stock_status:'in_stock'},
-    {id:'water-10l-pair',name:'2 × 10L Drinking Water Cans',unit:'pack',price:149,emoji:'🚰',active:1,category_id:'water-10l-pair',category_name:'2 × 10L Water Cans',category_slug:'two-10l-water-cans',stock_status:'in_stock'}
+    {id:'water-10l-pair',name:'2 × 10L Drinking Water Cans',unit:'pack',price:149,emoji:'🚰',active:1,category_id:'water-10l-pair',category_name:'2 × 10L Water Cans',category_slug:'two-10l-water-cans',stock_status:'in_stock'},
+    {id:'water-10l',name:'10L Drinking Water Can',unit:'bottle',price:0,emoji:'💧',active:1,category_id:'water-20l',category_name:'Water Can',category_slug:'water-can',stock_status:'in_stock'}
   ];
   await page.route('**/api/**',async route=>{
     const request=route.request(),url=new URL(request.url()),method=request.method();
@@ -48,9 +49,11 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   expect(response?.status()).toBe(200);
   await expect(page.locator('#searchInput')).toHaveCount(0);
   await expect(page.locator('.search-wrap')).toHaveCount(0);
-  await expect(page.locator('#productGrid .product-card')).toHaveCount(2,{timeout:20000});
+  await expect(page.locator('#productGrid .product-card')).toHaveCount(3,{timeout:20000});
+  await expect(page.locator('#productGrid .product-card').filter({hasText:'10L Drinking Water Can'})).toContainText('₹0');
   await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
   await expect(page.locator('#productGrid [data-add="water-10l-pair"]')).toBeVisible();
+  await expect(page.locator('#productGrid [data-add="water-10l"]')).toBeDisabled();
   expect(await page.evaluate(()=>window.FreshWayCustomerStoreCatalogue?.selectedStore()?.name)).toBe('Store A');
 
   const add=page.locator('#productGrid [data-add="water-20l"]');
