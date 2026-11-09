@@ -107,11 +107,17 @@ def columns_match_with_known_share_description_default(table, expected_columns, 
     actual_index = next((i for i, column in enumerate(actual_copy) if column[0] == "share_description"), None)
     if expected_index is None or actual_index is None:
         return False
-    if expected_copy[expected_index][3] != WATERNOW_SHARE_DESCRIPTION_DEFAULT:
+    expected_column = expected_copy[expected_index]
+    actual_column = actual_copy[actual_index]
+    if expected_column[3] != WATERNOW_SHARE_DESCRIPTION_DEFAULT:
         return False
-    if actual_copy[actual_index][3] != LEGACY_SHARE_DESCRIPTION_DEFAULT:
+    if actual_column[3] != LEGACY_SHARE_DESCRIPTION_DEFAULT:
         return False
-    actual_copy[actual_index] = expected_copy[expected_index]
+    # Column name/type/nullability/primary-key flags must still match exactly;
+    # only the documented legacy DEFAULT expression is tolerated.
+    if expected_column[:3] != actual_column[:3] or expected_column[4:] != actual_column[4:]:
+        return False
+    actual_copy[actual_index] = expected_column
     return expected_copy == actual_copy
 
 
