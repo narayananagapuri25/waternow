@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
-const LIVE_BASE_URL = (process.env.FRESHWAY_LIVE_BASE_URL || 'https://fwcoldpressed.in').replace(/\/$/, '');
+const LIVE_BASE_URL = (process.env.WATERNOW_LIVE_BASE_URL || '').replace(/\/$/, '');
 const OUTPUT_DIR = 'test-results/visual-review';
 
 async function getJson(request, path) {
@@ -19,7 +19,8 @@ async function expectDecodedImages(locator, description) {
   ), { timeout: 20000, message: description + ' must all decode to non-empty images' }).toBe(true);
 }
 
-test('LIVE production media audit: real catalogue, category artwork and configured promotions', async ({ page, request }) => {
+test('LIVE WaterNow media audit: real catalogue, category artwork and configured promotions', async ({ page, request }) => {
+  test.skip(!LIVE_BASE_URL, 'Set WATERNOW_LIVE_BASE_URL only when a WaterNow preview or production deployment is ready.');
   test.setTimeout(150000);
   // PR runs use the live production domain because Pages previews are Access-protected.
   // Do not attribute an old deployed shell's stale JavaScript errors to this branch;
@@ -35,13 +36,13 @@ test('LIVE production media audit: real catalogue, category artwork and configur
   ]);
   // The HTML uses a relative script src while the service-worker shell
   // stores absolute paths. Compare each representation using its actual form.
-  const customerCatalogueAsset = 'frontend/customer/catalogue.js?v=20261106-out-of-area-contact-v1';
+  const customerCatalogueAsset = 'frontend/customer/catalogue.js?v=waternow-v1';
   const liveVersionGuard = {
     baseUrl: LIVE_BASE_URL,
     appScriptInHtml: liveShell.includes('app.js?v=107'),
     navigationScriptInHtml: liveShell.includes('frontend/customer/navigation.js?v=20261107-history-back-v1'),
     catalogueScriptInHtml: liveShell.includes(customerCatalogueAsset),
-    currentServiceWorkerCache: liveServiceWorker.includes('freshway-v129'),
+    currentServiceWorkerCache: liveServiceWorker.includes("const CACHE = 'waternow-v1'"),
     appScriptInServiceWorker: liveServiceWorker.includes('/app.js?v=107'),
     navigationScriptInServiceWorker: liveServiceWorker.includes('/frontend/customer/navigation.js?v=20261107-history-back-v1'),
     catalogueScriptInServiceWorker: liveServiceWorker.includes('/' + customerCatalogueAsset)
@@ -70,7 +71,7 @@ test('LIVE production media audit: real catalogue, category artwork and configur
   page.on('pageerror', error => pageErrors.push(error.message));
   // This live test audits catalogue/media; the local customer-flow suite tests the install nudge.
   // Avoid the current production nudge blocking this read-only media check before the PR is deployed.
-  await page.addInitScript(() => sessionStorage.setItem('freshway-pwa-install-nudge', '1'));
+  await page.addInitScript(() => sessionStorage.setItem('waternow-pwa-install-nudge', '1'));
   // The media audit is not a delivery-location test. The catalogue now correctly
   // requires a resolved store, so provide a test-only store selection while keeping
   // the category/product payloads as real public production API responses.
@@ -141,7 +142,7 @@ test('LIVE production media audit: real catalogue, category artwork and configur
   const fallbackCategories = sourceAudit.categoryRows.filter(item => item.source === 'emoji-fallback');
   const fallbackProducts = sourceAudit.productRows.filter(item => item.source === 'emoji-fallback');
 
-  await expectDecodedImages(page.locator('#fwCategoryCatalogue .fw-category-image img'), 'production category artwork');
+  await expectDecodedImages(page.locator('#fwCategoryCatalogue .fw-category-image img'), 'WaterNow category artwork');
 
   const promotionImages = page.locator('.hero-banner .fw-promo-slide img');
   if (validPromotions.length) {
@@ -156,7 +157,7 @@ test('LIVE production media audit: real catalogue, category artwork and configur
         message: 'Production promotion slide ' + (i + 1) + ' must decode'
       }).toBe(true);
       await page.locator('.hero-banner').screenshot({
-        path: OUTPUT_DIR + '/live-production-promotion-' + (i + 1) + '.png',
+        path: OUTPUT_DIR + '/waternow-promotion-' + (i + 1) + '.png',
         animations: 'disabled'
       });
     }
@@ -167,7 +168,7 @@ test('LIVE production media audit: real catalogue, category artwork and configur
   await page.evaluate(() => window.scrollTo(0, 0));
   const mobileHomeOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
   expect(mobileHomeOverflow,'live production home must not overflow horizontally at 390px').toBe(false);
-  await page.screenshot({ path: OUTPUT_DIR + '/live-production-mobile-home.png', fullPage: true, animations: 'disabled' });
+  await page.screenshot({ path: OUTPUT_DIR + '/waternow-mobile-home.png', fullPage: true, animations: 'disabled' });
 
   // Use the actual live category control and actual API data; do not stub or seed this page.
   const categoryButtons = page.locator('#fwCategoryCatalogue .fw-category-card');
@@ -209,7 +210,7 @@ test('LIVE production media audit: real catalogue, category artwork and configur
   }
   const desktopHomeOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
   expect(desktopHomeOverflow,'live production home must not overflow horizontally at desktop width').toBe(false);
-  await page.screenshot({ path: OUTPUT_DIR + '/live-production-desktop-home.png', fullPage: true, animations: 'disabled' });
+  await page.screenshot({ path: OUTPUT_DIR + '/waternow-desktop-home.png', fullPage: true, animations: 'disabled' });
   await page.locator('#fwCategoryCatalogue .fw-category-card').first().click();
   const desktopCards = page.locator('#productGrid .product-card:visible');
   await expect.poll(() => desktopCards.count(), { timeout: 20000 }).toBeGreaterThan(0);
@@ -219,7 +220,7 @@ test('LIVE production media audit: real catalogue, category artwork and configur
     await image.scrollIntoViewIfNeeded();
     await expect.poll(() => image.evaluate(img => img.complete && img.naturalWidth > 0 && img.naturalHeight > 0), {
       timeout: 15000,
-      message: 'Desktop production product image failed to decode: ' + await image.getAttribute('alt')
+      message: 'Desktop WaterNow product image failed to decode: ' + await image.getAttribute('alt')
     }).toBe(true);
   }
   const desktopProductsOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
@@ -250,8 +251,8 @@ test('LIVE production media audit: real catalogue, category artwork and configur
     repeatedPromotionAltText: [...new Set(sourceAudit.promotionRows.map(item => item.alt.trim()).filter(Boolean).filter((alt, i, all) => all.indexOf(alt) !== i))],
     pageErrors
   };
-  await writeFile(OUTPUT_DIR + '/live-production-media-audit.json', JSON.stringify(report, null, 2) + '\n');
-  console.log('FRESHWAY_LIVE_MEDIA_AUDIT ' + JSON.stringify(report));
+  await writeFile(OUTPUT_DIR + '/waternow-media-audit.json', JSON.stringify(report, null, 2) + '\n');
+  console.log('WATERNOW_LIVE_MEDIA_AUDIT ' + JSON.stringify(report));
 
   expect(badPromotionRows, 'active promotions should always expose an image URL or a legacy image payload').toEqual([]);
   expect(
