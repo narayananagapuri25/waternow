@@ -111,6 +111,9 @@ jobs:
       - name: Run isolated delivery and store fallback tests
         working-directory: e2e
         run: npx playwright test --config=playwright.store-fallback.config.js
+      - name: Run real customer-to-owner Worker-backed Playwright journey
+        working-directory: e2e
+        run: npx playwright test --config=playwright.waternow.integration.config.js
 
   production-d1-readonly-diagnostic:
     name: Read-only production D1 migration ledger diagnostic
