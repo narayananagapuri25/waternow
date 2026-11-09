@@ -1,36 +1,35 @@
-# Configurable commerce PWA starter
+# WaterNow
 
-WaterNow is a local drinking-water ordering PWA and supplier operations starter, adapted from the imported commerce PWA foundation. It supports 20L cans and packs of two 10L cans, supplier onboarding, owner operations and Cloudflare D1.
+WaterNow is a customer ordering PWA and a simple Owner app for selling drinking water directly. It supports a 20L water can and a pack of two 10L cans. WaterNow manages its own catalogue, selling prices, store stock, delivery locations, orders, customer contacts, payments and delivery schedules. There is no supplier onboarding or supplier approval step in the normal order flow.
 
-## Safety and reuse
-- This is a development/template copy, not a live WaterNow deployment.
-- Production deployment workflows and production/live-data audit suites were intentionally omitted.
-- No production credentials are included. `worker/wrangler.production.jsonc` contains a D1 UUID that has not been verified against the WaterNow Cloudflare account; confirm or replace it before deployment.
-- Configure your own Cloudflare account, D1 database, domain, secrets, and notification providers before deployment.
+## Safety and deployment
+- Treat this repository as a development snapshot until its Cloudflare configuration, operational details and live smoke tests have been verified.
+- Keep production credentials in GitHub Actions secrets and Cloudflare; never commit or paste them into chat.
 - Never point local, preview, or test environments at a production database.
+- Use an isolated D1 database for development and Playwright testing.
 
 ## Quick start
 1. Use a supported Node.js LTS release.
 2. Review ARCHITECTURE.md, CONTRIBUTING.md, SECURITY.md, and worker/README.md.
 3. Create an isolated local/preview D1 database.
 4. Create local-only secrets in worker/.dev.vars (ignored by Git; never commit it).
-5. Install Worker dependencies: cd worker && npm install.
-6. Initialize local D1 from worker/schema.sql, then apply worker/migrations/0052_waternow_catalogue_seed.sql for the two WaterNow water packs.
+5. Install Worker dependencies: `cd worker && npm install`.
+6. Initialize local D1 from worker/schema.sql, then apply the WaterNow seed and numbered pending migrations in order.
 7. Run the Worker locally.
-8. Run unit and isolated Playwright tests before configuring deployment.
+8. Run Worker tests and the customer/Owner Playwright suites before configuring deployment.
 
 ## Source snapshot
 Imported from nagapurinarayana-ship-it/freshway, branch main, during 2026-11-07. This is a snapshot, not a fork; future changes do not synchronize automatically.
 
+## WaterNow product and order flow
+- The customer home presents the two WaterNow packs together: 20L Drinking Water Can and 2 × 10L Drinking Water Cans.
+- The WaterNow central catalogue prices are ₹30 for the 20L can and ₹20 for the two-can 10L pack. Migration `0054_waternow_owner_managed_pack_prices.sql` applies these exact owner-provided prices.
+- The Owner app manages product visibility, store-specific price overrides, on-hand inventory, delivery radius, customer orders, delivery dates, payment status and cancellations.
+- No supplier account, supplier pricing approval, delivery partner record or supplier link is required to accept a normal WaterNow order.
+- A product is orderable only when it is active, available at the selected store, has a positive selling price, and has sufficient available stock at that store.
+- Use Cloudflare D1 for customer, catalogue, store, inventory, order and fulfilment records. Do not store operational business data in inline JavaScript.
 
-## WaterNow product direction
-- Customer home presents both water packs together: 20L cans and 2 × 10L cans. Selecting a pack filters the catalogue in place; it does not open a separate category page.
-- Prices remain unavailable until the owner has agreed and entered supplier pricing. A zero-priced item is intentionally not orderable.
-- The owner can onboard suppliers and delivery partners by city. Newly added suppliers remain inactive until an administrator verifies the applicable FSSAI licence/registration and packaged-water testing records.
-- Supplier delivery and WaterNow-arranged last-mile delivery are represented separately in the network model.
-- Use a Cloudflare D1 database for customer, catalogue, supplier, partner, order and fulfilment records. Do not store operational business data in inline JavaScript.
-
-## Catalogue image sources
-The initial water-can reference images are external catalogue examples; replace them with approved supplier-owned product photographs before production:
+## Catalogue images
+Use original WaterNow product photographs or images that WaterNow is authorised to use. The initial reference images are examples only; review and replace them before production:
 - 20L reference: https://www.aquacoolthrissur.com/images/products/packaged-mineral-water-20l-can-thrissur.png
 - 10L reference: https://www.bbassets.com/media/uploads/p/l/40366456_1-bailley-bailley-packaged-drinking-water.jpg
