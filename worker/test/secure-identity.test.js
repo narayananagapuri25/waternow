@@ -6,7 +6,7 @@ import handler from '../src/passcode-auth.js';
 
 const customer = { id: 'customer-1', name: '', phone: '919876543210', passcode_salt: null, passcode_hash: null, auth_version: 0 };
 const env = {
-  APP_ORIGIN: 'https://freshway-f32.pages.dev',
+  APP_ORIGIN: 'https://waternow.pages.dev',
   CUSTOMER_SESSION_SECRET: 'fixture-customer-session',
   DB: {
     prepare(sql) {
@@ -43,21 +43,21 @@ const env = {
   }
 };
 function sessionCookie(customerId = 'customer-1') {
-  const issued = Math.floor(Date.now() / 1000); const payload = `${customerId}.${issued}`; const encoded = Buffer.from(payload).toString('base64url'); const signature = crypto.createHmac('sha256', env.CUSTOMER_SESSION_SECRET).update(payload).digest('hex'); return `freshway-customer-session=${encoded}.${signature}`;
+  const issued = Math.floor(Date.now() / 1000); const payload = `${customerId}.${issued}`; const encoded = Buffer.from(payload).toString('base64url'); const signature = crypto.createHmac('sha256', env.CUSTOMER_SESSION_SECRET).update(payload).digest('hex'); return `waternow-customer-session=${encoded}.${signature}`;
 }
 async function request(path, options = {}, requestEnv = env) { return handler.fetch(new Request(`https://api.example.test${path}`, options), requestEnv, {}); }
 
 test('customer logout clears the HttpOnly session cookie', async () => {
   const response = await request('/api/auth/logout', { method: 'POST' });
   assert.equal(response.status, 200);
-  assert.match(response.headers.get('set-cookie') || '', /freshway-customer-session=; Max-Age=0/);
+  assert.match(response.headers.get('set-cookie') || '', /waternow-customer-session=; Max-Age=0/);
   assert.match(response.headers.get('set-cookie') || '', /HttpOnly/);
 });
 
 test('customer can create a 6-digit passcode account', async () => {
   const response = await request('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Test Customer', phone: '9876543210', passcode: '246810' }) });
   assert.equal(response.status, 200);
-  assert.match(response.headers.get('set-cookie') || '', /freshway-customer-session=/);
+  assert.match(response.headers.get('set-cookie') || '', /waternow-customer-session=/);
   assert.equal(customer.phone, '919876543210');
   assert.equal(customer.name, 'Test Customer');
   assert.notEqual(customer.passcode_hash, '246810');

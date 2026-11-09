@@ -16,7 +16,7 @@ const FreshWayPromotions=(()=>{
       hero.classList.remove('fw-promo-carousel');
       hero.style.removeProperty('aspect-ratio');
       hero.dataset.fwPromoDefault='1';
-      hero.innerHTML='<div><span class="eyebrow light">FRESHWAY</span><h1>Fresh groceries,<br><em>delivered locally.</em></h1><p>Choose what you need. Place your order. We take care of the rest.</p></div><div class="hero-fruit" aria-hidden="true">🫒🍚</div>';
+      hero.innerHTML='<div><span class="eyebrow light">WATERNOW</span><h1>Drinking water,<br><em>delivered locally.</em></h1><p>Choose your water pack. Place your order. We take care of the rest.</p></div><div class="hero-fruit" aria-hidden="true">💧🚰</div>';
     }
   };
   const stop=()=>{if(timer){clearInterval(timer);timer=0}};
@@ -43,7 +43,7 @@ const FreshWayPromotions=(()=>{
     hero.classList.add('fw-promo-carousel');
     hero.style.removeProperty('aspect-ratio');
     hero.dataset.fwPromoDefault='';
-    hero.innerHTML='<div class="fw-promo-viewport"><div class="fw-promo-track">'+promotions.map((p,i)=>'<article class="fw-promo-slide" role="group" aria-roledescription="slide" aria-label="'+(i+1)+' of '+promotions.length+'"><img data-src="'+esc(p.image_url)+'" alt="'+esc(p.alt_text||'FreshWay promotion')+'" draggable="false" decoding="async" loading="lazy"></article>').join('')+'</div></div><div class="fw-promo-controls" aria-label="Promotion controls"><div class="fw-promo-dots">'+promotions.map((p,i)=>'<button type="button" class="fw-promo-dot" data-fw-promo-dot="'+i+'" aria-label="Show promotion '+(i+1)+'"></button>').join('')+'</div><span class="fw-promo-hint">'+(promotions.length>1?'Swipe':'Promotion')+'</span></div>';
+    hero.innerHTML='<div class="fw-promo-viewport"><div class="fw-promo-track">'+promotions.map((p,i)=>'<article class="fw-promo-slide" role="group" aria-roledescription="slide" aria-label="'+(i+1)+' of '+promotions.length+'"><img data-src="'+esc(p.image_url)+'" alt="'+esc(p.alt_text||'WaterNow promotion')+'" draggable="false" decoding="async" loading="lazy"></article>').join('')+'</div></div><div class="fw-promo-controls" aria-label="Promotion controls"><div class="fw-promo-dots">'+promotions.map((p,i)=>'<button type="button" class="fw-promo-dot" data-fw-promo-dot="'+i+'" aria-label="Show promotion '+(i+1)+'"></button>').join('')+'</div><span class="fw-promo-hint">'+(promotions.length>1?'Swipe':'Promotion')+'</span></div>';
     bindHero(hero);
     const dots=hero.querySelectorAll('[data-fw-promo-dot]');
     dots.forEach(dot=>dot.addEventListener('click',()=>{goTo(Number(dot.dataset.fwPromoDot));paused=false;start()}));

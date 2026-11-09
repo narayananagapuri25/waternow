@@ -25,12 +25,12 @@ class MockRequest {
   }
 }
 const pages = [
-  { url: 'https://fwcoldpressed.in/orders', postMessage: value => messages.push({ page: 'customer', value }) },
-  { url: 'https://fwcoldpressed.in/admin/', postMessage: value => messages.push({ page: 'owner', value }) },
+  { url: 'https://waternow.pages.dev/orders', postMessage: value => messages.push({ page: 'customer', value }) },
+  { url: 'https://waternow.pages.dev/admin/', postMessage: value => messages.push({ page: 'owner', value }) },
   { url: 'https://other.example/orders', postMessage: value => messages.push({ page: 'other-origin', value }) }
 ];
 const self = {
-  location: { origin: 'https://fwcoldpressed.in' },
+  location: { origin: 'https://waternow.pages.dev' },
   registration: { showNotification: async (title, options) => sentNotifications.push({ title, options }) },
   clients: { matchAll: async () => pages },
   addEventListener: (name, callback) => { handlers[name] = callback; },
@@ -60,9 +60,9 @@ async function dispatchPush(payload) {
 
 (async () => {
   await dispatchPush({
-    title: 'FreshWay payment update',
+    title: 'WaterNow payment update',
     body: 'Payment has been collected.',
-    data: { audience: 'customer', orderId: 'FW-1', eventType: 'payment_changed' }
+    data: { audience: 'customer', orderId: 'WN-1', eventType: 'payment_changed' }
   });
   assert.equal(sentNotifications.length, 1, 'push still displays the notification');
   assert.equal(messages.length, 1, 'only customer app tabs on this origin receive refresh messages');
@@ -70,7 +70,7 @@ async function dispatchPush(payload) {
   assert.deepEqual(JSON.parse(JSON.stringify(messages[0].value)), {
     type: 'freshway:order-updated',
     audience: 'customer',
-    orderId: 'FW-1',
+    orderId: 'WN-1',
     eventType: 'payment_changed'
   });
 
@@ -88,9 +88,13 @@ async function dispatchPush(payload) {
   assert.match(app, /customerOrderData\.load\(\)/);
   assert.match(index, /app\.js\?v=107/);
   assert.ok(index.includes('frontend/customer/navigation.js?v=20261107-history-back-v1'), 'customer HTML must load the deterministic history module');
-  assert.match(sw, /const CACHE = 'freshway-v129';/, 'customer service worker must publish the current history-fix cache version');
+  assert.ok(index.includes('frontend/customer/delivery-booking.js?v=20261109-waternow-supplier-copy-v1'), 'customer HTML must load the current WaterNow delivery help copy');
+  assert.ok(index.includes('frontend/customer/order-actions.js?v=20261109-waternow-order-actions-v1'), 'customer HTML must load the current WaterNow order actions copy');
+  assert.match(sw, /const CACHE = 'waternow-customer-v2';/, 'customer service worker must publish the current history-fix cache version');
   assert.ok(sw.includes('/app.js?v=107'), 'service worker must precache the same cache-busted customer app asset');
   assert.ok(sw.includes('/frontend/customer/navigation.js?v=20261107-history-back-v1'), 'service worker must precache the exact history-fix module loaded by HTML');
+  assert.ok(sw.includes('/frontend/customer/delivery-booking.js?v=20261109-waternow-supplier-copy-v1'), 'service worker must precache the updated WaterNow delivery help module');
+  assert.ok(sw.includes('/frontend/customer/order-actions.js?v=20261109-waternow-order-actions-v1'), 'service worker must precache the updated WaterNow order actions module');
   assert.doesNotMatch(app, /customerSearch\.bind\(/, 'customer app must not bind the removed customer search module');
   assert.match(app, /customerCartActions\.bind\(/, 'cart click handlers must remain registered after app startup');
   assert.match(index, /frontend\/customer\/orders-data\.js\?v=orders3/);
@@ -99,7 +103,7 @@ async function dispatchPush(payload) {
   assert.match(index, /frontend\/customer\/cart-bar\.js\?v=20261029-cartbar-v2/);
   assert.match(index, /frontend\/customer\/delivery-offers\.js\?v=20261103-store-pricing-v1/);
   assert.ok(fs.readFileSync('sw.js', 'utf8').includes('/frontend/customer/delivery-offers.js?v=20261103-store-pricing-v1'), 'service worker must precache the exact store-aware delivery-offers asset URL loaded by HTML');
-  const assetUrl = 'https://fwcoldpressed.in/frontend/customer/navigation.js?v=20261107-history-back-v1';
+  const assetUrl = 'https://waternow.pages.dev/frontend/customer/navigation.js?v=20261107-history-back-v1';
   const oldResponse = { ok: true, body: 'legacy', clone() { return { ...this }; } };
   const freshResponse = { ok: true, body: 'current', clone() { return { ...this }; } };
   cacheEntries.set(assetUrl, oldResponse);

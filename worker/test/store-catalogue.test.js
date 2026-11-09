@@ -12,6 +12,9 @@ class SQLiteD1 {
     this.db = new DatabaseSync(':memory:');
     this.db.exec('PRAGMA foreign_keys = ON;');
     this.db.exec(readFileSync(new URL('../schema.sql', import.meta.url), 'utf8'));
+    // These tests exercise the imported generic store engine with an isolated grocery fixture.
+    // Remove the two WaterNow seed products so their fixtures retain a deterministic one-product catalogue.
+    this.db.exec("DELETE FROM products WHERE id IN ('water-20l','water-10l-pair'); DELETE FROM categories WHERE id IN ('water-20l','water-10l-pair');");
     this.db.exec(`
       INSERT INTO products (id,name,unit,price,emoji,active,category_id,stock_managed,stock_quantity,low_stock_threshold,hsn_code,gst_rate_bps,gst_rate_confirmed)
       VALUES ('oil-1','Groundnut Oil','litre',200,'🫙',1,'cat-oils',1,10,2,'',0,0);

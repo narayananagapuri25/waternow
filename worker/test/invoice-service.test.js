@@ -41,7 +41,7 @@ test('invoice issuance defaults to disabled',async()=>{
   const settings=await getInvoiceSettings(fakeEnv());
   assert.equal(settings.enabled,false);
   assert.equal(settings.documentType,'commercial_invoice');
-  assert.equal(settings.seriesPrefix,'FW');
+  assert.equal(settings.seriesPrefix,'WN');
 });
 
 test('allows saving all optional billing fields blank while invoice issuance stays disabled',async()=>{

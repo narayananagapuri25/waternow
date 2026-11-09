@@ -8,7 +8,7 @@ const erasureMigration = readFileSync(new URL('../migrations/0034_customer_accou
 const snapshotRedactionMigration = readFileSync(new URL('../migrations/0035_nullable_snapshot_customer_id_for_erasure.sql', import.meta.url), 'utf8');
 const anonymizationMigration = readFileSync(new URL('../migrations/0036_anonymize_completed_deletion_requests.sql', import.meta.url), 'utf8');
 const accountDeletion = readFileSync(new URL('../src/account-deletion.js', import.meta.url), 'utf8');
-const productionAudit = readFileSync(new URL('../scripts/audit-production-schema.mjs', import.meta.url), 'utf8');
+const productionAudit = readFileSync(new URL('../scripts/audit-local-schema.mjs', import.meta.url), 'utf8');
 
 test('baseline migration and current schema define deletion requests and aggregate-only completion metrics', () => {
   assert.match(migration, /CREATE TABLE IF NOT EXISTS account_deletion_requests/);

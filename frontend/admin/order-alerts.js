@@ -32,7 +32,7 @@
     if (subscriptionSetupPromise) return subscriptionSetupPromise;
     subscriptionSetupPromise = (async () => {
       if (Notification.permission === 'denied') {
-        throw new Error('Notifications are blocked. Allow them for fwcoldpressed.in in browser site settings first.');
+        throw new Error('Notifications are blocked. Allow them for '+location.hostname+' in browser site settings first.');
       }
       const info = lastPublicKey
         ? { publicKey: lastPublicKey, pushConfigured: true }
@@ -104,14 +104,14 @@
       if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
         button.disabled = true;
         button.textContent = 'Push not supported';
-        status.textContent = 'This browser does not support push alerts. Open FreshWay Owner in a supported browser.';
+        status.textContent = 'This browser does not support push alerts. Open WaterNow Owner in a supported browser.';
         return;
       }
       button.disabled = false;
       if (Notification.permission === 'denied') {
         button.textContent = 'Notifications blocked';
         button.dataset.enabled = '0';
-        status.textContent = `Notifications are blocked for fwcoldpressed.in. Allow them in browser site settings, then return here and tap Enable order alerts. Server has ${Number(info.ownerSubscriptionCount || 0)} Owner subscription(s).`;
+        status.textContent = `Notifications are blocked for ${location.hostname}. Allow them in browser site settings, then return here and tap Enable order alerts. Server has ${Number(info.ownerSubscriptionCount || 0)} Owner subscription(s).`;
         return;
       }
 
@@ -155,7 +155,7 @@
     button.textContent = 'Enabling…';
     try {
       await ensureOwnerSubscription({ requestPermission: true });
-      status.textContent = 'Owner order alerts are enabled and this device subscription is registered with FreshWay.';
+      status.textContent = 'Owner order alerts are enabled and this device subscription is registered with WaterNow.';
       button.dataset.enabled = '1';
       button.textContent = 'Disable alerts on this device';
       await loadAlerts();

@@ -66,7 +66,7 @@ function openAuth(phone){
     submit.textContent=resetMode?(codeSent?'Reset passcode':'Send verification code'):registerMode?'Create account':'Login';
     hint.textContent=resetMode
       ? (codeSent?'Enter the SMS code and choose a new 6-digit passcode.':'We will send a verification code to your registered mobile if the account exists.')
-      : registerMode?'Create one account with your mobile number and a personal 6-digit passcode.':'Use the mobile number you registered with FreshWay.';
+      : registerMode?'Create one account with your mobile number and a personal 6-digit passcode.':'Use the mobile number you registered with WaterNow.';
     phoneEl.disabled=resetMode&&codeSent;
   };
   render();
@@ -169,10 +169,10 @@ function openAuth(phone){
     setTimeout(()=>mode==='register'&&nameEl.value===''?nameEl.focus():phoneEl.value?passEl.focus():phoneEl.focus(),30);
   });
 }
-async function ensureAuthenticated(phone){try{const current=await session();if(current?.customerId){setCustomerId(current.customerId);return current.customerId}}catch(_){}const normalized=normalizeAuthPhone(phone);if(normalized&&!/^\d{10}$/.test(normalized))throw new Error('Enter a valid 10-digit mobile number.');return openAuth(normalized)}const login=()=>openAuth('');const keyBytes=key=>{if(!key||typeof key!=='string')throw new Error('Push notifications are not configured on FreshWay yet.');const pad='='.repeat((4-key.length%4)%4),raw=atob((key+pad).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(raw,c=>c.charCodeAt(0))};function pushSupported(){return 'serviceWorker'in navigator&&'PushManager'in window&&'Notification'in window}
+async function ensureAuthenticated(phone){try{const current=await session();if(current?.customerId){setCustomerId(current.customerId);return current.customerId}}catch(_){}const normalized=normalizeAuthPhone(phone);if(normalized&&!/^\d{10}$/.test(normalized))throw new Error('Enter a valid 10-digit mobile number.');return openAuth(normalized)}const login=()=>openAuth('');const keyBytes=key=>{if(!key||typeof key!=='string')throw new Error('Push notifications are not configured on WaterNow yet.');const pad='='.repeat((4-key.length%4)%4),raw=atob((key+pad).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(raw,c=>c.charCodeAt(0))};function pushSupported(){return 'serviceWorker'in navigator&&'PushManager'in window&&'Notification'in window}
 function isStandaloneApp(){try{return Boolean(window.matchMedia?.('(display-mode: standalone)')?.matches||window.navigator?.standalone===true)}catch(_){return window.navigator?.standalone===true}}
 function notificationError(code,message){const error=new Error(message);error.code=code;return error}
-function blockedPermissionError(){return notificationError('NOTIFICATION_PERMISSION_DENIED',isStandaloneApp()?'Notifications are blocked in Android app settings. Allow FreshWay notifications in Settings, then return and check again.':'Notifications are blocked in browser site settings. Allow notifications for fwcoldpressed.in, then return and check again.')}
+function blockedPermissionError(){return notificationError('NOTIFICATION_PERMISSION_DENIED',isStandaloneApp()?'Notifications are blocked in Android app settings. Allow WaterNow notifications in Settings, then return and check again.':'Notifications are blocked in browser site settings. Allow notifications for this site, then return and check again.')}
 async function getStatus(){
   const standalone=isStandaloneApp();
   if(!pushSupported())return{state:'unsupported',permission:'unsupported',label:'Push notifications are not supported by this browser.'};
@@ -196,7 +196,7 @@ async function enable(){
   if(permission!=='granted'){
     permission=await Notification.requestPermission();
     if(permission==='denied')throw blockedPermissionError();
-    if(permission!=='granted')throw notificationError('NOTIFICATION_PERMISSION_NOT_GRANTED','Choose Allow to enable FreshWay order updates. You can try again from Profile.');
+    if(permission!=='granted')throw notificationError('NOTIFICATION_PERMISSION_NOT_GRANTED','Choose Allow to enable WaterNow order updates. You can try again from Profile.');
   }
   let current;try{current=await session()}catch(_){current=null}
   if(!current?.customerId)throw notificationError('NOTIFICATION_LOGIN_REQUIRED','Your mobile session needs verification. Sign in, then tap App notifications again to finish setup.');

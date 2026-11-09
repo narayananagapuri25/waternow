@@ -1,5 +1,5 @@
 const DEFAULT_STORE_PROFILE = Object.freeze({
-  storeName: 'FreshWay',
+  storeName: 'WaterNow',
   about: '',
   phone: '',
   whatsapp: '',
@@ -9,8 +9,8 @@ const DEFAULT_STORE_PROFILE = Object.freeze({
   shopLongitude: null,
   businessHours: '',
   deliveryInfo: '',
-  shareTitle: 'FreshWay | Fresh Groceries & Everyday Essentials Delivered Locally',
-  shareDescription: 'Shop fresh fruits, groceries and everyday essentials from FreshWay. Order online for local delivery with convenient cash payment.'
+  shareTitle: 'WaterNow | Drinking Water Delivered Locally',
+  shareDescription: 'Order 20L drinking water cans or packs of two 10L cans from local suppliers with convenient home delivery.'
 });
 
 const LIMITS = Object.freeze({

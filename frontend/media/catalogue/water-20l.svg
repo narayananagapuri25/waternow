@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-labelledby="title desc">
+<title id="title">WaterNow 20 litre drinking water can</title><desc id="desc">A clear reusable blue twenty litre water can with a sealed blue cap and WaterNow label.</desc>
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f1fbff"/><stop offset="1" stop-color="#dceff7"/></linearGradient>
+ <linearGradient id="body" x1="0" y1="0" x2="1" y2=".2"><stop stop-color="#d8f4fb" stop-opacity=".92"/><stop offset=".25" stop-color="#fff" stop-opacity=".78"/><stop offset=".6" stop-color="#9ad8eb" stop-opacity=".72"/><stop offset="1" stop-color="#dff8ff" stop-opacity=".95"/></linearGradient>
+ <linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#5ec2e4"/><stop offset="1" stop-color="#1387b2"/></linearGradient>
+ <linearGradient id="cap" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#075b78"/><stop offset=".5" stop-color="#1599bf"/><stop offset="1" stop-color="#064b68"/></linearGradient>
+ <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feGaussianBlur stdDeviation="15"/></filter>
+</defs>
+<rect x="22" y="22" width="596" height="596" rx="56" fill="url(#bg)"/>
+<ellipse cx="322" cy="560" rx="150" ry="22" fill="#4e9db6" opacity=".2" filter="url(#shadow)"/>
+<g transform="translate(0 4)">
+ <path d="M272 96h96v48h-96z" fill="#087ca3"/>
+ <path d="M260 74q0-14 14-14h92q14 0 14 14v31H260z" fill="url(#cap)"/>
+ <path d="M253 103h134v30H253z" rx="8" fill="#086f95"/>
+ <path d="M239 132h161q22 0 31 24l54 137q12 31 12 65v147q0 38-34 38H177q-34 0-34-38V358q0-36 13-67l55-135q8-24 28-24z" fill="url(#body)" stroke="#6cbad3" stroke-width="8"/>
+ <path d="M168 367q95-22 149-6t173 3v141q0 29-30 29H178q-10 0-10-17z" fill="url(#water)" opacity=".58"/>
+ <path d="M168 365q88-19 151-5t171 4" fill="none" stroke="#e8fbff" stroke-width="7" opacity=".9"/>
+ <path d="M238 153 197 280q-8 26-8 54v-3q0-22 10-48l54-128z" fill="#fff" opacity=".72"/>
+ <path d="M362 151q38 62 55 125" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" opacity=".33"/>
+ <path d="M397 213q45 14 47 65l-25 6q-12-43-37-44z" fill="#b4e7f4" stroke="#73bad1" stroke-width="8"/>
+ <path d="M228 270q-4-21 18-23h26q20 2 20 22v72q0 20-20 20h-26q-20 0-18-20z" fill="#e7faff" opacity=".55"/>
+ <rect x="199" y="353" width="244" height="108" rx="20" fill="#fff" stroke="#b6dce8" stroke-width="4"/>
+ <path d="M220 378h202" stroke="#ccecf5" stroke-width="5" stroke-linecap="round"/>
+ <text x="321" y="411" text-anchor="middle" font-family="Arial,sans-serif" font-size="31" font-weight="800" letter-spacing="2" fill="#075b78">WATERNOW</text>
+ <text x="321" y="439" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" font-weight="700" letter-spacing="3" fill="#2d91b1">PURE • 20 LITRE</text>
+</g>
+<circle cx="112" cy="132" r="7" fill="#fff" opacity=".85"/><circle cx="516" cy="170" r="11" fill="#fff" opacity=".7"/><circle cx="500" cy="492" r="6" fill="#fff" opacity=".8"/>
+</svg>

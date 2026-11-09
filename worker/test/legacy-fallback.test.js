@@ -115,15 +115,15 @@ test('owner lifecycle script cache-busting version matches the service-worker sh
 test('service worker keeps documents fresh and refreshes versioned code before cache fallback', () => {
   assert.ok(serviceWorkerSource.includes("if (isNavigation && ['/', '/index.html'].includes(url.pathname))"));
   assert.ok(serviceWorkerSource.includes("if (url.pathname === '/admin.html' || url.pathname.startsWith('/admin/'))"));
-  assert.match(ownerServiceWorkerSource, /const CACHE = 'fw-owner-v[0-9]+'/);
+  assert.match(ownerServiceWorkerSource, /const CACHE = 'waternow-owner-v[0-9]+'/);
   assert.ok(serviceWorkerSource.includes("const isVersionedCode = ['script','style'].includes(destination) && url.searchParams.has('v')"));
   assert.ok(serviceWorkerSource.includes("if (isVersionedCode)") && serviceWorkerSource.includes("return cached||Response.error()"), "customer versioned assets should use network-first with an offline cache fallback");
   assert.ok(serviceWorkerSource.includes("if (cached) {"));
   assert.ok(serviceWorkerSource.includes("const cached=await cache.match(event.request)"));
   assert.ok(serviceWorkerSource.includes("return (await cache.match(event.request)) || Response.error()"));
-  assert.match(serviceWorkerSource, /const CACHE = 'freshway-v[0-9]+'/);
-  assert.doesNotMatch(serviceWorkerSource, /freshway-v63/, 'the old customer service-worker cache version must not be expected');
-  assert.doesNotMatch(ownerServiceWorkerSource, /fw-owner-v20/, 'the old Owner service-worker cache version must not be expected');
+  assert.match(serviceWorkerSource, /const CACHE = 'waternow-customer-v[0-9]+'/);
+  assert.doesNotMatch(serviceWorkerSource, /freshway-v[0-9]+/, 'no legacy FreshWay customer cache should remain');
+  assert.doesNotMatch(ownerServiceWorkerSource, /fw-owner-v20/, 'the obsolete Owner cache version must not remain');
   assert.ok(ownerServiceWorkerSource.includes("if (cached && isVersionedCode) return cached"));
   assert.ok(ownerServiceWorkerSource.includes("if (isDocument || isManifest)"));
 });
@@ -190,7 +190,7 @@ test('Owner failed status/payment saves reconcile from the database before repor
 });
 
 test('unexpected admin database errors are logged with a reference and returned as HTTP 500', () => {
-  assert.ok(adminDataSource.includes("event:'freshway_admin_data_error'"));
+  assert.ok(adminDataSource.includes("event:'waternow_admin_data_error'"));
   assert.ok(adminDataSource.includes("code:'INTERNAL_ERROR',errorId"));
   assert.ok(adminDataSource.includes('},500)'));
   assert.ok(adminDataSource.includes('},409)'));
@@ -207,23 +207,21 @@ test('Owner script URLs and service-worker shell cache versions match', () => {
   assert.ok(htmlLife);
   assert.ok(shellLife);
   assert.equal(htmlLife,shellLife);
-  assert.match(ownerServiceWorkerSource,/const CACHE = 'fw-owner-v[0-9]+'/);
+  assert.match(ownerServiceWorkerSource,/const CACHE = 'waternow-owner-v[0-9]+'/);
   assert.match(adminHtml, /rel="manifest" href="\/admin\/manifest\.webmanifest"/);
   assert.match(adminHtml, /owner-pwa-install\.js\?v=20261019-install-prompt-v2/);
   assert.match(adminHtml, /owner-pwa-install\.css\?v=20261019-install-prompt-v2/);
   assert.match(ownerServiceWorkerSource, /owner-pwa-install\.js\?v=20261019-install-prompt-v2/);
   assert.match(ownerServiceWorkerSource, /owner-pwa-install\.css\?v=20261019-install-prompt-v2/);
-  assert.ok(ownerServiceWorkerSource.includes('/admin/icons/icon-192-brand-v2.png?v=20261026-brand-v2'), 'Owner shell must use the approved FreshWay 192px brand icon');
-  assert.ok(ownerServiceWorkerSource.includes('/admin/icons/icon-512-brand-v2.png?v=20261026-brand-v2'), 'Owner shell must use the approved FreshWay 512px brand icon');
-  assert.ok(ownerServiceWorkerSource.includes('/admin/icons/icon-512-maskable-v2.png?v=20261026-brand-v2'), 'Owner shell must use the approved FreshWay maskable icon');
-  assert.ok(!ownerServiceWorkerSource.includes('/admin/icons/icon-192.svg') && !ownerServiceWorkerSource.includes('/admin/icons/icon-512.svg'), 'Owner service worker must not use the previous SVG icon paths');
+  assert.ok(ownerServiceWorkerSource.includes("'/waternow-icon.svg'"), 'Owner shell must use the WaterNow app icon');
+  
+  
+  assert.ok(ownerServiceWorkerSource.includes("'/admin/waternow-logo.svg'"), 'Owner shell must use the WaterNow wordmark');
   assert.match(ownerServiceWorkerSource, /REQUIRED_SHELL = \[[\s\S]*owner-pwa-install\.js\?v=20261019-install-prompt-v2/);
   assert.match(ownerInstallSource, /beforeinstallprompt/);
   assert.match(ownerInstallSource, /promptEvent\.prompt\(\)/);
   assert.match(ownerInstallSource, /register\('\/admin\/sw\.js', \{ scope: '\/admin\/'/);
   assert.equal(ownerManifest.scope, '/admin/');
   assert.equal(ownerManifest.start_url, '/admin/');
-  assert.ok(ownerManifest.icons.some(icon => icon.src.startsWith('/admin/icons/icon-192-brand-v2.png') && icon.sizes === '192x192' && icon.type === 'image/png'));
-  assert.ok(ownerManifest.icons.some(icon => icon.src.startsWith('/admin/icons/icon-512-brand-v2.png') && icon.sizes === '512x512' && icon.type === 'image/png'));
-  assert.ok(ownerManifest.icons.some(icon => icon.src.startsWith('/admin/icons/icon-512-maskable-v2.png') && icon.sizes === '512x512' && icon.type === 'image/png' && icon.purpose === 'maskable'));
+  assert.ok(ownerManifest.icons.some(icon => icon.src === '/waternow-icon.svg' && icon.sizes === 'any' && icon.type === 'image/svg+xml'));
 });

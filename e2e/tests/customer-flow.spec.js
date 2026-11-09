@@ -6,13 +6,13 @@ let deliveryAvailabilityCalls = [];
 
 const products = [{
   id: 'p1',
-  name: 'Basmati Rice',
-  unit: 'kg',
+  name: '20L Drinking Water Can',
+  unit: 'can',
   price: 120,
   emoji: '🍚',
   active: 1,
-  category_id: 'cat-rice',
-  category_name: 'Rice',
+  category_id: 'water-20l',
+  category_name: '20L Water Can',
   category_slug: 'rice'
 }];
 
@@ -69,7 +69,7 @@ test.beforeEach(async ({ page }) => {
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ available:true,code:'AVAILABLE',store:{id:'store-e2e',name:'FreshWay Test Store',distanceKm:1} })
+        body: JSON.stringify({ available:true,code:'AVAILABLE',store:{id:'store-e2e',name:'WaterNow Test Store',distanceKm:1} })
       });
     }
 
@@ -78,12 +78,12 @@ test.beforeEach(async ({ page }) => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ storeProfile: {
-          storeName: 'FreshWay Test Store',
+          storeName: 'WaterNow Test Store',
           address: '12 Example Market, Test Colony, Hyderabad, Telangana 500001',
           phone: '9000000000',
           whatsapp: '9000000000',
           email: 'privacy@example.test',
-          about: 'Fresh groceries and everyday essentials, selected for quality and delivered locally with care.',
+          about: 'Pure drinking water from trusted local suppliers, selected for quality and delivered locally with care.',
           businessHours: 'Monday–Saturday, 9:00 AM–7:00 PM',
           deliveryInfo: 'Local delivery slots are confirmed during checkout. Delivery availability depends on your address.'
         } })
@@ -96,11 +96,11 @@ test.beforeEach(async ({ page }) => {
         contentType: 'application/json',
         body: JSON.stringify({
           categories: [{
-            id: 'cat-rice',
-            name: 'Rice',
-            slug: 'rice',
-            icon: '🍚',
-            description: 'Rice and rice varieties',
+            id: 'water-20l',
+            name: '20L Water Can',
+            slug: '20l-water-can',
+            icon: '💧',
+            description: 'Reusable 20-litre drinking water can',
             product_count: 1,
             display_order: 1
           }]
@@ -212,7 +212,7 @@ test.beforeEach(async ({ page }) => {
           qualifiesForFreeDelivery: itemsSubtotal >= 800, amountToFreeDelivery: Math.max(0, 800 - itemsSubtotal),
           standardDeliveryFee: 30, deliveryFee, couponDiscount: discount, finalTotal: itemsSubtotal - discount + deliveryFee,
           coupon: discount > 0 ? { code: couponCode, eligibilityPending: false } : null,
-          items: [{ id: 'p1', name: 'Basmati Rice', unit: 'kg', qty, price: 120, lineTotal: 120 * qty }]
+          items: [{ id: 'p1', name: '20L Drinking Water Can', unit: 'can', qty, price: 120, lineTotal: 120 * qty }]
         } })
       });
     }
@@ -235,7 +235,7 @@ test.beforeEach(async ({ page }) => {
       }
       return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
         available:true,code:'AVAILABLE',message:'Good news! We deliver to your area.',
-        store:{id:'store-e2e',name:'FreshWay Test Store',distanceKm:1}
+        store:{id:'store-e2e',name:'WaterNow Test Store',distanceKm:1}
       })});
     }
 
@@ -261,8 +261,8 @@ test.beforeEach(async ({ page }) => {
           address: payload.address,
           items: [{
             id: 'p1',
-            name: 'Basmati Rice',
-            unit: 'kg',
+            name: '20L Drinking Water Can',
+            unit: 'can',
             qty: 1,
             price: 120,
             lineTotal: 120
@@ -314,12 +314,12 @@ test.beforeEach(async ({ page }) => {
 test('customer can browse, add a product, checkout, and receive confirmation', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.locator('#productGrid .product-card')).toContainText('Basmati Rice');
-  await expect(page.locator('[data-fw-category="cat-rice"]')).toContainText('Rice');
+  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
+  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('20L Water Can');
 
-  await page.locator('[data-fw-category="cat-rice"]').click();
+  await page.locator('[data-fw-category="water-20l"]').click();
   await expect(page.locator('#productGrid')).toBeVisible();
-  await expect(page.locator('#productGrid .product-card')).toContainText('Basmati Rice');
+  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
 
   await page.locator('#productGrid .add-btn').click();
   await expect(page.locator('#cartCount')).toHaveText('1 item');
@@ -428,16 +428,16 @@ test('checkout button shows the final payable total, not the item subtotal', asy
         couponDiscount,
         finalTotal: itemsSubtotal - couponDiscount + deliveryFee,
         coupon: couponDiscount ? { code: couponCode, eligibilityPending: false } : null,
-        items: [{ id: 'p1', name: 'Basmati Rice', unit: 'kg', qty, price: 799, lineTotal: itemsSubtotal }]
+        items: [{ id: 'p1', name: '20L Drinking Water Can', unit: 'can', qty, price: 799, lineTotal: itemsSubtotal }]
       } })
     });
   });
 
   await page.goto('/');
-  await expect(page.locator('[data-fw-category="cat-rice"]')).toContainText('Rice');
-  await page.locator('[data-fw-category="cat-rice"]').click();
+  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('20L Water Can');
+  await page.locator('[data-fw-category="water-20l"]').click();
   await expect(page.locator('#productGrid')).toBeVisible();
-  await expect(page.locator('#productGrid .product-card')).toContainText('Basmati Rice');
+  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
   await page.locator('#productGrid .add-btn').click();
   await expect(page.locator('#cartTotal')).toHaveText('₹799');
   await page.locator('#viewCartBtn').click();
@@ -457,7 +457,7 @@ test('checkout button shows the final payable total, not the item subtotal', asy
   await expect(placeOrder).not.toContainText('₹799');
 });
 
-test('₹1,850 cart item persists through checkout navigation and page refresh', async ({ page }) => {
+test('₹1,850 WaterNow can persists through checkout navigation and page refresh', async ({ page }) => {
   const quotePayloads = [];
   let productRequests = 0;
   await page.route('**/api/products**', async route => {
@@ -469,13 +469,13 @@ test('₹1,850 cart item persists through checkout navigation and page refresh',
     contentType: 'application/json',
     body: JSON.stringify({ products: [{
       id: 42,
-      name: 'Groundnut oil/5ltrs',
-      unit: 'kg',
+      name: '20L Drinking Water Can',
+      unit: 'can',
       price: 1850,
       emoji: '🛢️',
       active: 1,
-      category_id: 'cat-rice',
-      category_name: 'Rice',
+      category_id: 'water-20l',
+      category_name: '20L Water Can',
       category_slug: 'rice'
     }] })
     });
@@ -503,19 +503,19 @@ test('₹1,850 cart item persists through checkout navigation and page refresh',
         couponDiscount: 0,
         finalTotal: itemsSubtotal,
         coupon: null,
-        items: [{ id: 42, name: 'Groundnut oil/5ltrs', unit: 'kg', qty, price: 1850, lineTotal: itemsSubtotal }]
+        items: [{ id: 42, name: '20L Drinking Water Can', unit: 'can', qty, price: 1850, lineTotal: itemsSubtotal }]
       } })
     });
   });
 
   await page.goto('/');
-  await expect(page.locator('[data-fw-category="cat-rice"]')).toContainText('Rice');
-  await page.locator('[data-fw-category="cat-rice"]').click();
-  await expect(page.locator('#productGrid .product-card')).toContainText('Groundnut oil/5ltrs');
+  await expect(page.locator('[data-fw-category="water-20l"]')).toContainText('20L Water Can');
+  await page.locator('[data-fw-category="water-20l"]').click();
+  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
   await page.locator('#productGrid .add-btn').click();
   await expect(page.locator('#cartTotal')).toHaveText('₹1,850');
   await page.locator('#viewCartBtn').click();
-  await expect(page.locator('#cartItems')).toContainText('Groundnut oil/5ltrs');
+  await expect(page.locator('#cartItems')).toContainText('20L Drinking Water Can');
   await expect(page.locator('#fwDeliveryPricing')).toContainText('₹1,850');
   await page.locator('#checkoutBtn').click();
   await expect(page.locator('#fwCheckoutPricing')).toContainText('₹1,850');
@@ -536,7 +536,7 @@ test('₹1,850 cart item persists through checkout navigation and page refresh',
   await expect(page.locator('#checkoutForm button[type="submit"]')).toContainText('₹1,850');
   const savedAfterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('freshway-state-v2') || '{}'));
   expect(savedAfterReload.cart['42']).toBe(1);
-  expect(savedAfterReload.cartProducts['42'].name).toBe('Groundnut oil/5ltrs');
+  expect(savedAfterReload.cartProducts['42'].name).toBe('20L Drinking Water Can');
   expect(quotePayloads.length).toBeGreaterThanOrEqual(2);
   expect(quotePayloads.every(payload => String(payload.items?.[0]?.id) === '42')).toBe(true);
 });
@@ -547,13 +547,13 @@ test('checkout refuses a quote for a different cart item instead of showing a mi
     contentType: 'application/json',
     body: JSON.stringify({ products: [{
       id: 42,
-      name: 'Groundnut oil/5ltrs',
-      unit: 'kg',
+      name: '20L Drinking Water Can',
+      unit: 'can',
       price: 1850,
       emoji: '🛢️',
       active: 1,
-      category_id: 'cat-rice',
-      category_name: 'Rice',
+      category_id: 'water-20l',
+      category_name: '20L Water Can',
       category_slug: 'rice'
     }] })
   }));
@@ -573,13 +573,13 @@ test('checkout refuses a quote for a different cart item instead of showing a mi
         couponDiscount: 0,
         finalTotal: 899,
         coupon: null,
-        items: [{ id: 'p1', name: 'Different item', unit: 'kg', qty: Number(payload.items?.[0]?.qty || 1), price: 799, lineTotal: 799 }]
+        items: [{ id: 'p1', name: 'Different item', unit: 'can', qty: Number(payload.items?.[0]?.qty || 1), price: 799, lineTotal: 799 }]
       } })
     });
   });
 
   await page.goto('/');
-  await page.locator('[data-fw-category="cat-rice"]').click();
+  await page.locator('[data-fw-category="water-20l"]').click();
   await page.locator('#productGrid .add-btn').click();
   await page.locator('#viewCartBtn').click();
   await expect(page.locator('#fwCouponStatus')).toContainText('We could not verify every cart item');
@@ -590,7 +590,7 @@ test('checkout refuses a quote for a different cart item instead of showing a mi
   await expect(page.locator('#fwCheckoutPricing')).toContainText('Could not refresh your order total');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('freshway-state-v2') || '{}'));
   expect(saved.cart['42']).toBe(1);
-  expect(saved.cartProducts['42'].name).toBe('Groundnut oil/5ltrs');
+  expect(saved.cartProducts['42'].name).toBe('20L Drinking Water Can');
   await expect(placeOrder).not.toContainText('₹799');
   await expect(placeOrder).not.toContainText('₹0');
 });
@@ -631,7 +631,7 @@ test('selected delivery day survives checkout page refresh', async ({ page }) =>
   });
 
   await page.goto('/');
-  await page.locator('[data-fw-category="cat-rice"]').click();
+  await page.locator('[data-fw-category="water-20l"]').click();
   await page.locator('#productGrid .add-btn').click();
   await page.locator('#viewCartBtn').click();
   await page.locator('#checkoutBtn').click();
@@ -823,9 +823,9 @@ test('new address added from Home becomes the selected address across screens an
 test('customer shell exposes the direct-install PWA contract', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page).toHaveTitle(/FreshWay/);
+  await expect(page).toHaveTitle(/WaterNow/);
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', /manifest\.webmanifest/);
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#0f7a4b');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#075b78');
   await expect(page.locator('.skip-link')).toHaveAttribute('href', '#main-content');
   await expect(page.locator('#main-content')).toBeVisible();
   await page.waitForTimeout(3500);
@@ -903,11 +903,11 @@ test('captures responsive customer visual review snapshots', async ({ page }) =>
   // Mobile-first review: actual customer shell, product cards, cart, and checkout.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await expect(page.locator('#productGrid .product-card')).toContainText('Basmati Rice');
+  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
   await expect(page.locator('#cartBar')).toBeHidden();
   await capture('mobile-home');
 
-  await page.locator('[data-fw-category="cat-rice"]').click();
+  await page.locator('[data-fw-category="water-20l"]').click();
   await page.locator('#productGrid .add-btn').click();
   await expect(page.locator('#cartCount')).toHaveText('1 item');
   const compactCardLayout = await page.locator('#productGrid .product-card').first().evaluate(card => {
@@ -948,14 +948,14 @@ test('captures responsive customer visual review snapshots', async ({ page }) =>
   await page.evaluate(() => window.setView('about'));
   await expect(page.locator('#aboutView')).toHaveClass(/active-view/);
   await expect(page.locator('#aboutContent .store-about-hero')).toBeVisible();
-  await expect(page.locator('#aboutContent .store-info-about')).toContainText('Fresh groceries and everyday essentials');
+  await expect(page.locator('#aboutContent .store-info-about')).toContainText('Pure drinking water from trusted local suppliers');
   await expect(page.locator('#aboutContent .store-contact-cta')).toBeVisible();
   await expect(page.locator('#cartBar')).toBeHidden();
   await capture('mobile-about');
 
   await page.evaluate(() => window.setView('contact'));
   await expect(page.locator('#contactView')).toHaveClass(/active-view/);
-  await expect(page.locator('#contactContent .store-page-intro')).toContainText('Reach FreshWay');
+  await expect(page.locator('#contactContent .store-page-intro')).toContainText('Reach WaterNow');
   await expect(page.locator('#contactContent [data-customer-message-form]')).toBeVisible();
   await expect(page.locator('#contactContent input[name="subject"]')).toBeVisible();
   await expect(page.locator('#contactContent textarea[name="message"]')).toBeVisible();
@@ -969,7 +969,7 @@ test('captures responsive customer visual review snapshots', async ({ page }) =>
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({ storeProfile: {
-      storeName: 'FreshWay Test Store',
+      storeName: 'WaterNow Test Store',
       address: '12 Example Market, Test Colony, Hyderabad, Telangana 500001',
       phone: '9000000000',
       whatsapp: '9000000000',
@@ -1012,8 +1012,8 @@ test('captures responsive customer visual review snapshots', async ({ page }) =>
 
   await page.evaluate(() => window.setView('home'));
   await expect(page.locator('#homeView')).toHaveClass(/active-view/);
-  await page.locator('[data-fw-category="cat-rice"]').click();
-  await expect(page.locator('#productGrid .product-card')).toContainText('Basmati Rice');
+  await page.locator('[data-fw-category="water-20l"]').click();
+  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
   const desktopCardLayout = await page.locator('#productGrid .product-card').first().evaluate(card => {
     const cardRect = card.getBoundingClientRect();
     const controls = card.querySelector('.product-action-control .qty-control');
@@ -1030,7 +1030,7 @@ test('captures responsive customer visual review snapshots', async ({ page }) =>
   expect(desktopCardLayout.controlVisible, 'desktop quantity control should be visible').toBe(true);
   expect(desktopCardLayout.controlBottom, 'desktop quantity control should not be clipped').toBeLessThanOrEqual(desktopCardLayout.cardBottom + 1);
   await capture('desktop-products');
-  await page.locator('#fwCategoryBack button').click();
+  await page.locator('[data-fw-category="water-20l"]').click();
 
   await page.evaluate(() => window.setView('cart'));
   await expect(page.locator('#cartView')).toHaveClass(/active-view/);
@@ -1154,7 +1154,7 @@ test('captures the remaining implemented customer screens and modal states', asy
   await expect(page.locator('.pwa-help')).toHaveCount(0);
   await page.evaluate(() => window.FreshWayPwaInstall.showInstallHelp());
   await expect(page.locator('.pwa-help')).toBeVisible();
-  await expect(page.locator('.pwa-help')).toContainText('Install FreshWay');
+  await expect(page.locator('.pwa-help')).toContainText('Install WaterNow');
   await capture('mobile-pwa-install-help');
 
   // Desktop snapshots verify these existing overlays retain usable width and spacing.
@@ -1317,7 +1317,7 @@ test('captures populated orders, delivery rescheduling, order help, invoice down
     deliveryFee: 30,
     couponCode: null,
     couponDiscount: 0,
-    items: [{ id: 'p1', name: 'Basmati Rice', unit: 'kg', qty: 1, price: 120, lineTotal: 120 }],
+    items: [{ id: 'p1', name: '20L Drinking Water Can', unit: 'can', qty: 1, price: 120, lineTotal: 120 }],
     address: { house: '12', area: 'Test Colony', city: 'Hyderabad', pincode: '500001', landmark: 'Test market', note: 'Call before delivery' },
     scheduledDelivery: { date: scheduledDate, startTime: '10:00', endTime: '12:00', status: 'scheduled' },
     invoice: { number: 'INV-QA-1001' }
@@ -1331,8 +1331,8 @@ test('captures populated orders, delivery rescheduling, order help, invoice down
       return route.fulfill({
         status: 200,
         contentType: 'application/pdf',
-        headers: { 'content-disposition': 'attachment; filename="FreshWay-invoice-FW-QA-1001.pdf"' },
-        body: '%PDF-1.4\n% FreshWay test invoice\n%%EOF'
+        headers: { 'content-disposition': 'attachment; filename="WaterNow-invoice-WN-QA-1001.pdf"' },
+        body: '%PDF-1.4\n% WaterNow test invoice\n%%EOF'
       });
     }
     if (url.pathname === '/api/orders/' + orderId + '/request' && method === 'POST') {
@@ -1374,7 +1374,7 @@ test('captures populated orders, delivery rescheduling, order help, invoice down
   await orderCard.locator('[data-customer-order-open-request="issue"]').click();
   const requestPanel = orderCard.locator('[data-customer-order-request-panel]');
   await expect(requestPanel).toBeVisible();
-  await expect(requestPanel).toContainText('Contact FreshWay about this order');
+  await expect(requestPanel).toContainText('Contact WaterNow about this order');
   await requestPanel.scrollIntoViewIfNeeded();
   await capture('mobile-order-help');
   await requestPanel.locator('textarea').fill('Please confirm the delivery.');
@@ -1403,7 +1403,7 @@ test('captures populated orders, delivery rescheduling, order help, invoice down
   const downloadPromise = page.waitForEvent('download');
   await refreshedCard.locator('[data-download-invoice]').click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe('FreshWay-invoice-FW-QA-1001.pdf');
+  expect(download.suggestedFilename()).toBe('WaterNow-invoice-WN-QA-1001.pdf');
 
   // Desktop review for a populated order and the actual confirmation presentation.
   await page.setViewportSize({ width: 1365, height: 900 });
@@ -1541,7 +1541,7 @@ test('Buy Again merges a delivered order into the cart using current store catal
           createdAt: '2026-10-28T10:00:00.000Z',
           deliveredAt: '2026-10-29T10:00:00.000Z',
           total: 100,
-          items: [{ id: 'p1', name: 'Basmati Rice', unit: 'kg', qty: 2, price: 50, lineTotal: 100 }],
+          items: [{ id: 'p1', name: '20L Drinking Water Can', unit: 'can', qty: 2, price: 50, lineTotal: 100 }],
           address: { house: '12', area: 'Test Colony', city: 'Hyderabad', pincode: '500001' }
         }] })
       });
@@ -1551,7 +1551,7 @@ test('Buy Again merges a delivered order into the cart using current store catal
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await expect(page.locator('#fwCategoryCatalogue')).toContainText('Choose what you need');
+  await expect(page.locator('#fwCategoryCatalogue')).toContainText('Choose your water pack');
   await page.evaluate(() => {
     window.FreshWayNotifications.setCustomerId('e2e-customer-1');
     window.state.cart = { p1: 1 };
@@ -1565,13 +1565,13 @@ test('Buy Again merges a delivered order into the cart using current store catal
   await orderCard.locator('[data-customer-order-buy-again="' + orderId + '"]').click();
 
   await expect(page.locator('#cartView')).toHaveClass(/active-view/);
-  await expect(page.locator('#cartItems')).toContainText('3 × kg');
+  await expect(page.locator('#cartItems')).toContainText('3 × can');
   await expect(page.locator('#cartItems')).toContainText('₹360');
   await expect(page.locator('#cartCount')).toHaveText('3 items');
 });
 
 
-test('customer sees helpful out-of-area options and can contact FreshWay from checkout', async ({ page }) => {
+test('customer sees helpful out-of-area options and can contact WaterNow from checkout', async ({ page }) => {
   deliveryAvailabilityOverride = {
     available: false,
     code: 'AREA_UNAVAILABLE',
@@ -1599,12 +1599,12 @@ test('customer sees helpful out-of-area options and can contact FreshWay from ch
   await expect.poll(() => page.evaluate(() =>
     window.FreshWayAddressSystem?.getSelectedAddress?.()?.latitude ?? null
   )).toBe(17.385044);
-  // Home initially shows categories; open Rice before using its product card,
+  // Home initially shows water packs; open the 20L can before using its product card,
   // matching the real customer navigation path.
-  await expect(page.locator('[data-fw-category="cat-rice"]')).toBeVisible();
-  await page.locator('[data-fw-category="cat-rice"]').click();
+  await expect(page.locator('[data-fw-category="water-20l"]')).toBeVisible();
+  await page.locator('[data-fw-category="water-20l"]').click();
   await expect(page.locator('#productGrid')).toBeVisible();
-  await expect(page.locator('#productGrid .product-card')).toContainText('Basmati Rice');
+  await expect(page.locator('#productGrid .product-card')).toContainText('20L Drinking Water Can');
   await page.locator('#productGrid .add-btn').click();
   await page.locator('#viewCartBtn').click();
   await expect(page.locator('#checkoutBtn')).toBeVisible();
@@ -1628,10 +1628,10 @@ test('customer sees helpful out-of-area options and can contact FreshWay from ch
   const help = page.locator('.fw-delivery-area-help');
   await expect(help).toBeVisible();
   await expect(help).toContainText('Outside our current delivery area?');
-  await expect(help).toContainText('nearby RTC bus stand');
-  await expect(help).toContainText('postal delivery options');
+  await expect(help).toContainText('nearby supplier network');
+  await expect(help).toContainText('supplier coverage');
   await expect(page.locator('[data-fw-delivery-availability]')).toHaveClass(/is-unavailable/);
-  await expect(page.getByRole('button', { name: 'Contact FreshWay' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Contact WaterNow' })).toBeVisible();
 
   // Check the same help panel is readable at a desktop width and does not
   // introduce horizontal scrolling, then verify its customer contact action.
@@ -1644,7 +1644,7 @@ test('customer sees helpful out-of-area options and can contact FreshWay from ch
   expect(desktopWidth.content).toBeLessThanOrEqual(desktopWidth.viewport + 1);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: 'Contact FreshWay' }).click();
+  await page.getByRole('button', { name: 'Contact WaterNow' }).click();
   await expect(page.locator('#contactView')).toHaveClass(/active-view/);
   await expect(page.locator('#contactTitle')).toBeVisible();
 });

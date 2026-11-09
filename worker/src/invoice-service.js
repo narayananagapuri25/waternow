@@ -15,7 +15,7 @@ const trim=(v,max=500)=>String(v??'').trim().slice(0,max);
 const normalizeSellerLabel=value=>trim(value,600).toLowerCase().replace(/[,.]/g,' ').replace(/\s+/g,' ').trim();
 const isLegacyReceiptName=value=>{
   const name=normalizeSellerLabel(value);
-  return !name||name==='freshway';
+  return !name||name==='freshway'||name==='waternow';
 };
 const isLegacyReceiptAddress=value=>{
   const address=normalizeSellerLabel(value);
@@ -40,7 +40,7 @@ export async function getInvoiceSettings(env){
     enabled:Number(row?.enabled||0)===1,
     documentType:TYPES.has(row?.document_type)?row.document_type:'commercial_invoice',
     legalName:row?.legal_name||'',businessAddress:row?.business_address||'',stateName:row?.state_name||'',
-    stateCode:row?.state_code||'',gstin:row?.gstin||'',seriesPrefix:row?.series_prefix||'FW',
+    stateCode:row?.state_code||'',gstin:row?.gstin||'',seriesPrefix:row?.series_prefix||'WN',
     footer:row?.footer||'',pricesIncludeTax:Number(row?.prices_include_tax??1)===1,updatedAt:row?.updated_at||null
   };
 }
@@ -84,7 +84,7 @@ export async function updateInvoiceSettings(env,payload={}){
   // keep issuance disabled and return the reason to the UI.
   let enableWarning='';
   if(!TYPES.has(s.documentType))s.documentType='commercial_invoice';
-  if(!s.seriesPrefix||!/^[A-Z0-9]{1,2}$/.test(s.seriesPrefix))s.seriesPrefix='FW';
+  if(!s.seriesPrefix||!/^[A-Z0-9]{1,2}$/.test(s.seriesPrefix))s.seriesPrefix='WN';
   // The Owner requested simple order records with only the store identity and
   // address required. When GST mode was left selected without a GSTIN, make
   // the safe document type explicit instead of keeping invoices permanently

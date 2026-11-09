@@ -22,7 +22,7 @@ function fixture(overrides={}){
     id:'inv-FW-TEST-1',orderId:'FW-TEST-1',customerId:'customer-test',
     invoiceNumber:'FW/26-27/000001',documentType:'commercial_invoice',
     financialYear:'26-27',issueDate:'2026-10-22T06:00:00.000Z',
-    seller:{storeName:'FreshWay',legalName:'FreshWay Foods',address:'Shop 1, Main Road',stateName:'Telangana',stateCode:'36',gstin:'',phone:'9000000000',footer:'Thank you for shopping with FreshWay.'},
+    seller:{storeName:'WaterNow',legalName:'WaterNow Foods',address:'Shop 1, Main Road',stateName:'Telangana',stateCode:'36',gstin:'',phone:'9000000000',footer:'Thank you for shopping with WaterNow.'},
     buyer:{name:'Test Customer',phone:'919000000000',recipientName:'Test Customer',deliveryPhone:'9000000000',address:{house:'H 1',area:'Market Road',city:'Hyderabad',district:'Hyderabad',state:'Telangana',pincode:'500001',landmark:'Near shop'},placeOfSupply:'',stateCode:''},
     totals:{grossPaise:65000,taxablePaise:65000,cgstPaise:0,sgstPaise:0,igstPaise:0,totalPaise:65000,currency:'INR',pricesIncludeTax:true},
     items:[item],...overrides
@@ -96,7 +96,7 @@ test('creates a valid one-page non-GST commercial order record PDF',async()=>{
   assert.equal(new TextDecoder().decode(bytes.slice(0,5)),'%PDF-');
   const pdf=await PDFDocument.load(bytes);
   assert.equal(pdf.getPageCount(),1);
-  assert.equal(pdf.getTitle(),'FreshWay commercial order record FW/26-27/000001');
+  assert.equal(pdf.getTitle(),'WaterNow commercial order record FW/26-27/000001');
   const size=pdf.getPage(0).getSize();
   assert.ok(Math.abs(size.width-595.28)<1,'commercial invoice uses A4 width');
   assert.ok(Math.abs(size.height-841.89)<1,'commercial invoice uses A4 height');
@@ -127,7 +127,7 @@ test('creates a realistic commercial invoice visual sample with long addresses, 
 
 test('splits long item lists across pages without losing the total',async()=>{
   const items=Array.from({length:80},(_,i)=>({
-    productId:'item-'+i,name:'FreshWay grocery product '+String(i+1).padStart(2,'0'),
+    productId:'item-'+i,name:'WaterNow drinking water pack '+String(i+1).padStart(2,'0'),
     unit:'packet',qty:1,unitPricePaise:1250,grossPaise:1250,hsnCode:'',gstRateBps:0,
     taxablePaise:1250,cgstPaise:0,sgstPaise:0,igstPaise:0
   }));
@@ -153,7 +153,7 @@ test('labels GST tax invoices and bill of supply distinctly',async()=>{
     totals:{grossPaise:65000,taxablePaise:61905,cgstPaise:1548,sgstPaise:1547,igstPaise:0,totalPaise:65000,currency:'INR',pricesIncludeTax:true}
   })));
   assert.equal(taxInvoice.getPageCount(),1);
-  assert.equal(taxInvoice.getTitle(),'FreshWay gst tax invoice FW/26-27/000002');
+  assert.equal(taxInvoice.getTitle(),'WaterNow gst tax invoice FW/26-27/000002');
   const bill=await PDFDocument.load(await createInvoicePdf(fixture({documentType:'bill_of_supply',invoiceNumber:'FW/26-27/000003'})));
-  assert.equal(bill.getTitle(),'FreshWay bill of supply FW/26-27/000003');
+  assert.equal(bill.getTitle(),'WaterNow bill of supply FW/26-27/000003');
 });

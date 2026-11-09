@@ -14,14 +14,14 @@
         const response=await fetch(path,{...fetchOptions,cache:'no-store',credentials:'include',signal:controller.signal,headers:{'Content-Type':'application/json',...(fetchOptions.headers||{})}});
         const data=await response.json().catch(()=>({}));
         if(!response.ok){
-          const error=new Error(data.error||'FreshWay server is unavailable.');
+          const error=new Error(data.error||'WaterNow server is unavailable.');
           error.status=Number(response.status)||0;
           error.code=String(data.code||([401,403].includes(error.status)?'AUTHENTICATION_REQUIRED':'HTTP_ERROR'));
           throw error;
         }
         return data;
       }catch(error){
-        if(error?.name==='AbortError')throw new Error('FreshWay request timed out. Please check your connection and try again.');
+        if(error?.name==='AbortError')throw new Error('WaterNow request timed out. Please check your connection and try again.');
         throw error;
       }finally{
         clearTimeout(timer);

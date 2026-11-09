@@ -10,12 +10,12 @@ async function sessionCookie() {
   const issued = String(Math.floor(Date.now() / 1000));
   const key = await crypto.subtle.importKey('raw', encoder.encode(SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(issued));
-  return `__Host-freshway-admin-session=${issued}.${toHex(signature)}`;
+  return `__Host-waternow-admin-session=${issued}.${toHex(signature)}`;
 }
 
 function setup() {
   let stored = {
-    store_name: 'FreshWay',
+    store_name: 'WaterNow',
     about: 'Cold-pressed oils and rice',
     phone: '9876543210',
     whatsapp: '9876543210',
@@ -25,13 +25,13 @@ function setup() {
     shop_longitude: 79.1091,
     business_hours: '9 AM–7 PM',
     delivery_info: 'Local delivery',
-    share_title: 'FreshWay',
+    share_title: 'WaterNow',
     share_description: 'Fresh essentials delivered locally'
   };
   const env = {
     ADMIN_SESSION_SECRET: SECRET,
-    APP_ORIGIN: 'https://fwcoldpressed.in',
-    APP_ORIGINS: 'https://fwcoldpressed.in',
+    APP_ORIGIN: 'https://waternow.test',
+    APP_ORIGINS: 'https://waternow.test',
     DB: {
       prepare(sql) {
         if (sql.startsWith('SELECT store_name,about,phone,whatsapp,email,address,shop_latitude,shop_longitude')) {
@@ -66,7 +66,7 @@ async function call(path, { method = 'GET', cookie, body } = {}, env) {
   const headers = new Headers({ Accept: 'application/json' });
   if (cookie) headers.set('Cookie', cookie);
   if (body !== undefined) headers.set('Content-Type', 'application/json');
-  return adminAuth.fetch(new Request('https://fwcoldpressed.in' + path, {
+  return adminAuth.fetch(new Request('https://waternow.test' + path, {
     method, headers, body: body === undefined ? undefined : JSON.stringify(body)
   }), env, {});
 }
@@ -85,7 +85,7 @@ test('Owner Store Profile loads saved data and partial updates preserve other fi
   const loaded = await call('/api/admin/store-profile', { cookie }, env);
   assert.equal(loaded.status, 200);
   const initial = await loaded.json();
-  assert.equal(initial.storeProfile.storeName, 'FreshWay');
+  assert.equal(initial.storeProfile.storeName, 'WaterNow');
   assert.equal(initial.storeProfile.about, 'Cold-pressed oils and rice');
   assert.equal(initial.storeProfile.address, 'Mancherial, Telangana');
   assert.equal(initial.storeProfile.shopLatitude, 17.6082);

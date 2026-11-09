@@ -1,0 +1,72 @@
+name: WaterNow CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - main
+      - 'feature/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: waternow-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker-tests:
+    name: Worker and D1 tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Worker dependencies
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+      - name: Audit local D1 schema
+        working-directory: worker
+        run: node ./scripts/audit-local-schema.mjs
+      - name: Run Worker tests
+        working-directory: worker
+        run: npm test
+
+  owner-ui-regression:
+    name: Owner UI regression checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Owner navigation, orders and performance contracts
+        run: node --test admin-navigation.test.js admin-orders.test.js admin-performance.test.js
+
+  browser-tests:
+    name: Customer browser and Playwright tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run customer service-worker regression tests
+        run: node sw-notification-refresh.test.js
+      - name: Install Playwright dependencies
+        working-directory: e2e
+        run: npm ci
+      - name: Install Chromium
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      - name: Run customer browser journeys
+        working-directory: e2e
+        run: npx playwright test --config=playwright.config.js
+      - name: Install Worker dependencies for isolated delivery server
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+      - name: Run isolated delivery and store fallback tests
+        working-directory: e2e
+        run: npx playwright test --config=playwright.store-fallback.config.js

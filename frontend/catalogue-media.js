@@ -1,43 +1,18 @@
 (function(){
-  const BASE='frontend/media/catalogue/';
-  const media=Object.freeze({
-    categories:Object.freeze({
-      'cat-oils':BASE+'groundnut-oil.svg',
-      'cat-rice':BASE+'hmt-rice.svg'
-    }),
-    products:Object.freeze({
-      'p-1788808795819-x0yy':BASE+'groundnut-oil.svg',
-      'p-mtsy8sib-wdsit':BASE+'sunflower-oil.svg',
-      'p-mtsy9yvt-ca3c5':BASE+'hmt-rice.svg',
-      'p-mtsyafsh-82by2':BASE+'sona-masuri.svg'
-    })
+  const catalogue=Object.freeze({
+    'water-20l' :'frontend/media/catalogue/water-20l.svg',
+    'water-10l-pair' :'frontend/media/catalogue/water-10l-pair.svg'
   });
   const normalize=value=>String(value??'').normalize('NFKC').toLocaleLowerCase('en-IN').replace(/[^a-z0-9]+/g,' ').trim();
-  const categoryByKey=Object.freeze({
-    'oil':BASE+'groundnut-oil.svg',
-    'oils':BASE+'groundnut-oil.svg',
-    'cooking oil':BASE+'groundnut-oil.svg',
-    'cooking oils':BASE+'groundnut-oil.svg',
-    'rice':BASE+'hmt-rice.svg'
-  });
-  const productByName=name=>{
-    const key=normalize(name).replace(/\bground\s+nut\b/g,'groundnut');
-    if(key.includes('groundnut'))return BASE+'groundnut-oil.svg';
-    if(key.includes('sunflower'))return BASE+'sunflower-oil.svg';
-    if(key.includes('hmt')&&key.includes('rice'))return BASE+'hmt-rice.svg';
-    if(key.includes('sona')&&key.includes('masuri'))return BASE+'sona-masuri.svg';
-    return '';
-  };
   const image=(type,id,entity)=>{
-    const known=media[type]?.[String(id)];
-    if(known)return known;
-    if(type==='categories'){
-      const slug=normalize(entity?.slug);
-      const name=normalize(entity?.name);
-      return categoryByKey[slug]||categoryByKey[name]||'';
-    }
-    if(type==='products')return productByName(entity?.name);
+    const direct=catalogue[String(id)];
+    if(direct)return direct;
+    const key=normalize(entity?.slug||'')+' '+normalize(entity?.name||'');
+    if(/20l|20 litre|20 liter|twenty litre/.test(key))return catalogue['water-20l'];
+    if(/10l|10 litre|10 liter|two 10l|2 10l/.test(key))return catalogue['water-10l-pair'];
     return '';
   };
-  window.FreshWayCatalogueMedia=Object.freeze({image});
+  const media=Object.freeze({image});
+  window.WaterNowCatalogueMedia=media;
+  window.FreshWayCatalogueMedia=media;
 })();

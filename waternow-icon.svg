@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+<title id="title">WaterNow</title>
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e7fbff"/><stop offset="1" stop-color="#c5f4e2"/></linearGradient><linearGradient id="d" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#35c9f4"/><stop offset="1" stop-color="#07516c"/></linearGradient></defs>
+<rect x="8" y="8" width="496" height="496" rx="122" fill="url(#bg)"/>
+<path d="M254 61c-34 58-123 160-123 248a125 125 0 0 0 250 0c0-88-89-190-127-248Z" fill="url(#d)"/>
+<path d="M205 237c18-32 39-59 58-82" fill="none" stroke="#e2fbff" stroke-width="17" stroke-linecap="round" opacity=".85"/>
+<path d="M86 356c54 57 146 67 240 15 22-12 40-28 58-49-47 94-159 132-248 92-22-10-40-30-50-58Z" fill="#28b9d7"/>
+<path d="M289 445c39-47 88-66 144-55-34 55-82 76-144 55Z" fill="#49b96e"/>
+</svg>

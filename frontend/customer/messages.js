@@ -7,7 +7,7 @@
   let busy=false;
   function setBadge(count){
     const label=document.querySelector('#customerMessagesStatus');
-    if(label)label.textContent=count>0?count+' new repl'+(count===1?'y':'ies')+' from FreshWay':'View messages and replies';
+    if(label)label.textContent=count>0?count+' new repl'+(count===1?'y':'ies')+' from WaterNow':'View messages and replies';
     const button=document.querySelector('[data-nav="messages"]');
     if(button)button.classList.toggle('has-unread-messages',count>0);
   }
@@ -17,10 +17,10 @@
   }
   function render(messages){
     const el=root();if(!el)return;
-    if(!messages.length){el.innerHTML='<div class="empty"><div style="font-size:36px">✉️</div><strong>No messages yet</strong><p>Contact FreshWay if you need help. Replies will appear here.</p><button class="primary-btn" type="button" data-messages-contact>Contact FreshWay</button></div>';return;}
-    el.innerHTML='<div class="fw-customer-messages-intro"><p>Messages and replies from FreshWay appear here. We keep messages for up to 90 days.</p><button class="text-btn" type="button" data-messages-contact>Contact FreshWay</button></div>'+messages.map(m=>{
+    if(!messages.length){el.innerHTML='<div class="empty"><div style="font-size:36px">✉️</div><strong>No messages yet</strong><p>Contact WaterNow if you need help. Replies will appear here.</p><button class="primary-btn" type="button" data-messages-contact>Contact WaterNow</button></div>';return;}
+    el.innerHTML='<div class="fw-customer-messages-intro"><p>Messages and replies from WaterNow appear here. We keep messages for up to 90 days.</p><button class="text-btn" type="button" data-messages-contact>Contact WaterNow</button></div>'+messages.map(m=>{
       const unread=m.status==='replied'&&!m.reply_seen_at;
-      return '<article class="fw-customer-message'+(unread?' is-unread':'')+'" data-customer-message-id="'+esc(m.id)+'"><div class="fw-customer-message-head"><div><strong>'+esc(m.subject||'Message to FreshWay')+'</strong><small>Sent '+esc(niceDate(m.created_at))+'</small>'+(m.order_id?'<small>About order '+esc(m.order_id)+'</small>':'')+'</div><span class="fw-customer-message-status '+(m.status==='replied'?'is-replied':'is-pending')+'">'+(unread?'New reply':m.status==='replied'?'Replied':'Awaiting reply')+'</span></div><p class="fw-customer-message-body">'+esc(m.message)+'</p>'+(m.admin_reply?'<div class="fw-customer-message-reply"><strong>FreshWay replied</strong><small>'+esc(niceDate(m.replied_at))+'</small><p>'+esc(m.admin_reply)+'</p></div>':'<p class="fw-customer-message-waiting">We’ll show the reply here when it’s ready.</p>')+'</article>';
+      return '<article class="fw-customer-message'+(unread?' is-unread':'')+'" data-customer-message-id="'+esc(m.id)+'"><div class="fw-customer-message-head"><div><strong>'+esc(m.subject||'Message to WaterNow')+'</strong><small>Sent '+esc(niceDate(m.created_at))+'</small>'+(m.order_id?'<small>About order '+esc(m.order_id)+'</small>':'')+'</div><span class="fw-customer-message-status '+(m.status==='replied'?'is-replied':'is-pending')+'">'+(unread?'New reply':m.status==='replied'?'Replied':'Awaiting reply')+'</span></div><p class="fw-customer-message-body">'+esc(m.message)+'</p>'+(m.admin_reply?'<div class="fw-customer-message-reply"><strong>WaterNow replied</strong><small>'+esc(niceDate(m.replied_at))+'</small><p>'+esc(m.admin_reply)+'</p></div>':'<p class="fw-customer-message-waiting">We’ll show the reply here when it’s ready.</p>')+'</article>';
     }).join('');
   }
   async function load(){
@@ -36,7 +36,7 @@
       await refreshBadge();
     }catch(error){
       if(Number(error?.status)===401||error?.code==='AUTHENTICATION_REQUIRED'){
-        el.innerHTML='<div class="empty"><div style="font-size:36px">🔐</div><strong>Sign in to view your messages</strong><p>Your replies are private and linked to your FreshWay account.</p><button class="primary-btn" type="button" data-messages-sign-in>Sign in</button></div>';
+        el.innerHTML='<div class="empty"><div style="font-size:36px">🔐</div><strong>Sign in to view your messages</strong><p>Your replies are private and linked to your WaterNow account.</p><button class="primary-btn" type="button" data-messages-sign-in>Sign in</button></div>';
       }else{
         el.innerHTML='<div class="empty"><strong>Could not load messages</strong><p>'+esc(error.message||'Please try again.')+'</p><button class="secondary-btn" type="button" data-messages-refresh>Try again</button></div>';
       }
@@ -68,7 +68,7 @@
       observer.disconnect();
       card?.scrollIntoView({behavior:'smooth',block:'center'});
       const cleanUrl=new URL(location.href);cleanUrl.searchParams.delete('openMessage');cleanUrl.hash='messages';
-      history.replaceState({__freshwayCustomer:true,view:'messages'},'',cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+      history.replaceState({__waternowCustomer:true,view:'messages'},'',cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
     };
     const findCard=()=>[...container.querySelectorAll('[data-customer-message-id]')].find(item=>item.dataset.customerMessageId===messageId);
     const observer=new MutationObserver(()=>{
@@ -79,7 +79,9 @@
     observer.observe(container,{childList:true,subtree:true});
     const existing=findCard();if(existing)finish(existing);
   }
-  window.FreshWayCustomerMessages=Object.freeze({load,refreshBadge,refreshBadgeCount:refreshBadge});
+  const customerMessages=Object.freeze({load,refreshBadge,refreshBadgeCount:refreshBadge});
+  window.FreshWayCustomerMessages=customerMessages;
+  window.WaterNowCustomerMessages=customerMessages;
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{void refreshBadge();openMessageFromNotification();},{once:true});else {void refreshBadge();openMessageFromNotification();}
 })();

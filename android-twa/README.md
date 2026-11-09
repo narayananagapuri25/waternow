@@ -1,4 +1,8 @@
-# FreshWay Android Trusted Web Activity
+# Android TWA setup — not configured for WaterNow
+
+> **Do not build, sign, or publish this Android project for WaterNow.** This directory is still the imported FreshWay Trusted Web Activity configuration. Its application ID, host, start URL, icon URLs, web manifest URL, signing-key reference and asset-links instructions are not WaterNow values.
+>
+> WaterNow's public domain and permanent Android application ID have not been confirmed. Configure the TWA only after those decisions are final. Use a new WaterNow signing key and WaterNow-owned Cloudflare/domain configuration; never reuse FreshWay's package identity, domain, signing key or fingerprint.
 
 This directory is the isolated Android packaging workspace for the existing customer PWA. It does not replace the web application, alter Worker/D1 behavior, or deploy anything.
 
