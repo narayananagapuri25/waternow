@@ -247,7 +247,7 @@ jobs:
           const githubChecks = await fetch('https://api.github.com/repos/' + process.env.GITHUB_REPOSITORY + '/commits/' + process.env.GITHUB_SHA + '/check-runs?per_page=100', { headers: { Accept: 'application/vnd.github+json' }, signal: AbortSignal.timeout(12000) });
           const checksBody = await githubChecks.json().catch(() => ({}));
           const workerBuildCheck = (checksBody.check_runs || []).find(item => String(item.name || '').startsWith('Workers Builds: waternow-api'));
-          const build = String(workerBuildCheck?.details_url || '').match(/builds\\/([0-9a-f-]{36})(?:$|[?#])/i)?.[1];
+          const build = String(workerBuildCheck?.details_url || '').match(/builds\/([0-9a-f-]{36})(?:$|[?#])/i)?.[1];
           if (!build) { console.log('No Cloudflare Workers Builds UUID found on the current commit.'); process.exit(0); }
           const base = 'https://api.cloudflare.com/client/v4/accounts/' + account + '/builds/builds/' + build;
           for (const suffix of ['', '/logs']) {
