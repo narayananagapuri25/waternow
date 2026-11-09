@@ -273,7 +273,7 @@ async function updateOrder(env,id,payload){
 async function addProduct(env,payload){
   const id=String(payload.id||`p-${Date.now()}-${Math.random().toString(36).slice(2,6)}`).trim().slice(0,100),
     name=String(payload.name||'').trim().slice(0,100),unit=String(payload.unit||'').trim().slice(0,30),
-    price=Number(payload.price),emoji=String(payload.emoji||'🛒').slice(0,8),
+    price=Number(payload.price),emoji=String(payload.emoji||'').slice(0,8),
     stockManaged=payload.stockManaged===true,requestedStock=Number(payload.stockQuantity??0),
     lowStockThreshold=Number(payload.lowStockThreshold??5);
   if(!name||!unit||!Number.isFinite(price)||price<0)throw new Error('Product name, unit and valid price are required.');
