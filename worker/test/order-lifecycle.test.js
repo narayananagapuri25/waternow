@@ -33,7 +33,7 @@ test('owner order endpoint applies pagination and legacy payment filter normaliz
   const calls=[];
   const env={
     ADMIN_TOKEN:'fixture-admin',
-    APP_ORIGIN:'https://freshway-f32.pages.dev',
+    APP_ORIGIN:'https://waternow.pages.dev',
     DB:{
       prepare(sql){
         calls.push(sql);
@@ -62,7 +62,7 @@ test('owner order endpoint applies pagination and legacy payment filter normaliz
   };
   const response=await handler.fetch(
     new Request('https://api.example.test/api/admin/orders?page=2&limit=1&payment=Pending&sort=newest',{
-      headers:{'X-Freshway-Admin-Token':'fixture-admin'}
+      headers:{'X-WaterNow-Admin-Token':'fixture-admin'}
     }),
     env,
     {}
@@ -78,7 +78,7 @@ test('owner order endpoint applies pagination and legacy payment filter normaliz
 
   const testResponse=await handler.fetch(
     new Request('https://api.example.test/api/admin/orders?page=1&limit=1&testOrders=1',{
-      headers:{'X-Freshway-Admin-Token':'fixture-admin'}
+      headers:{'X-WaterNow-Admin-Token':'fixture-admin'}
     }),
     env,
     {}
