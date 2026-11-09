@@ -12,5 +12,13 @@
     "WATERNOW_ENVIRONMENT": "development",
     "APP_ORIGIN": "http://localhost:8788",
     "APP_ORIGINS": "http://localhost:8788,http://127.0.0.1:8788,http://localhost:8787,http://127.0.0.1:8787"
+  },
+  "previews": {
+    "vars": {
+      "WATERNOW_ENVIRONMENT": "preview",
+      "APP_ORIGIN": "https://waternow.pages.dev",
+      "APP_ORIGINS": "https://waternow.pages.dev",
+      "APP_ORIGIN_SUFFIXES": ".waternow.pages.dev"
+    }
   }
 }
