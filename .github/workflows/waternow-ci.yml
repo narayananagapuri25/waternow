@@ -178,6 +178,8 @@ jobs:
           )"
           npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "$audit_sql" --json
           npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "PRAGMA foreign_key_check" --json
+          echo "Invoice seller-field completeness (boolean flags only; no private seller values):"
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT CASE WHEN legal_name IS NULL OR trim(legal_name)='' THEN 1 ELSE 0 END AS legal_name_blank, CASE WHEN business_address IS NULL OR trim(business_address)='' THEN 1 ELSE 0 END AS business_address_blank, CASE WHEN state_name IS NULL OR trim(state_name)='' THEN 1 ELSE 0 END AS state_name_blank, CASE WHEN state_code IS NULL OR trim(state_code)='' THEN 1 ELSE 0 END AS state_code_blank, CASE WHEN gstin IS NULL OR trim(gstin)='' THEN 1 ELSE 0 END AS gstin_blank, CASE WHEN footer IS NULL OR trim(footer)='' THEN 1 ELSE 0 END AS footer_blank FROM invoice_settings WHERE id=1" --json
       - name: Inventory production D1 tables (read only, even if ledger check fails)
         if: always()
         env:
