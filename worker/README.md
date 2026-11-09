@@ -1,5 +1,7 @@
 # WaterNow Cloudflare Worker and D1 setup
 
+**Account isolation:** WaterNow must use a new, separate Cloudflare account, Worker, Pages project, domain and D1 database. The FreshWay Cloudflare account and its D1 database are not connected to this repository and must never be selected for WaterNow. No Cloudflare account credentials, production database IDs or deployed resources are currently configured here.
+
 This directory contains the customer and owner API Worker, D1 schema, additive migrations and tests. `wrangler.jsonc` is a local-development template with a placeholder database ID and localhost origins; do not deploy it as-is.
 
 ## Local setup
@@ -24,6 +26,6 @@ This directory contains the customer and owner API Worker, D1 schema, additive m
 
 Apply pending migrations in order using the Cloudflare D1 migration workflow. WaterNow adds `0051_waternow_supplier_network.sql` and `0052_waternow_catalogue_seed.sql`. Do not manually apply the additive `0051` migration on a database that was bootstrapped from the complete `schema.sql` snapshot, because that snapshot already includes the supplier tables and delivery-store columns; in that case apply only `0052` to activate the WaterNow catalogue.
 
-Use isolated local/preview databases for all tests. Never use production credentials or production customer/order data. For a real deployment, create your own Cloudflare resources, configure secrets in the provider secret manager, replace the placeholder D1 ID, review CORS/origin settings and create a separately reviewed deployment workflow.
+Use isolated local/preview databases for all tests. Never use production credentials or production customer/order data. For a real deployment, sign in to the new WaterNow Cloudflare account, create a new D1 database named waternow-production, and use only the database UUID returned by that account. Create a new WaterNow Worker and Pages project in that same account; configure secrets there; replace the local placeholder D1 ID only with the WaterNow database UUID; set the WaterNow domain/origin; and create a separately reviewed deployment workflow. Do not copy any FreshWay account ID, D1 UUID, API token, domain binding or secret.
 
 Never commit `ADMIN_TOKEN`, session secrets, VAPID private keys, Twilio credentials, WhatsApp credentials or any other secret.
