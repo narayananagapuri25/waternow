@@ -102,7 +102,7 @@ test('Owner store map supports tap-to-pin, marker dragging, address search, geol
     });
   });
 
-  await page.addScriptTag({ path: resolve(process.cwd(), 'frontend/admin/store-map-picker.js') });
+  await page.addScriptTag({ path: resolve(process.cwd(), '..', 'frontend/admin/store-map-picker.js') });
   await page.evaluate(() => {
     const root = document.querySelector('[data-waternow-store-map-picker]');
     window.__waterNowMapCleanup = window.WaterNowStoreMapPicker.mount(root);
