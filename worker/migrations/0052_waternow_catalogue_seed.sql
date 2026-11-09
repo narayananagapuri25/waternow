@@ -20,3 +20,6 @@ UPDATE products SET name='20L Drinking Water Can',unit='can',emoji='💧',active
   display_order=1,stock_managed=1,updated_at=CURRENT_TIMESTAMP WHERE id='water-20l';
 UPDATE products SET name='2 × 10L Drinking Water Cans',unit='pack',emoji='🚰',active=1,category_id='water-10l-pair',
   display_order=2,stock_managed=1,updated_at=CURRENT_TIMESTAMP WHERE id='water-10l-pair';
+
+-- Replace the inherited FreshWay invoice series only when it is still the untouched default.
+UPDATE invoice_settings SET series_prefix='WN' WHERE id=1 AND UPPER(TRIM(series_prefix))='FW';
