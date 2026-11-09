@@ -1,5 +1,5 @@
 {
-  "name": "freshway-worker",
+  "name": "waternow-worker",
   "private": true,
   "type": "module",
   "scripts": {
