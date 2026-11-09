@@ -1,8 +1,8 @@
 (function(){
   const root=()=>document.querySelector('#customerMessagesContent');
   const esc=value=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
-  const api=()=>window.WaterNowCustomerAPI?.request;
-  const auth=()=>window.WaterNowCustomerAuth;
+  const api=()=>window.FreshWayCustomerAPI?.request;
+  const auth=()=>window.FreshWayCustomerAuth;
   const niceDate=value=>{if(!value)return '';const d=new Date(value);return Number.isNaN(d.getTime())?String(value).slice(0,16):d.toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});};
   let busy=false;
   function setBadge(count){
@@ -44,7 +44,7 @@
   }
   async function signIn(){
     try{await auth()?.login?.();await load();await refreshBadge();}
-    catch(error){if(!/cancel/i.test(error?.message||''))window.WaterNowCustomerFeedback?.show?.(document,error.message||'Could not sign in.');}
+    catch(error){if(!/cancel/i.test(error?.message||''))window.FreshWayCustomerFeedback?.show?.(document,error.message||'Could not sign in.');}
   }
   document.addEventListener('click',event=>{
     const signInButton=event.target.closest('[data-messages-sign-in]');
@@ -52,8 +52,8 @@
     if(event.target.closest('[data-messages-refresh]')){void load();return;}
     if(event.target.closest('[data-messages-contact]')){window.setView?.('contact');}
   });
-  document.addEventListener('waternow:session',()=>{void refreshBadge();});
-  document.addEventListener('waternow:session-expired',()=>{setBadge(0);});
+  document.addEventListener('freshway:session',()=>{void refreshBadge();});
+  document.addEventListener('freshway:session-expired',()=>{setBadge(0);});
   const style=document.createElement('style');
   style.textContent='.fw-customer-messages-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:4px 0 14px}.fw-customer-messages-intro p{color:#647168;margin:0}.fw-customer-message{background:#fff;border:1px solid #e1e9e4;border-radius:16px;padding:16px;margin:12px 0}.fw-customer-message.is-unread{border-color:#16834f;box-shadow:0 0 0 1px rgba(22,131,79,.08)}.fw-customer-message-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.fw-customer-message-head strong,.fw-customer-message-head small{display:block}.fw-customer-message-head small,.fw-customer-message-reply small{color:#6c786f;margin-top:4px}.fw-customer-message-status{white-space:nowrap;font-size:.78rem;border-radius:999px;padding:5px 9px;background:#f2f4f2;color:#5d6a61}.fw-customer-message-status.is-replied{background:#e6f6ed;color:#176b43}.fw-customer-message-status.is-pending{background:#fff4df;color:#8a5b00}.fw-customer-message-body,.fw-customer-message-reply p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}.fw-customer-message-reply{background:#f2f8f4;border-radius:12px;padding:12px;margin-top:14px}.fw-customer-message-reply p{margin-bottom:0}.fw-customer-message-waiting{color:#647168;font-size:.92rem}.has-unread-messages #customerMessagesStatus{font-weight:700;color:#176b43}';
   document.head.appendChild(style);
@@ -79,7 +79,7 @@
     observer.observe(container,{childList:true,subtree:true});
     const existing=findCard();if(existing)finish(existing);
   }
-  window.WaterNowCustomerMessages=Object.freeze({load,refreshBadge,refreshBadgeCount:refreshBadge});
+  const customerMessages=Object.freeze({load,refreshBadge,refreshBadgeCount:refreshBadge});\n  window.FreshWayCustomerMessages=customerMessages;\n  window.WaterNowCustomerMessages=customerMessages;
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{void refreshBadge();openMessageFromNotification();},{once:true});else {void refreshBadge();openMessageFromNotification();}
 })();
