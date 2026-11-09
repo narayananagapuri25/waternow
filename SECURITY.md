@@ -1,6 +1,6 @@
 # Security
 
-FreshWay handles customer accounts, delivery addresses and order information.
+WaterNow handles customer accounts, delivery addresses and order information.
 
 ## Reporting
 
