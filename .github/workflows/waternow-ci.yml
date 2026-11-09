@@ -64,6 +64,9 @@ jobs:
       - name: Run customer browser journeys
         working-directory: e2e
         run: npx playwright test --config=playwright.config.js
+      - name: Install Worker dependencies for isolated delivery server
+        working-directory: worker
+        run: npm install --no-audit --no-fund
       - name: Run isolated delivery and store fallback tests
         working-directory: e2e
         run: npx playwright test --config=playwright.store-fallback.config.js
