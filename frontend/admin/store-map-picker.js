@@ -101,8 +101,8 @@
     loadLeaflet().then(L=>{
       if(disposed||!root.isConnected)return;
       const hasPin=validPair(latitude.value,longitude.value);
-      const initial=hasPin?[Number(latitude.value),Number(longitude.value)]:[17.405,78.585];
-      map=L.map(mapNode,{scrollWheelZoom:false}).setView(initial,hasPin?16:13);
+      const initial=hasPin?[Number(latitude.value),Number(longitude.value)]:[0,0];
+      map=L.map(mapNode,{scrollWheelZoom:false}).setView(initial,hasPin?16:2);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
         maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
       }).addTo(map);
