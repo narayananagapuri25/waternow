@@ -6,12 +6,12 @@
   "compatibility_date": "2026-09-06",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
-  "migrations_dir": "./migrations",
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "waternow-production",
-      "database_id": "da57af93-2f4f-42f1-b2f3-eb02533bf9fd"
+      "database_id": "da57af93-2f4f-42f1-b2f3-eb02533bf9fd",
+      "migrations_dir": "migrations"
     }
   ],
   "vars": {
