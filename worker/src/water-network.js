@@ -12,7 +12,9 @@ async function listNetwork(env){
   const [supplierRows,partnerRows]=await Promise.all([
     env.DB.prepare(`SELECT s.*,
       (SELECT COUNT(*) FROM water_supplier_products p WHERE p.supplier_id=s.id) AS product_count,
-      (SELECT COUNT(*) FROM water_supplier_service_areas a WHERE a.supplier_id=s.id AND a.is_active=1) AS service_area_count
+      (SELECT COUNT(*) FROM water_supplier_service_areas a WHERE a.supplier_id=s.id AND a.is_active=1) AS service_area_count,
+      (SELECT id FROM delivery_stores d WHERE d.supplier_id=s.id ORDER BY d.id LIMIT 1) AS linked_store_id,
+      (SELECT delivery_model FROM delivery_stores d WHERE d.supplier_id=s.id ORDER BY d.id LIMIT 1) AS linked_delivery_model
       FROM water_suppliers s ORDER BY s.city,s.name`).all(),
     env.DB.prepare(`SELECT p.*,
       (SELECT COUNT(*) FROM water_delivery_partner_service_areas a WHERE a.partner_id=p.id AND a.is_active=1) AS service_area_count
