@@ -86,7 +86,7 @@ test('WaterNow supplier approval gates customer delivery and links approved supp
     }
     const supplierCatalogue=await handleWaterNetworkRequest(new Request('https://waternow.test/api/admin/water-network'),env(db));
     const supplierProductRows=(await supplierCatalogue.json()).supplierProducts.filter(row=>row.supplier_id===supplier.id);
-    assert.deepEqual(supplierProductRows.map(row=>row.product_id),['water-filter','water-20l','water-10l-pair'].sort(),
+    assert.deepEqual(supplierProductRows.map(row=>row.product_id),['water-20l','water-10l-pair','water-filter'],
       'supplier setup lists all active catalogue products, including products added after initial setup');
 
     const partnerCreate=await handleWaterNetworkRequest(request('delivery-partners',{
