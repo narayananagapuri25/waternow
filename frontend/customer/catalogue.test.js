@@ -158,7 +158,7 @@ assert.ok(source.includes('const nextProducts=productResult.products;'),'all pro
 assert.ok(source.includes('Available water products'),'the customer home displays its product heading directly');
 assert.ok(source.includes("c.hidden=!notice"),'the extra category area collapses when it has no delivery message');
 assert.ok(!source.includes('data-fw-category'),'there are no category-selection controls in the WaterNow home');
-assert.ok(source.includes('window.freshWayCustomerCatalogueGoHome=()=>setMode(null'),'Home navigation always restores the two-product list');
+assert.ok(source.includes('window.freshWayCustomerCatalogueGoHome=()=>setMode(null'),'Home navigation restores the catalogue product list');
 assert.match(productView,/Organic Groundnut Oil/);
 assert.match(productView,/Organic Sunflower Oil/);
 assert.match(productView,/productNameAliases/);
@@ -166,7 +166,7 @@ console.log('premium category selection, navigation and customer-facing product 
 
 assert.ok(!source.includes("classList.toggle('fw-category-selected'"),'the category-only compact layout is disabled');
 assert.match(categoryFoldStyles,/\.product-image img\{[^}]*width:auto!important;height:100%!important;aspect-ratio:1\/1[^}]*max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center!important/,'water pack images remain contained without distortion');
-console.log('two-product customer home contract OK');
+console.log('catalogue-driven customer home contract OK');
 
 
 // Repeated catalogue refreshes with unchanged cart contents must not rebuild the
