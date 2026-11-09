@@ -30,7 +30,7 @@ const auth = (request, env) => {
 const body = async request => { try { return await request.json(); } catch (_) { return {}; } };
 const now = () => new Date().toISOString();
 const cleanPhone = value => { const digits = String(value || '').replace(/\D/g, ''); if (digits.length === 10) return `91${digits}`; if (digits.length === 12 && digits.startsWith('91')) return digits; return digits; };
-const orderId = () => `FW-${Date.now().toString().slice(-8)}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+const orderId = () => `WN-${Date.now().toString().slice(-8)}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 const validPlans = ['Today','Tomorrow','Later','Unscheduled'];
 const stockStatus=(managed,quantity,threshold)=>!managed?'not_tracked':Number(quantity)<=0?'out_of_stock':Number(quantity)<=Number(threshold||0)?'low_stock':'in_stock';
 
@@ -126,7 +126,16 @@ async function createOrder(env, payload, ctx) {
   const id = orderId(), createdAt = now();
   const deliveryPlan=deliverySelection?.deliveryPlan||'Tomorrow';
   const redemptionStatements=await orderRedemptionStatements(env,id,customerId,pricing);
-  const statements=[env.DB.prepare(`INSERT INTO orders (id,customer_id,address_id,customer_name,customer_phone,total,items_subtotal,delivery_fee,coupon_id,coupon_code,coupon_discount,pricing_breakdown_known,payment_status,delivery_status,delivery_plan,client_order_id,created_at,updated_at,scheduled_delivery_date,scheduled_slot_id,assigned_store_id,scheduled_start_minute,scheduled_end_minute,schedule_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'Not Collected','New',?,?,?,?,?,?,?,?,?,?)`).bind(id,customerId,addressId,customerName,phone,total,pricing.itemsSubtotal,pricing.deliveryFee,pricing.couponId,pricing.couponCode,pricing.couponDiscount,1,deliveryPlan,clientOrderId||null,createdAt,createdAt,deliverySelection?.date||null,null,deliverySelection?.storeId||null,null,null,deliverySelection?'requested':'unscheduled'),...redemptionStatements,...items.map(item=>env.DB.prepare(`INSERT INTO order_items (order_id,product_id,name,unit,qty,price,line_total,stock_reserved_qty,hsn_code,gst_rate_bps,gst_rate_confirmed) VALUES (?,?,?,?,?,?,?,?,?,?,?)`).bind(id,item.id,item.name,item.unit,item.qty,item.price,item.lineTotal,item.stockReservedQty,item.hsn_code||'',Number(item.gst_rate_bps||0),Number(item.gst_rate_confirmed||0))),...checkoutDeliveryStatements(env,id,deliverySelection,items)];
+  const linkedFulfilmentStore=deliverySelection?.storeId
+    ? await env.DB.prepare('SELECT supplier_id,delivery_model,delivery_partner_id FROM delivery_stores WHERE id=? AND is_active=1').bind(deliverySelection.storeId).first()
+    : null;
+  const supplierFulfilmentStatement=linkedFulfilmentStore?.supplier_id
+    ? [env.DB.prepare(`INSERT INTO water_order_fulfilments
+        (id,order_id,supplier_id,delivery_partner_id,fulfilment_model,status)
+        VALUES (?,?,?,?,?,'assigned')`).bind(crypto.randomUUID(),id,linkedFulfilmentStore.supplier_id,
+          linkedFulfilmentStore.delivery_partner_id||null,linkedFulfilmentStore.delivery_model)]
+    : [];
+  const statements=[env.DB.prepare(`INSERT INTO orders (id,customer_id,address_id,customer_name,customer_phone,total,items_subtotal,delivery_fee,coupon_id,coupon_code,coupon_discount,pricing_breakdown_known,payment_status,delivery_status,delivery_plan,client_order_id,created_at,updated_at,scheduled_delivery_date,scheduled_slot_id,assigned_store_id,scheduled_start_minute,scheduled_end_minute,schedule_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'Not Collected','New',?,?,?,?,?,?,?,?,?,?)`).bind(id,customerId,addressId,customerName,phone,total,pricing.itemsSubtotal,pricing.deliveryFee,pricing.couponId,pricing.couponCode,pricing.couponDiscount,1,deliveryPlan,clientOrderId||null,createdAt,createdAt,deliverySelection?.date||null,null,deliverySelection?.storeId||null,null,null,deliverySelection?'requested':'unscheduled'),...redemptionStatements,...supplierFulfilmentStatement,...items.map(item=>env.DB.prepare(`INSERT INTO order_items (order_id,product_id,name,unit,qty,price,line_total,stock_reserved_qty,hsn_code,gst_rate_bps,gst_rate_confirmed) VALUES (?,?,?,?,?,?,?,?,?,?,?)`).bind(id,item.id,item.name,item.unit,item.qty,item.price,item.lineTotal,item.stockReservedQty,item.hsn_code||'',Number(item.gst_rate_bps||0),Number(item.gst_rate_confirmed||0))),...checkoutDeliveryStatements(env,id,deliverySelection,items)];
   try { await env.DB.batch(statements); } catch (error) {
     await env.DB.prepare('DELETE FROM addresses WHERE id=?').bind(addressId).run();
     if (clientOrderId && /unique|constraint/i.test(error?.message || '')) {
