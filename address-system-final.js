@@ -542,6 +542,16 @@
         : source[pair[1]];
       setValue(pair[0], fieldValue);
     });
+    // Legacy saved addresses may have valid text but no coordinates. Prefill the
+    // search with that address so customers can confirm the map pin without
+    // retyping it or ever entering latitude/longitude.
+    const mapSearchInput = $('#fwAddrSearchInput');
+    if (mapSearchInput && !mapSearchInput.value) {
+      mapSearchInput.value = [
+        source.houseFlat, source.building, source.street, source.locality,
+        source.area, source.city, source.district, source.pincode, source.state, 'India'
+      ].filter(Boolean).join(', ');
+    }
     const phoneField = $('#fwAddrPhone');
     if (phoneField && !phoneField.dataset.fwPhoneNormalizeBound) {
       phoneField.dataset.fwPhoneNormalizeBound = 'true';
@@ -878,9 +888,10 @@
     if (!/^\d{10}$/.test(address.deliveryPhone)) return toast('Enter a valid 10-digit delivery contact number.');
     if (!address.houseFlat || !address.area || !address.city) return toast('Enter the house/flat, area and city.');
     if (!/^\d{6}$/.test(address.pincode)) return toast('Enter a valid 6-digit PIN code.');
-    const existingLegacyWithoutPin = !!editingAddress && !validCoords(editingAddress.latitude, editingAddress.longitude) && !editorCoordinates;
-    if (!validCoords(address.latitude, address.longitude) && !existingLegacyWithoutPin) {
-      return toast('Select your delivery location using GPS, search or the map pin.');
+    // Delivery-radius checks are coordinate-based. A legacy text-only address
+    // must not remain silently orderable or be saved again without a confirmed pin.
+    if (!validCoords(address.latitude, address.longitude)) {
+      return toast('Confirm your delivery location using GPS, search or the map pin before saving.');
     }
     // Guests can prepare an address for this checkout without creating an account
     // or calling the authenticated address-book API. The order flow may still ask
