@@ -399,7 +399,7 @@ jobs:
             const products = Array.isArray(body.products) ? body.products : [];
             if (products.length !== 2) throw new Error(label + ' should return exactly two active WaterNow products; got ' + products.length);
             const twenty = products.find(p => p.id === 'water-20l' && /20L/i.test(p.name) && Number(p.price) === 30);
-            const tenPair = products.find(p => /10L/i.test(p.name) && /(two|2\\s*[x×]|pack)/i.test(p.name + ' ' + p.unit) && p.unit === 'pack' && Number(p.price) === 20);
+            const tenPair = products.find(p => /10L/i.test(p.name) && /(two|2\s*[x×]|pack)/i.test(p.name + ' ' + p.unit) && p.unit === 'pack' && Number(p.price) === 20);
             if (!twenty) throw new Error(label + ' is missing the 20L can at ₹30.');
             if (!tenPair) throw new Error(label + ' is missing the pack of two 10L cans at ₹20.');
           }
