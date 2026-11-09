@@ -124,6 +124,14 @@ jobs:
           echo "Running SELECT-only diagnostic against the configured WaterNow production D1 database."
           echo "No migrations, SQL writes, Worker deployments, or secret values will be output."
           npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT name FROM d1_migrations ORDER BY name" --json
+      - name: Inventory production D1 tables (read only, even if ledger check fails)
+        if: always()
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +x
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name" --json
 
   production-deploy:
     name: Deploy production D1 and WaterNow API
