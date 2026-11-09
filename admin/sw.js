@@ -1,4 +1,4 @@
-const CACHE = 'waternow-owner-v1';
+const CACHE = 'fw-owner-v75';
 const SHELL = [
   '/admin/',
   '/admin/manifest.webmanifest',
