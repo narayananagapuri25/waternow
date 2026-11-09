@@ -7,7 +7,7 @@ if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
 function fixture() {
   const row = {
-    id: 'FW-TEST-POST-COMMIT',
+    id: 'WN-TEST-POST-COMMIT',
     customer_id: 'customer-test',
     delivery_status: 'New',
     delivered_at: null,
@@ -63,15 +63,15 @@ async function patchOrder(payload) {
   const env = {
     DB,
     ADMIN_SESSION_SECRET: secret,
-    APP_ORIGIN: 'https://fwcoldpressed.in',
-    APP_ORIGINS: 'https://fwcoldpressed.in'
+    APP_ORIGIN: 'https://waternow.test',
+    APP_ORIGINS: 'https://waternow.test'
   };
-  const request = new Request('https://fwcoldpressed.in/api/admin/orders/' + row.id, {
+  const request = new Request('https://waternow.test/api/admin/orders/' + row.id, {
     method: 'PATCH',
     headers: {
-      Origin: 'https://fwcoldpressed.in',
+      Origin: 'https://waternow.test',
       'Content-Type': 'application/json',
-      'X-FreshWay-Admin-Session': adminSession(secret)
+      'X-WaterNow-Admin-Session': adminSession(secret)
     },
     body: JSON.stringify(payload)
   });
