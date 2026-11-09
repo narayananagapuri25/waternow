@@ -1,0 +1,88 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import handler,{normalizePaymentFilter,validateOrderPatch} from '../src/index.js';
+
+test('order lifecycle accepts the database status and payment vocabulary',()=>{
+  assert.doesNotThrow(()=>validateOrderPatch(
+    {delivery_status:'New',payment_status:'Not Collected'},
+    {status:'Confirmed'}
+  ));
+  assert.doesNotThrow(()=>validateOrderPatch(
+    {delivery_status:'Processing',payment_status:'Not Collected'},
+    {status:'Ready'}
+  ));
+  assert.doesNotThrow(()=>validateOrderPatch(
+    {delivery_status:'Delivered',payment_status:'Not Collected'},
+    {payment:'Collected'}
+  ));
+  assert.equal(normalizePaymentFilter('Pending'),'Not Collected');
+  assert.equal(normalizePaymentFilter('Collected'),'Collected');
+});
+
+test('Owner can select any supported delivery and payment status at any time',()=>{
+  const current={delivery_status:'New',payment_status:'Not Collected'};
+  for(const status of ['New','Confirmed','Processing','Ready','Out for Delivery','Delivered','Cancelled']){
+    assert.doesNotThrow(()=>validateOrderPatch(current,{status}),`delivery status ${status} should be selectable`);
+  }
+  for(const payment of ['Not Collected','Collected','Refunded','Cancelled']){
+    assert.doesNotThrow(()=>validateOrderPatch(current,{payment}),`payment status ${payment} should be selectable`);
+  }
+});
+
+test('owner order endpoint applies pagination and legacy payment filter normalization',async()=>{
+  const calls=[];
+  const env={
+    ADMIN_TOKEN:'fixture-admin',
+    APP_ORIGIN:'https://freshway-f32.pages.dev',
+    DB:{
+      prepare(sql){
+        calls.push(sql);
+        return {
+          bind(...args){
+            return {
+              async first(){return sql.includes('COUNT(*)')?{total:2}:null},
+              async all(){
+                if(sql.includes('SELECT o.id'))return {results:[{
+                  id:'FW-00000001',customer_id:'c1',customer_name:'Test',customer_phone:'911234567890',
+                  total:500,payment_status:'Not Collected',delivery_status:'New',delivery_plan:'Tomorrow',
+                  created_at:'2026-10-07 10:00:00',updated_at:'2026-10-07 10:00:00',payment_collected_at:null,
+                  house:'1',area:'Main Road',city:'Hyderabad',pincode:'500001',landmark:'',note:''
+                }]};
+                if(sql.includes('SELECT order_id'))return {results:[{
+                  order_id:'FW-00000001',product_id:'p1',name:'Rice',unit:'kg',qty:1,price:500,line_total:500
+                }]};
+                return {results:[]};
+              },
+              async run(){return {meta:{changes:1}}}
+            };
+          }
+        };
+      }
+    }
+  };
+  const response=await handler.fetch(
+    new Request('https://api.example.test/api/admin/orders?page=2&limit=1&payment=Pending&sort=newest',{
+      headers:{'X-Freshway-Admin-Token':'fixture-admin'}
+    }),
+    env,
+    {}
+  );
+  assert.equal(response.status,200);
+  const data=await response.json();
+  assert.equal(data.pagination.page,2);
+  assert.equal(data.pagination.limit,1);
+  assert.equal(data.pagination.total,2);
+  assert.equal(data.orders[0].payment,'Not Collected');
+  assert.ok(calls.some(sql=>sql.includes('payment_status=?')));
+  assert.ok(calls.some(sql=>sql.includes('o.is_test_order=0')));
+
+  const testResponse=await handler.fetch(
+    new Request('https://api.example.test/api/admin/orders?page=1&limit=1&testOrders=1',{
+      headers:{'X-Freshway-Admin-Token':'fixture-admin'}
+    }),
+    env,
+    {}
+  );
+  assert.equal(testResponse.status,200);
+  assert.ok(calls.some(sql=>sql.includes('o.is_test_order=1')));
+});

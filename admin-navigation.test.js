@@ -1,0 +1,65 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const source=fs.readFileSync('admin.js','utf8');
+const html=fs.readFileSync('admin.html','utf8');
+const css=fs.readFileSync('admin.css','utf8');
+assert.match(css,/--muted:#647169/,'secondary Owner text must meet WCAG AA contrast against white');
+assert.match(css,/\.login-card p,\.login-card small\{font-size:12px;line-height:1\.6\}/,'sign-in helper text must be readable on mobile');
+assert.match(css,/\.toast\{font-size:12px;z-index:1101;background:#123b2b;color:#fff\}/,'Owner toast must remain readable above the startup overlay');
+assert.match(source,/__freshwayOwner/);
+assert.match(source,/history\.pushState/);
+assert.match(source,/history\.back|popstate/);
+assert.match(source,/historyMode:'none'/);
+assert.match(source,/historyMode==='push'/);
+assert.match(source,/storeManagement\?\.beforeNavigate/,'Owner navigation must ask before discarding unsaved Store edits');
+assert.match(source,/navigation===false/,'a cancelled browser Back must restore the current Owner history entry');
+assert.match(source,/historyContext\?\.\(\)/,'cancelling a Store Back must preserve the exact selected Store ID');
+assert.match(source,/const leavingStoreWorkspace=screen==='stores'&&currentScreen==='stores'&&!!previousState\.storeId/,'leaving a nested Store workspace must be represented as a distinct history step');
+assert.match(source,/if\(currentScreen!==screen\|\|leavingStoreWorkspace\)history\.pushState\(state,'','#'\+screen\)/,'a new Owner destination must add a history entry unless it is a repeated active destination');
+assert.match(source,/else history\.replaceState\(state,'','#'\+screen\)/,'repeated clicks on an active Owner destination must replace rather than duplicate the current history entry');
+assert.match(source,/const current=document\.querySelector\('\.screen\.active'\)/,'back navigation must remember the currently visible Owner screen before asking to discard changes');
+assert.match(source,/if\(activeAfter===current&&requested!==current\)\{[\s\S]*history\.pushState\(state,'','#'\+current\)/,'cancelling a back navigation must restore the current screen URL');
+assert.match(source,/classList\.toggle\('owner-authenticated',yes\)/,'navigation must become available only after Owner authentication succeeds');
+assert.match(css,/\.app:not\(\.owner-authenticated\)>\.side/,'desktop navigation must remain hidden while signed out');
+assert.match(css,/\.app:not\(\.owner-authenticated\)>\.mobile-nav/,'mobile navigation must remain hidden while signed out');
+
+// Initial bootstrap must run after every trailing script has registered its module.
+// Without this guard, a direct refresh on #settings runs before Store Profile exists.
+assert.match(source,/function startOwnerApp\(\)/);
+const ownerBootstrap=source.slice(source.indexOf('function startOwnerApp()'));
+assert.ok(ownerBootstrap.indexOf("setAdminScreenVisual(location.hash.slice(1)||'overview')") < ownerBootstrap.indexOf('auth(true)'),
+  'Owner must select the restored screen before revealing the authenticated app to prevent an Overview flash');
+assert.match(source,/document\.readyState==='loading'\)document\.addEventListener\('DOMContentLoaded',startOwnerApp,\{once:true\}\)/);
+assert.ok(html.indexOf('admin.js?v=20261107-unsaved-store-guard-v1') < html.indexOf('frontend/admin/store-profile.js'),
+  'the regression test should cover the real script-loading order');
+assert.match(html,/id="accountDeletionSummary"/);
+assert.match(html,/class="owner-nav-more"/,'desktop navigation should group occasional tools under More');
+assert.match(html,/data-screen="delivery">⌁<span>Delivery<\/span>/,'Delivery should be a primary mobile destination');
+assert.match(html,/class="mobile-more-group"/,'mobile More menu should group secondary tools');
+assert.match(html,/if\(m&&!m\.classList\.contains\('hidden'\)\)\{closeOwnerOverlay\(m\);return\}if\(m\)m\.remove\(\);/,'mobile More menu must replace a previously dismissed hidden menu when it is opened again');
+assert.match(html,/\.mobile-more-card>\.mobile-more-group>button\{[^}]*border:1px solid var\(--line\)[^}]*border-radius:12px/,'mobile More buttons must use consistent rounded borders instead of browser-default button outlines');
+assert.match(html,/\.mobile-more-card>\.mobile-more-group\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/,'mobile More options must align in a responsive two-column grid');
+const primaryNav=html.match(/<nav aria-label="Owner navigation">([\s\S]*?)<details class="owner-nav-more">/)?.[1]||'';
+assert.doesNotMatch(primaryNav,/data-screen="settings"/,'Settings should not crowd the primary desktop navigation');
+assert.match(html,/mobile-more-label">Reports & settings/,'less-used options should be grouped under a clear heading');
+assert.match(source,/async function refreshOwnerScreen\(\)[\s\S]*?else if\(id==='offers'\)\{[\s\S]*?window\.FreshWayOwnerDeliveryOffers\?\.load\(\)/,'global refresh must reload Delivery & Offers without bypassing unsaved-change protection');
+assert.ok(html.indexOf('frontend/admin/delivery-offers.js?v=20261027-coupon-buttons-v5') < html.indexOf('admin.js?v=20261107-unsaved-store-guard-v1'), 'Delivery & Offers must load before Owner bootstrap so a direct #offers route can call its loader');
+assert.match(html,/data-more-screen="offers">🎟 Delivery & offers/,'mobile More menu must expose Delivery & Offers');
+const lifecycle=fs.readFileSync('owner-lifecycle.js','utf8');
+const freshness=fs.readFileSync('owner-address-final.js','utf8');
+const catalogue=fs.readFileSync('frontend/admin/catalogue.js','utf8');
+const stores=fs.readFileSync('frontend/admin/store-management.js','utf8');
+assert.match(stores,/function beforeNavigate\(\)\{[\s\S]*?if\(storeSaving\)\{[\s\S]*?return false/,'Owner navigation must wait for an in-flight Store save to finish');
+assert.equal(lifecycle.includes("history.replaceState(null,'',`#${id}`)"),false,'the lifecycle module must not erase Owner history state for Catalogue');
+assert.ok(catalogue.includes('window.navigateAdminScreen=function(id,options){const result=baseNavigate(id,options)'), 'Catalogue navigation must forward historyMode so popstate does not create a new entry');
+assert.ok(freshness.includes('const freshNavigate=function(id,options){clearOwnerScreenForFreshLoad(id);return baseFreshNavigate(id,options)}'), 'fresh-load navigation must preserve historyMode through its wrapper');
+assert.match(lifecycle,/FreshWayOwnerStoreManagement\?\.refresh\(\)/,'global refresh must preserve and reload the active store workspace');
+assert.match(stores,/function hasUnsavedStoreChanges\(\)/,'Store refresh must detect unsaved prices, availability, stock and store-form changes');
+assert.match(stores,/async function refreshStores\(\)/,'Stores need a refresh path that preserves the active store workspace');
+assert.match(stores,/window\.FreshWayOwnerStoreManagement=\{load:loadStores,refresh:refreshStores/,'the Store module must expose the workspace-preserving refresh action');
+assert.match(lifecycle,/FreshWayOwnerCustomerRequests\?\.load\(\)/,'global refresh must reload Customer Requests');
+assert.match(lifecycle,/FreshWayOwnerCustomerMessages\?\.load\(\)/,'global refresh must reload Customer Messages');
+assert.match(lifecycle,/FreshWayOwnerDeliveryOffers\?\.load\(\)/,'global refresh must reload Delivery & Offers');
+assert.match(lifecycle,/loadStoreProfileSettings\(\)/,'global refresh must reload Settings without bypassing its dirty-form guard');
+assert.match(lifecycle,/FreshWayOwnerOrderAlerts\?\.refreshHistory\(\)/,'global refresh must reload Owner notification history');
+console.log('owner navigation history and safe initial settings bootstrap OK');

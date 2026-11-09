@@ -1,0 +1,354 @@
+// Customer Delivery & Offers: simple fixed-price quote, threshold and coupon controls.
+(function () {
+  'use strict';
+  const CODE_KEY = 'freshway-applied-fixed-coupon';
+  const money = value => '₹' + Math.max(0, Math.trunc(Number(value) || 0)).toLocaleString('en-IN');
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+  const api = () => window.FreshWayCustomerAPI?.request;
+  let appliedCode = '';
+  let lastQuote = null;
+  let lastItems = [];
+  let lastMoney = money;
+  let busy = false;
+  let renderVersion = 0;
+  let couponsLoadVersion = 0;
+  try { appliedCode = sessionStorage.getItem(CODE_KEY) || ''; } catch (_) {}
+  const codeFromInput = () => String(document.querySelector('#fwCouponCode')?.value || '').trim().toUpperCase();
+  const setCode = value => {
+    appliedCode = String(value || '').trim().toUpperCase();
+    try { if (appliedCode) sessionStorage.setItem(CODE_KEY, appliedCode); else sessionStorage.removeItem(CODE_KEY); } catch (_) {}
+    const input = document.querySelector('#fwCouponCode');
+    if (input) input.value = appliedCode;
+  };
+  const itemsForQuote = items => (items || []).map(item => ({ id: item.product?.id || item.id, qty: Number(item.qty) }));
+  async function fetchQuote(items, code = appliedCode) {
+    const request = api();
+    if (!request) throw new Error('Pricing service is unavailable. Refresh and try again.');
+    const result = await request('/api/checkout/quote', {
+      method: 'POST',
+      body: JSON.stringify({ items: itemsForQuote(items), couponCode: code || '', storeId: window.FreshWayCustomerStoreCatalogue?.selectedStoreId?.() || '' })
+    });
+    if (!result?.pricing) throw new Error('Could not calculate your order total.');
+    const pricing = result.pricing;
+    const expected = itemsForQuote(items);
+    const quoted = Array.isArray(pricing.items) ? pricing.items : [];
+    const quotedById = new Map(quoted.map(item => [String(item?.id ?? ''), item]));
+    if (!expected.length || quoted.length !== expected.length || expected.some(item => {
+      const match = quotedById.get(String(item.id ?? ''));
+      return !match || Number(match.qty) !== Number(item.qty);
+    })) {
+      throw new Error('We could not verify every cart item. Return to your cart, refresh it, and remove any unavailable item before checkout.');
+    }
+    return pricing;
+  }
+  function renderBreakdown(pricing, target, currency = lastMoney) {
+    if (!target || !pricing) return;
+    const code = pricing.coupon?.code || pricing.couponCode || appliedCode;
+    const discount = Number(pricing.couponDiscount || 0);
+    const amountLeft = pricing.amountToFreeDelivery;
+    const progress = Number(pricing.standardDeliveryFee) > 0 && pricing.freeDeliveryEnabled && !pricing.qualifiesForFreeDelivery && amountLeft > 0
+      ? '<div class="fw-offer-progress"><strong>Add ' + currency(amountLeft) + ' more to unlock free delivery</strong><small>Delivery fee applies until you reach the free-delivery threshold.</small></div>'
+      : pricing.qualifiesForFreeDelivery
+        ? '<div class="fw-offer-progress is-unlocked"><strong>✓ You’ve unlocked free delivery</strong></div>'
+        : '';
+    target.innerHTML =
+      '<div class="summary-line"><span>Items subtotal</span><strong>' + currency(pricing.itemsSubtotal) + '</strong></div>' +
+      (discount > 0 ? '<div class="summary-line fw-discount-line"><span>Coupon ' + esc(code || '') + '</span><strong>−' + currency(discount) + '</strong></div>' : '') +
+      '<div class="summary-line"><span>Delivery fee</span><strong>' + (Number(pricing.deliveryFee) === 0 ? 'Free' : currency(pricing.deliveryFee)) + '</strong></div>' +
+      progress +
+      '<div class="summary-line total"><span>Total to pay</span><strong>' + currency(pricing.finalTotal) + '</strong></div>' +
+      (code && discount > 0 ? '<button type="button" class="text-btn fw-remove-coupon" data-fw-remove-coupon>Remove coupon</button>' : '');
+  }
+  function message(text, error = false) {
+    const el = document.querySelector('#fwCouponStatus');
+    if (!el) return;
+    el.textContent = text || '';
+    el.dataset.error = error ? 'true' : 'false';
+  }
+  function isCouponEligibilityError(error) {
+    return Number(error?.status) === 400 &&
+      /coupon|first.order|sign in|maximum allowed|usage limit|already used|already been used/i.test(String(error?.message || ''));
+  }
+  function showApplyError(error) {
+    const input = document.querySelector('#fwCouponCode');
+    const detail = error?.message || 'Could not apply this coupon.';
+    if (appliedCode) {
+      if (input) input.value = appliedCode;
+      if (/^Enter a coupon code\.?$/i.test(detail.trim())) {
+        message('Coupon ' + appliedCode + ' is already applied. Enter a different code to replace it, or remove the current coupon first.', true);
+      } else {
+        message(detail + ' Your existing coupon ' + appliedCode + ' is still applied.', true);
+      }
+      return;
+    }
+    message(detail, true);
+  }
+  async function loadAvailableCoupons() {
+    const root = document.querySelector('#fwAvailableCoupons');
+    if (!root) return;
+    const request = api();
+    const version = ++couponsLoadVersion;
+    if (!request) {
+      root.innerHTML = '<small class="fw-coupon-unavailable">Available offers are temporarily unavailable. You can still enter a code.</small>';
+      return;
+    }
+    try {
+      const data = await request('/api/coupons/available');
+      if (version !== couponsLoadVersion || root !== document.querySelector('#fwAvailableCoupons')) return;
+      const coupons = Array.isArray(data.coupons) ? data.coupons : [];
+      root.innerHTML = coupons.length
+        ? '<div class="fw-coupon-list">' + coupons.map(coupon =>
+          '<button type="button" class="fw-coupon-card" data-fw-offer-code="' + esc(coupon.code) + '"' +
+          (coupon.eligible === false ? ' disabled' : '') + '><span><strong>' + esc(coupon.code) + '</strong><small>' + esc(coupon.title || 'Fixed amount off') +
+          (coupon.firstOrderOnly ? ' · First order' : '') + '</small></span><b>Save ' + money(coupon.discountAmount) + '</b></button>'
+        ).join('') + '</div>'
+        : '';
+    } catch (_) {
+      // Coupon discovery is optional; the manual code field remains usable.
+      if (version === couponsLoadVersion && root === document.querySelector('#fwAvailableCoupons')) {
+        root.innerHTML = '<small class="fw-coupon-unavailable">Available offers could not be loaded. You can still enter a code.</small>';
+      }
+    }
+  }
+  async function applyCandidate(code) {
+    const candidate = String(code || '').trim().toUpperCase();
+    if (!candidate) throw new Error('Enter a coupon code.');
+    if (busy) return;
+    const version = ++renderVersion;
+    busy = true;
+    const button = document.querySelector('[data-fw-apply-coupon]');
+    if (button) { button.disabled = true; button.textContent = 'Checking…'; }
+    try {
+      const pricing = await fetchQuote(lastItems, candidate);
+      if (version !== renderVersion) {
+        const input = document.querySelector('#fwCouponCode');
+        if (input) input.value = appliedCode;
+        return;
+      }
+      window.FreshWayCustomerCatalogue?.syncQuotedItems?.(pricing.items);
+      setCode(candidate);
+      lastQuote = pricing;
+      const pricingRoot = document.querySelector('#fwDeliveryPricing');
+      renderBreakdown(pricing, pricingRoot, lastMoney);
+      const checkoutRoot = document.querySelector('#fwCheckoutPricing');
+      if (checkoutRoot) renderBreakdown(pricing, checkoutRoot, lastMoney);
+      if (pricing.coupon?.eligibilityPending) {
+        message('Coupon selected. Sign in at checkout to verify first-order eligibility.');
+      } else {
+        message('Coupon applied. You save ' + money(pricing.couponDiscount) + '.');
+      }
+      updateCartLinePrices(pricing.items);
+      updateDisplayedTotals(pricing.finalTotal);
+    } finally {
+      busy = false;
+      const current = document.querySelector('[data-fw-apply-coupon]');
+      if (current) { current.disabled = false; current.textContent = 'Apply'; }
+    }
+  }
+  function updateCartLinePrices(items) {
+    if (!Array.isArray(items)) return;
+    for (const item of items) {
+      const id = String(item.id || '');
+      if (!id || !window.CSS?.escape) continue;
+      const card = document.querySelector('[data-fw-cart-product="' + CSS.escape(id) + '"]');
+      if (!card) continue;
+      const line = card.querySelector('[data-fw-cart-line-total]');
+      const unit = card.querySelector('[data-fw-cart-unit-price]');
+      if (line) line.textContent = lastMoney(item.lineTotal);
+      if (unit) unit.textContent = lastMoney(item.price) + ' / ' + String(item.unit || '');
+    }
+  }
+  function updateDisplayedTotals(total) {
+    const valid = total !== '' && total !== null && total !== undefined && Number.isSafeInteger(Number(total));
+    const value = valid ? lastMoney(total) : String(total || 'Checking total…');
+    const bar = document.querySelector('#cartTotal');
+    const checkout = document.querySelector('#checkoutTotal');
+    if (bar) bar.textContent = value;
+    if (checkout) checkout.textContent = value;
+  }
+  async function renderCart({ items, total, money: moneyFn = money } = {}) {
+    const version = ++renderVersion;
+    lastItems = Array.isArray(items) ? items : [];
+    lastMoney = typeof moneyFn === 'function' ? moneyFn : money;
+    lastQuote = null;
+    const input = document.querySelector('#fwCouponCode');
+    if (input && input.value !== appliedCode) input.value = appliedCode;
+    // A missing-code validation error belongs to the Apply action that produced it;
+    // clear it when the customer returns to/reopens the cart instead of showing stale red feedback.
+    const status = document.querySelector('#fwCouponStatus');
+    if (!appliedCode && status && /^Enter a coupon code\.?$/i.test(String(status.textContent || '').trim())) message('');
+    const pricingRoot = document.querySelector('#fwDeliveryPricing');
+    if (!lastItems.length) {
+      lastQuote = null;
+      if (pricingRoot) pricingRoot.innerHTML = '';
+      message('');
+      const available = document.querySelector('#fwAvailableCoupons');
+      if (available) available.innerHTML = '';
+      return;
+    }
+    if (pricingRoot) pricingRoot.innerHTML = '<div class="summary-line"><span>Calculating delivery and offers…</span></div>';
+    // Fetch coupon choices in parallel with the price quote to avoid a second visible wait.
+    void loadAvailableCoupons();
+    try {
+      let pricing;
+      try {
+        pricing = await fetchQuote(lastItems, appliedCode);
+      } catch (error) {
+        if (version !== renderVersion) return;
+        if (!appliedCode || !isCouponEligibilityError(error)) throw error;
+        setCode('');
+        message((error.message || 'This coupon is no longer available.') + ' The coupon was removed and your total is being recalculated.', true);
+        pricing = await fetchQuote(lastItems, '');
+      }
+      if (version !== renderVersion) return;
+      window.FreshWayCustomerCatalogue?.syncQuotedItems?.(pricing.items);
+      lastQuote = pricing;
+      renderBreakdown(pricing, pricingRoot, lastMoney);
+      updateCartLinePrices(pricing.items);
+      updateDisplayedTotals(pricing.finalTotal);
+      const status = document.querySelector('#fwCouponStatus');
+      if (status && pricing.coupon && !pricing.coupon.eligibilityPending) message('Coupon applied. You save ' + money(pricing.couponDiscount) + '.');
+    } catch (error) {
+      if (version !== renderVersion) return;
+      if (pricingRoot) pricingRoot.innerHTML =
+        '<div class="summary-line"><span>Items subtotal</span><strong>' + lastMoney(total) + '</strong></div>' +
+        '<p class="fw-offer-error">Could not refresh delivery pricing. Please retry before checkout.</p>';
+      message(error.message || 'Could not refresh pricing.', true);
+    }
+  }
+  async function removeAppliedCoupon() {
+    // Share one authoritative removal path between the explicit Remove button
+    // and Apply with an empty field, so both persist the same code/price state.
+    const version = ++renderVersion;
+    setCode('');
+    lastQuote = null;
+    message('Updating total without the coupon…');
+    const pricingRoot = document.querySelector('#fwDeliveryPricing');
+    const checkoutRoot = document.querySelector('#fwCheckoutPricing');
+    const loadingMarkup = '<div class="summary-line"><span>Updating your total…</span></div>';
+    if (pricingRoot) pricingRoot.innerHTML = loadingMarkup;
+    if (checkoutRoot) checkoutRoot.innerHTML = loadingMarkup;
+    updateDisplayedTotals('Updating…');
+    try {
+      const pricing = await fetchQuote(lastItems, '');
+      if (version !== renderVersion) return;
+      window.FreshWayCustomerCatalogue?.syncQuotedItems?.(pricing.items);
+      lastQuote = pricing;
+      renderBreakdown(pricing, pricingRoot, lastMoney);
+      if (checkoutRoot) renderBreakdown(pricing, checkoutRoot, lastMoney);
+      updateCartLinePrices(pricing.items);
+      updateDisplayedTotals(pricing.finalTotal);
+      message('Coupon removed.');
+    } catch (error) {
+      if (version !== renderVersion) return;
+      if (pricingRoot) pricingRoot.innerHTML = '<p class="fw-offer-error">Could not refresh delivery pricing. Please retry before checkout.</p>';
+      if (checkoutRoot) checkoutRoot.innerHTML = '<p class="fw-offer-error">Could not refresh delivery pricing. Please retry before checkout.</p>';
+      updateDisplayedTotals('Check total');
+      message(error.message || 'Could not refresh pricing.', true);
+    }
+  }
+  function renderCheckoutQuote(pricing, moneyFn = lastMoney) {
+    // A checkout-authoritative quote supersedes any slower cart/apply request.
+    // submitOrder captures the previous total before calling this, so its first
+    // comparison still detects changes; future attempts compare against the price
+    // now visible at checkout instead of repeating the same confirmation prompt.
+    renderVersion++;
+    lastMoney = typeof moneyFn === 'function' ? moneyFn : lastMoney;
+    window.FreshWayCustomerCatalogue?.syncQuotedItems?.(pricing.items);
+    lastQuote = pricing;
+    updateCartLinePrices(pricing.items);
+    renderBreakdown(pricing, document.querySelector('#fwCheckoutPricing'), lastMoney);
+    const checkout = document.querySelector('#checkoutTotal');
+    if (checkout) checkout.textContent = lastMoney(pricing.finalTotal);
+  }
+  async function refreshCheckoutQuote(items, moneyFn = money) {
+    const version = ++renderVersion;
+    lastItems = Array.isArray(items) ? items : [];
+    lastMoney = typeof moneyFn === 'function' ? moneyFn : money;
+    const button = document.querySelector('#checkoutForm button[type="submit"]');
+    const checkoutRoot = document.querySelector('#fwCheckoutPricing');
+    lastQuote = null;
+    if (!lastItems.length) {
+      if (checkoutRoot) checkoutRoot.innerHTML = '<p class="fw-offer-error">Your cart is empty. Add items before checkout.</p>';
+      updateDisplayedTotals('Your cart is empty');
+      if (button) { button.disabled = true; button.textContent = 'Your cart is empty'; }
+      return null;
+    }
+    updateDisplayedTotals('Checking total…');
+    if (checkoutRoot) checkoutRoot.innerHTML = '<div class="summary-line"><span>Refreshing your order total…</span></div>';
+    if (button) { button.disabled = true; button.textContent = 'Calculating total…'; }
+    try {
+      const pricing = await fetchQuote(lastItems, appliedCode);
+      if (version !== renderVersion) return null;
+      window.FreshWayCustomerCatalogue?.syncQuotedItems?.(pricing.items);
+      lastQuote = pricing;
+      renderBreakdown(pricing, checkoutRoot, lastMoney);
+      updateCartLinePrices(pricing.items);
+      updateDisplayedTotals(pricing.finalTotal);
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = 'Place order · <span id="checkoutTotal">' + lastMoney(pricing.finalTotal) + '</span>';
+      }
+      return pricing;
+    } catch (error) {
+      if (version !== renderVersion) return null;
+      lastQuote = null;
+      updateDisplayedTotals('Total unavailable');
+      if (checkoutRoot) checkoutRoot.innerHTML = '<p class="fw-offer-error">Could not refresh your order total. Check your connection and reopen checkout.</p>';
+      if (button) { button.disabled = true; button.textContent = 'Total unavailable — retry checkout'; }
+      message(error.message || 'Could not refresh pricing.', true);
+      return null;
+    }
+  }
+  function invalidateDisplayedQuote(label = 'Total unavailable') {
+    renderVersion++;
+    lastQuote = null;
+    updateDisplayedTotals(label);
+    const button = document.querySelector('#checkoutForm button[type="submit"]');
+    if (button) { button.disabled = true; button.textContent = 'Total unavailable — retry checkout'; }
+  }
+  function getDisplayedTotal() {
+    return lastQuote && Number.isSafeInteger(Number(lastQuote.finalTotal)) ? Number(lastQuote.finalTotal) : null;
+  }
+  function clearAppliedCode() {
+    renderVersion++;
+    setCode('');
+    lastQuote = null;
+    const input = document.querySelector('#fwCouponCode');
+    if (input) input.value = '';
+    message('');
+  }
+  document.addEventListener('click', async event => {
+    const apply = event.target.closest('[data-fw-apply-coupon]');
+    if (apply) {
+      event.preventDefault();
+      const candidate = codeFromInput();
+      if (!candidate && appliedCode) {
+        await removeAppliedCoupon();
+        return;
+      }
+      try { await applyCandidate(candidate); }
+      catch (error) { showApplyError(error); }
+      return;
+    }
+    const remove = event.target.closest('[data-fw-remove-coupon]');
+    if (remove) {
+      event.preventDefault();
+      await removeAppliedCoupon();
+      return;
+    }
+    const card = event.target.closest('[data-fw-offer-code]');
+    if (card && !card.disabled) {
+      if (busy) return;
+      const code = card.dataset.fwOfferCode || '';
+      const input = document.querySelector('#fwCouponCode');
+      if (input) input.value = code;
+      try { await applyCandidate(code); }
+      catch (error) { showApplyError(error); }
+    }
+  });
+  window.FreshWayCustomerDeliveryOffers = Object.freeze({
+    renderCart, fetchQuote, renderCheckoutQuote, refreshCheckoutQuote, getAppliedCode: () => appliedCode,
+    getDisplayedTotal, invalidateDisplayedQuote, clearAppliedCode, money
+  });
+})();

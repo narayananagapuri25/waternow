@@ -1,0 +1,284 @@
+const TEST_ORDER_MODE_KEY='freshway-owner-test-orders-mode-v1';
+function readTestOrderMode(){try{return sessionStorage.getItem(TEST_ORDER_MODE_KEY)==='1'}catch(_){return false}}
+let orders=[],customers=[],products=[],orderPage=1,customerPage=1,deliveryPage=1,testOrderMode=readTestOrderMode();let orderLoading=false,customerLoading=false,deliveryLoading=false;let orderLoadSequence=0,orderLoadPending=false;const PAGE=25;const AUTH_HINT='freshway-admin-auth';const LEGACY_SESSION_KEY='freshway-admin-session';const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];const esc=v=>String(v??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));const displayPhone=v=>window.FreshWayPhoneDisplay?.format(v)||String(v??'').trim();const money=n=>`₹${Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0})}`;const norm=v=>String(v??'').toLowerCase();const session=()=>{try{sessionStorage.removeItem(LEGACY_SESSION_KEY);localStorage.removeItem(LEGACY_SESSION_KEY);return sessionStorage.getItem(AUTH_HINT)==='1'||localStorage.getItem(AUTH_HINT)==='1'?'1':''}catch(_){return''}};const persistSession=()=>{try{sessionStorage.setItem(AUTH_HINT,'1');localStorage.setItem(AUTH_HINT,'1');sessionStorage.removeItem(LEGACY_SESSION_KEY);localStorage.removeItem(LEGACY_SESSION_KEY)}catch(_){}};const clearSession=()=>{try{sessionStorage.removeItem(AUTH_HINT);localStorage.removeItem(AUTH_HINT);sessionStorage.removeItem(LEGACY_SESSION_KEY);localStorage.removeItem(LEGACY_SESSION_KEY)}catch(_){} };
+async function api(path,opt={}){const h={'Content-Type':'application/json',...(opt.headers||{})};const r=await fetch(`/api${path}`,{...opt,cache:'no-store',credentials:'include',headers:h});const d=await r.json().catch(()=>({}));if(r.status===401){clearSession();auth(false)}if(!r.ok)throw Error(d.error?(d.errorId?`${d.error} (Reference: ${d.errorId})`:d.error):`Request failed (${r.status})`);return d}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(window.__toast);setTimeout(()=>t.classList.remove('show'),2600)}
+function ownerOverlayElement(){
+  return ['#modal','#productModal','#catalogueEditModal','#mobileMoreMenu'].map(s=>document.querySelector(s)).find(el=>el&&!el.classList.contains('hidden'))||null
+}
+function openOwnerOverlay(el){
+  if(!el)return;
+  const wasOpen=!!ownerOverlayElement();
+  if(wasOpen)history.replaceState({...history.state,__freshwayOwnerOverlay:true},'',location.href);
+  else history.pushState({...history.state,__freshwayOwnerOverlay:true},'',location.href);
+  el.classList.remove('hidden');
+}
+function closeOwnerOverlay(el){
+  if(!el)return;
+  if(history.state?.__freshwayOwnerOverlay){history.back();return}
+  el.classList.add('hidden');
+}
+function closeOwnerOverlayNow(){
+  ['#modal','#productModal','#catalogueEditModal','#mobileMoreMenu'].forEach(s=>document.querySelector(s)?.classList.add('hidden'));
+}
+function auth(yes){$('#authState').textContent=yes?'Connected':'Not connected';$('#authState').classList.toggle('connected',yes);$('.app')?.classList.toggle('owner-authenticated',yes);$('#loginView').classList.toggle('hidden',yes);$('#appView').classList.toggle('hidden',!yes)}
+
+function setAdminScreenVisual(id){const valid=['overview','orders','delivery','stores','requests','messages','cash','customers','catalogue','notifications','owner-alert-history','reports','offers','settings'];const screen=valid.includes(id)?id:'overview';$$('.screen').forEach(x=>x.classList.toggle('active',x.id===screen));$$('[data-screen]').forEach(b=>b.classList.toggle('active',b.dataset.screen===screen));return screen}
+function navigateAdminScreen(id,{historyMode='push',deferOrdersLoad=false}={}){
+ const currentScreen=document.querySelector('.screen.active')?.id||location.hash.slice(1)||'overview';
+ const storeManagement=window.FreshWayOwnerStoreManagement;
+ // Store forms, prices and inventory must not be silently discarded by route changes.
+ if(currentScreen==='stores'&&storeManagement?.beforeNavigate&&!storeManagement.beforeNavigate())return false;
+ if(window.FreshWayOwnerDeliveryOffers?.beforeNavigate&&!window.FreshWayOwnerDeliveryOffers.beforeNavigate())return false;
+ const previousState=history.state||{};
+ const screen=setAdminScreenVisual(id);
+ const state={__freshwayOwner:true,screen};
+ if(historyMode==='push'){
+  const leavingStoreWorkspace=screen==='stores'&&currentScreen==='stores'&&!!previousState.storeId;
+  if(currentScreen!==screen||leavingStoreWorkspace)history.pushState(state,'','#'+screen);
+  else history.replaceState(state,'','#'+screen);
+ }else if(historyMode==='replace')history.replaceState(state,'','#'+screen);
+ window.scrollTo({top:0,behavior:'auto'});
+ if(screen==='overview'){Promise.all([loadSummary(),loadBusiness(),loadHome()]).catch(e=>toast(e.message))}
+ if(screen==='orders'&&!deferOrdersLoad)loadOrders(true);
+ if(screen==='customers')loadCustomers(true);
+ if(screen==='delivery'){loadDelivery(true);window.FreshWayOwnerDeliveryManagement?.load()}
+ if(screen==='stores')return storeManagement?.load()??true;
+ if(screen==='requests')window.FreshWayOwnerCustomerRequests?.load();
+ if(screen==='messages')window.FreshWayOwnerCustomerMessages?.load();
+ if(screen==='cash')loadCash();
+ if(screen==='catalogue')renderProducts();
+ if(screen==='notifications'){loadHistory();window.FreshWayOwnerPushManagement?.loadCatalogue()}
+ if(screen==='reports')loadReports();
+ if(screen==='offers')window.FreshWayOwnerDeliveryOffers?.load();
+ if(screen==='settings')loadStoreProfileSettings();
+ return true;
+}
+async function loadStoreProfileSettings(){try{const loads=[];if(window.FreshWayOwnerInvoiceSettings)loads.push(window.FreshWayOwnerInvoiceSettings.load({api}));if(window.FreshWayOwnerStoreProfile)loads.push(window.FreshWayOwnerStoreProfile.load({api}));await Promise.all(loads);}catch(e){toast(e.message)}}
+async function saveStoreProfileSettings(event){event?.preventDefault();const button=$('#storeProfileSaveBtn'),status=$('#storeProfileStatus');if(!window.FreshWayOwnerStoreProfile)return toast('Store profile module is unavailable.');button.disabled=true;if(status)status.textContent='Saving…';try{await window.FreshWayOwnerStoreProfile.save({api});if(status)status.textContent='Saved';toast('Store profile saved');}catch(e){if(status)status.textContent='Save failed';toast(e.message)}finally{button.disabled=false}}
+
+function kpi(label,value,note,target,cls='',action=''){const actionAttr=action?` data-kpi-action="${action}"`:'';return`<button class="kpi ${cls}"${actionAttr} data-screen="${target}"><span>${label}</span><strong>${value}</strong><small>${note}</small></button>`}
+function renderBusiness(r){const el=$('#businessCards');if(!el)return;el.innerHTML=`<article class="report"><span>Sales today</span><strong>${money(r.sales)}</strong><small>${r.orders} orders</small></article><article class="report"><span>Cash to collect</span><strong>${money(r.cashPending)}</strong><small>${r.cashPendingOrders} orders pending</small></article><article class="report"><span>Delivered</span><strong>${r.delivered}</strong><small>${money(r.deliveredSales)} delivered value</small></article><article class="report"><span>Customers</span><strong>${r.customers}</strong><small>${r.newCustomers} new today</small></article>`}
+async function loadBusiness(){try{const r=await api('/admin/reports?range=today');renderBusiness(r);return r}catch(e){toast(e.message);throw e}}
+async function loadSummary(){const s=await api('/admin/summary');$('#kpis').innerHTML=kpi('New orders',s.newOrders,'Need attention','orders','attention','first-new-order')+kpi('Processing',s.processing,'Being prepared','orders','','processing-orders')+kpi('Delivery today',s.deliveryToday,'Planned today','delivery','','today-deliveries')+kpi('Cash to collect',money(s.cashPending),'Still outstanding','cash','cash','pending-cash');return s}
+function orderCard(o){const st=norm(o.status),pay=norm(o.payment),accountPhone=o.customer?.registeredPhone||o.customer?.phone||'',deliveryPhone=o.address?.deliveryPhone||o.customer?.deliveryPhone||'',accountDigits=String(accountPhone).replace(/\D/g,''),deliveryDigits=String(deliveryPhone).replace(/\D/g,'');return`<article class="card order-card ${o.isTestOrder?'test-order-card':''}" data-order="${esc(o.id)}"><div class="card-top"><div><b>${esc(o.id)}</b>${o.isTestOrder?'<span class="badge test-order-badge">TEST ORDER</span>':''}<small>${esc(new Date(o.createdAt).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}))}</small></div><span class="badge ${st}">${esc(o.status)}</span></div><div class="person"><div><b>${esc(o.customer?.name||'Customer')}</b><small>📱 Registered mobile: ${esc(displayPhone(accountPhone)||'Not recorded')}</small>${deliveryPhone&&accountDigits!==deliveryDigits?`<small>🚚 Delivery contact: ${esc(displayPhone(deliveryPhone))}</small>`:''}</div><strong>${money(o.total)}</strong></div><div class="meta">${(o.items||[]).slice(0,3).map(i=>`${esc(i.name)} ×${i.qty}`).join(' · ')}${(o.items||[]).length>3?' · +more':''}</div><div class="order-store-line">🏬 <span>Store:</span> <b>${esc(o.assignedStoreName||'Not assigned')}</b></div>${o.pricingBreakdownKnown?'<div class="fw-owner-order-pricing"><span>Items '+money(o.itemsSubtotal)+'</span>'+(Number(o.couponDiscount||0)>0?'<span>Coupon −'+money(o.couponDiscount)+'</span>':'')+'<span>Delivery '+(Number(o.deliveryFee||0)>0?money(o.deliveryFee):'Free')+'</span></div>':''}<div class="card-foot"><span>🚚 ${esc(o.deliveryPlan||'Unscheduled')}</span><span class="pay ${pay==='collected'?'good':''}">💵 ${esc(o.payment||'Not Collected')}</span></div></article>`}
+function syncOrderModeTabs(){const live=$('#liveOrdersTab'),test=$('#testOrdersTab');if(live){live.classList.toggle('active',!testOrderMode);live.setAttribute('aria-selected',String(!testOrderMode))}if(test){test.classList.toggle('active',testOrderMode);test.setAttribute('aria-selected',String(testOrderMode))}}
+function setTestOrderMode(enabled){testOrderMode=!!enabled;try{sessionStorage.setItem(TEST_ORDER_MODE_KEY,testOrderMode?'1':'0')}catch(_){}syncOrderModeTabs()}
+function orderFilterState(){return{search:$('#orderSearch')?.value.trim()||'',status:$('#orderStatus')?.value||'all',payment:$('#orderPayment')?.value||'all',plan:$('#orderPlan')?.value||'all',sort:$('#orderSort')?.value||'newest',customer:$('#orderCustomer')?.value.trim()||'',from:$('#orderFrom')?.value||'',to:$('#orderTo')?.value||'',minAmount:$('#orderMin')?.value.trim()||'',maxAmount:$('#orderMax')?.value.trim()||''}}
+async function openOrdersPreset({status='all',payment='all',plan='all',sort='newest',emptyMessage='No orders match these filters.'}={}){
+ // Dashboard shortcuts clear unrelated filters so stale searches cannot hide matching orders.
+ setTestOrderMode(false);orderPage=1;orders=[];
+ const fields={orderSearch:'',orderCustomer:'',orderFrom:'',orderTo:'',orderMin:'',orderMax:''};
+ for(const [id,value] of Object.entries(fields)){const el=$('#'+id);if(el)el.value=value}
+ $('#orderStatus').value=status;$('#orderPayment').value=payment;$('#orderPlan').value=plan;$('#orderSort').value=sort;
+ $('#orderAdvancedFilters')?.removeAttribute('open');syncOrderFilterSummary();
+ $('#ordersList').innerHTML='<div class="empty">Finding matching orders…</div>';
+ navigateAdminScreen('orders',{historyMode:'push',deferOrdersLoad:true});
+ await loadOrders(true);
+ let waitCount=0;
+ while((orderLoading||orderLoadPending)&&waitCount<120){await new Promise(resolve=>window.setTimeout(resolve,50));waitCount++}
+ if(orderLoading||orderLoadPending){toast('Orders are still loading. Please try again.');return}
+ const list=$('#ordersList'),target=[...(list?.querySelectorAll('[data-order]')||[])][0];
+ if(!target){const empty=list?.textContent||'';toast(empty.includes('No orders match these filters.')?emptyMessage:'Could not find the matching orders. Refresh Orders and try again.');return}
+ target.scrollIntoView({behavior:'smooth',block:'center'});
+ const priorOutline=target.style.outline,priorOffset=target.style.outlineOffset;
+ target.style.outline='3px solid var(--g)';target.style.outlineOffset='2px';
+ window.setTimeout(()=>{target.style.outline=priorOutline;target.style.outlineOffset=priorOffset},1800);
+}
+function openFirstNewOrder(){return openOrdersPreset({status:'New',sort:'newest',emptyMessage:'No new orders need attention.'})}
+function openProcessingOrders(){return openOrdersPreset({status:'Processing',sort:'newest',emptyMessage:'No orders are currently Processing.'})}
+function openTodayDeliveries(){const plan=$('#deliveryPlanFilter');if(plan)plan.value='Today';navigateAdminScreen('delivery')}
+function openPendingCash(){navigateAdminScreen('cash')}
+function validateOrderFilters(show=true){const f=orderFilterState(),hint=$('#orderFilterHint');if(hint){hint.textContent='';hint.classList.remove('error')}if(f.from&&f.to&&f.from>f.to){if(hint){hint.textContent='From date must be on or before To date.';hint.classList.add('error')}if(show)toast('From date must be on or before To date.');return false}const min=f.minAmount===''?null:Number(f.minAmount),max=f.maxAmount===''?null:Number(f.maxAmount);if((min!==null&&!Number.isFinite(min))||(max!==null&&!Number.isFinite(max))){if(show)toast('Enter valid amount filters.');return false}if(min!==null&&max!==null&&min>max){if(hint){hint.textContent='Minimum amount cannot exceed maximum amount.';hint.classList.add('error')}if(show)toast('Minimum amount cannot exceed maximum amount.');return false}return true}
+function syncOrderFilterSummary(){const f=orderFilterState(),advanced=[f.customer,f.from,f.to,f.minAmount,f.maxAmount].filter(Boolean).length,basic=[f.status!=='all',f.payment!=='all',f.plan!=='all'].filter(Boolean).length,total=advanced+basic;const el=$('#orderAdvancedCount');if(el)el.textContent=advanced?advanced+' advanced':'Optional';const hint=$('#orderFilterHint');if(hint&&!hint.classList.contains('error'))hint.textContent=total?total+' filter'+(total===1?'':'s')+' active':'Use More filters for customer, date and amount'}
+async function loadOrders(reset=false){const requestId=++orderLoadSequence;if(orderLoading){orderLoadPending=true;return}if(!validateOrderFilters()){orders=[];$('#ordersMeta').textContent='Filters need attention';$('#ordersList').innerHTML='<div class="empty">Correct the highlighted filters to load orders.</div>';$('#ordersMore').style.display='none';return}if(reset){orderPage=1;orders=[]}const modeAtStart=testOrderMode,pageAtStart=orderPage;orderLoading=true;try{const f=orderFilterState(),q=new URLSearchParams({page:String(pageAtStart),limit:String(PAGE),testOrders:modeAtStart?'1':'0',search:f.search,status:f.status,payment:f.payment,plan:f.plan,sort:f.sort,customer:f.customer,from:f.from,to:f.to,minAmount:f.minAmount,maxAmount:f.maxAmount});const d=await api('/admin/orders?'+q);if(requestId!==orderLoadSequence||modeAtStart!==testOrderMode)return;orders=reset?d.orders:orders.concat(d.orders);$('#ordersMeta').textContent=d.pagination.total.toLocaleString('en-IN')+(modeAtStart?' test orders':' live orders')+' · showing '+orders.length;$('#ordersList').innerHTML=orders.length?orders.map(orderCard).join(''):'<div class="empty">No orders match these filters.</div>';$('#ordersMore').style.display=orders.length<d.pagination.total?'block':'none'}catch(e){if(requestId===orderLoadSequence&&modeAtStart===testOrderMode)toast(e.message)}finally{orderLoading=false;if(orderLoadPending||requestId!==orderLoadSequence){orderLoadPending=false;void loadOrders(true)}}}
+function customerCard(c){return`<article class="card customer-card" data-customer="${esc(c.id)}"><div class="card-top"><div><b>${esc(c.name||'Customer')}</b><small>📱 Registered mobile: ${esc(displayPhone(c.phone)||'Not recorded')}</small></div><span class="count-pill">${c.orders} ${c.orders===1?'order':'orders'}</span></div><div class="address">📍 ${esc(c.address||'Address not available')}</div><div class="card-foot"><span>Last: ${c.last_order?esc(new Date(c.last_order).toLocaleDateString('en-IN')):'—'}</span><strong>${money(c.total)}</strong></div></article>`}
+async function loadCustomers(reset=false){if(customerLoading)return;customerLoading=true;if(reset){customerPage=1;customers=[]}try{const q=new URLSearchParams({page:String(customerPage),limit:String(PAGE),search:$('#customerSearch')?.value||'',kind:$('#customerKind')?.value||'all',sort:$('#customerSort')?.value||'recent'});const d=await api(`/admin/customers?${q}`);customers=reset?d.customers:customers.concat(d.customers);$('#customersMeta').textContent=`${d.pagination.total.toLocaleString('en-IN')} customers · showing ${customers.length}`;$('#customersList').innerHTML=customers.length?customers.map(customerCard).join(''):'<div class="empty">No customers match this view.</div>';$('#customersMore').style.display=customers.length<d.pagination.total?'block':'none'}catch(e){toast(e.message)}finally{customerLoading=false}}
+async function loadHome(){const [o,c,p,todayD,cashD]=await Promise.all([api('/admin/orders?page=1&limit=5&sort=newest'),api('/admin/customers?page=1&limit=5&sort=recent'),api('/admin/products'),api('/admin/orders?page=1&limit=25&plan=Today&sort=delivery'),api('/admin/orders?page=1&limit=25&payment=Not Collected&sort=newest')]);orders=o.orders;customers=c.customers;products=p.products;$('#homeOrders').innerHTML=orders.length?orders.map(orderCard).join(''):'<div class="empty">No orders yet.</div>';$('#homeCustomers').innerHTML=customers.length?customers.map(customerCard).join(''):'<div class="empty">No customers yet.</div>';const today=todayD.orders.filter(x=>x.status!=='Delivered'&&x.status!=='Cancelled');const cash=cashD.orders.filter(x=>x.status!=='Cancelled');$('#homeDelivery').innerHTML=today.length?today.map(orderCard).join(''):'<div class="empty">No deliveries in this preview.</div>';$('#homeCash').innerHTML=cash.length?cash.map(orderCard).join(''):'<div class="empty">No pending cash in this preview.</div>';renderProducts()}
+async function loadDelivery(reset=false){if(deliveryLoading)return;deliveryLoading=true;if(reset)deliveryPage=1;try{const plan=$('#deliveryPlanFilter')?.value||'all';const q=new URLSearchParams({page:String(deliveryPage),limit:'50',plan,sort:'delivery'});const d=await api(`/admin/orders?${q}`);const list=d.orders.filter(o=>o.status!=='Delivered'&&o.status!=='Cancelled');const view=$('.seg button.active')?.dataset.deliveryView||'list';$('#deliveryList').innerHTML=view==='map'?renderDeliveryMap(list):list.length?list.map(orderCard).join(''):'<div class="empty">No deliveries match this plan.</div>'}catch(e){toast(e.message)}finally{deliveryLoading=false}}
+function renderDeliveryMap(list){const m=list.filter(o=>Number.isFinite(Number(o.address?.latitude))&&Number.isFinite(Number(o.address?.longitude)));if(!m.length)return'<div class="empty">No saved coordinates for the selected deliveries. Open each order to review its address.</div>';return`<div class="delivery-map-list">${m.map(o=>`<article class="card"><div class="card-top"><div><b>${esc(o.id)}</b><small>${esc(o.customer?.name||'Customer')}</small></div><strong>${money(o.total)}</strong></div><p>📍 ${esc([o.address.house,o.address.area,o.address.city,o.address.pincode].filter(Boolean).join(', '))}</p><small>${Number(o.address.latitude).toFixed(6)},${Number(o.address.longitude).toFixed(6)}</small><button class="primary full" data-open-coords="${Number(o.address.latitude)},${Number(o.address.longitude)}">Open exact location →</button></article>`).join('')}</div>`}
+async function loadCash(){try{const r=await api('/admin/reports?range=today');const d=await api('/admin/orders?page=1&limit=50&payment=Not Collected&sort=newest');const list=d.orders.filter(o=>o.status!=='Cancelled');$('#cashSummary').innerHTML=`<strong>${money(r.cashPending)}</strong><span>${r.cashPendingOrders} pending cash orders today · ${money(r.cashCollected)} collected today</span>`;$('#cashList').innerHTML=list.length?list.map(orderCard).join(''):'<div class="empty">All clear — no pending cash.</div>'}catch(e){toast(e.message)}}
+function renderProducts(){const q=norm($('#productSearch')?.value),a=$('#productAvailability')?.value||'all';const list=products.filter(p=>(!q||norm(p.name).includes(q))&&(a==='all'||(a==='active'?!!p.active:!p.active)));$('#productList').innerHTML=list.length?list.map(p=>`<article class="product-card"><div class="product-icon">${esc(p.emoji)}</div><b>${esc(p.name)}</b><span>${money(p.price)} / ${esc(p.unit)}</span><small class="${p.active?'available':'hidden-state'}">● ${p.active?'Available':'Hidden'}</small><div><button class="ghost" data-product-toggle="${esc(p.id)}" data-active="${p.active?1:0}">${p.active?'Hide':'Show'}</button><button class="ghost" data-product-edit="${esc(p.id)}">Edit</button><button class="ghost" data-product-delete="${esc(p.id)}">Delete</button></div></article>`).join(''):'<div class="empty">No products found.</div>'}
+async function refreshOwnerAfterOrderMutation(){const id=location.hash.slice(1)||'overview';try{if(id==='overview')await Promise.all([loadSummary(),loadBusiness(),loadHome()]);else if(id==='orders')await Promise.all([loadSummary(),loadBusiness(),loadOrders(true)]);else if(id==='delivery')await Promise.all([loadSummary(),loadBusiness(),loadDelivery(true)]);else if(id==='cash')await Promise.all([loadSummary(),loadBusiness(),loadCash()]);else if(id==='customers')await loadCustomers(true);else if(id==='reports')await loadReports();}catch(e){toast(e.message);throw e}}
+async function updateOrder(id,patch){try{await api(`/admin/orders/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(patch)});toast('Order updated');await refreshOwnerAfterOrderMutation();closeOwnerOverlay($('#modal'));}catch(e){toast(e.message)}}
+async function showOrder(id) {
+  const o = orders.find(x => x.id === id) || (await api('/admin/orders?search=' + encodeURIComponent(id) + '&limit=1&testOrders=' + (testOrderMode ? '1' : '0'))).orders[0];
+  if (!o) return;
+
+  const a = o.address || {};
+  const lat = Number(a.latitude);
+  const lon = Number(a.longitude);
+  const has = a.latitude != null && a.latitude !== '' &&
+    a.longitude != null && a.longitude !== '' &&
+    Number.isFinite(lat) && Number.isFinite(lon) &&
+    lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 &&
+    !(lat === 0 && lon === 0);
+
+  // Legacy saved addresses may repeat the same complete address across multiple fields.
+  // Deduplicate only the displayed text; do not rewrite the customer's saved data.
+  const addressParts = [];
+  const seenAddressParts = new Set();
+  [a.house, a.building, a.floor, a.street, a.area, a.locality, a.city, a.district, a.state, a.pincode]
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+    .forEach(part => {
+      const key = part.toLocaleLowerCase().replace(/\s+/g, ' ');
+      if (!seenAddressParts.has(key)) {
+        seenAddressParts.add(key);
+        addressParts.push(part);
+      }
+    });
+  const addressText = addressParts.join(', ');
+  const mapQuery = has ? String(lat) + ',' + String(lon) : addressText;
+  const mapUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(mapQuery);
+
+  $('#modalBody').innerHTML =
+    '<span class="eyebrow">' + (o.isTestOrder ? 'TEST ORDER ARCHIVE' : 'ORDER DETAIL') + '</span>' +
+    '<h2>' + esc(o.id) + '</h2>' +
+    '<div class="detail-actions order-classification-actions">' +
+      '<button type="button" class="' + (o.isTestOrder ? 'primary' : 'ghost') + '" data-test-order-toggle="' + esc(o.id) +
+      '" data-is-test="' + (o.isTestOrder ? '1' : '0') + '">' +
+      (o.isTestOrder ? 'Move back to live orders' : 'Mark as Test Order') + '</button>' +
+    '</div>' +
+    '<div class="detail-grid">' +
+      '<div><small>Status</small><b>' + esc(o.status) + '</b></div>' +
+      '<div><small>Payment</small><b>' + esc(o.payment) + '</b></div>' +
+      '<div><small>Delivery</small><b>' + esc(o.deliveryPlan) + '</b></div>' +
+      '<div><small>Total</small><b>' + money(o.total) + '</b></div>' +
+      '<div><small>Assigned store</small><b>' + esc(o.assignedStoreName || 'Not assigned') + '</b></div>' +
+    '</div>' +
+    '<h3>Customer account</h3>' +
+    '<p><b>' + esc(o.customer?.name || 'Customer') + '</b><br>📱 Registered mobile: ' +
+      esc(displayPhone(o.customer?.registeredPhone || o.customer?.phone) || 'Not recorded') + '</p>' +
+    '<h3>Delivery details</h3>' +
+    '<p class="order-delivery-copy"><b>' +
+      esc(a.recipientName || o.customer?.recipientName || o.customer?.name || 'Recipient') +
+      '</b><br>📞 Delivery mobile: ' +
+      esc(displayPhone(a.deliveryPhone || o.customer?.deliveryPhone || '') || 'Not recorded') +
+      '<br>📍 ' + esc(addressText || 'Address not recorded') +
+      (a.landmark ? '<br>Landmark: ' + esc(a.landmark) : '') +
+      (a.note ? '<br>Instructions: ' + esc(a.note) : '') +
+    '</p>' +
+    '<div class="order-map-row ' + (has ? 'has-pin' : 'no-pin') + '">' +
+      '<span class="order-map-status">' + (has ? 'Map pin saved' : 'Map pin unavailable') + '</span>' +
+      '<button id="modalDeliveryMap" class="order-map-link" type="button">' +
+        (has ? 'Open map ↗' : 'Map address ↗') +
+      '</button>' +
+    '</div>' +
+    '<h3>Invoice</h3>' +
+    (o.isTestOrder
+      ? '<p class="muted">Invoices are not issued for test orders.</p>'
+      : o.invoice?.number
+        ? '<p><b>' + esc(o.invoice.number) + '</b><br><small>Issued ' + esc(new Date(o.invoice.issuedAt).toLocaleDateString('en-IN')) + '</small></p><button class="primary full" type="button" data-download-owner-invoice="' + esc(o.id) + '">Download invoice (PDF)</button>'
+        : '<p class="muted">Not issued yet. Valid Billing &amp; tax setup is required before dispatch.</p>') +
+    '<h3>Items</h3>' +
+    '<div class="detail-items">' +
+      (o.items || []).map(i =>
+        '<div><span>' + esc(i.name) + ' ×' + i.qty + ' ' + esc(i.unit) + '</span><b>' +
+        money(i.lineTotal) + '</b></div>'
+      ).join('') +
+    '</div>';
+
+  openOwnerOverlay($('#modal'));
+  $('#modalDeliveryMap').onclick = () => window.open(mapUrl, '_blank', 'noopener,noreferrer');
+}
+async function downloadOwnerInvoice(orderId,button){
+  if(!orderId||button?.disabled)return;
+  const oldText=button?.textContent||'Download invoice (PDF)';
+  if(button){button.disabled=true;button.textContent='Preparing invoice…'}
+  let objectUrl='';
+  try{
+    const response=await fetch('/api/admin/orders/'+encodeURIComponent(orderId)+'/invoice',{method:'GET',credentials:'include',cache:'no-store',headers:{Accept:'application/pdf'}});
+    if(!response.ok){
+      let data={};try{data=await response.json()}catch(_){}
+      throw new Error(data.error||'Could not download this invoice.');
+    }
+    if(!String(response.headers.get('content-type')||'').toLowerCase().includes('application/pdf'))throw new Error('The server did not return a PDF.');
+    const blob=await response.blob();
+    if(!blob.size)throw new Error('The invoice PDF is empty.');
+    objectUrl=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=objectUrl;
+    const disposition=String(response.headers.get('content-disposition')||'');
+    const filename=disposition.match(/filename=\"?([^\";]+)\"?/i)?.[1];
+    link.download=filename||'FreshWay-invoice-'+String(orderId).replace(/[^A-Za-z0-9_-]/g,'-')+'.pdf';
+    link.hidden=true;document.body.appendChild(link);link.click();link.remove();
+    toast('Invoice download started');
+  }catch(error){toast(error?.message||'Could not download this invoice.')}
+  finally{if(objectUrl)setTimeout(()=>URL.revokeObjectURL(objectUrl),1500);if(button){button.disabled=false;button.textContent=oldText}}
+}
+async function showCustomer(id){const d=await api(`/admin/customers/${encodeURIComponent(id)}`),c=d.customer;$('#modalBody').innerHTML=`<span class="eyebrow">CUSTOMER</span><h2>${esc(c.name||'Customer')}</h2><p>📞 ${esc(displayPhone(c.phone))}</p><div class="detail-grid"><div><small>Orders</small><b>${c.orders.length}</b></div><div><small>Total spend</small><b>${money(c.orders.reduce((s,o)=>s+Number(o.total||0),0))}</b></div></div><h3>Order history</h3><div class="detail-items">${c.orders.map(o=>`<button class="history-order" data-order="${esc(o.id)}"><span>${esc(o.status||o.delivery_status)}</span><b>${money(o.total)}</b></button>`).join('')||'<div class="empty">No orders yet.</div>'}</div>`;openOwnerOverlay($('#modal'));$('.history-order').forEach(b=>b.onclick=()=>showOrder(b.dataset.order))}
+async function loadHistory(){try{const d=await api('/admin/notifications/history');$('#notificationHistory').innerHTML=(d.notifications||[]).map(n=>`<article class="history-row"><b>${esc(n.channel)}</b><div><strong>${esc(n.title||'FreshWay')}</strong><small>${esc(n.body||'')} · ${esc(new Date(n.created_at).toLocaleString('en-IN'))}</small></div><span>${Number(n.success_count||0)}/${Number(n.recipient_count||0)} delivered</span></article>`).join('')||'<div class="empty">No notifications sent yet.</div>'}catch(e){toast(e.message)}}
+async function loadReports(){try{const r=await api(`/admin/reports?range=${encodeURIComponent($('#reportRange')?.value||'today')}&from=${encodeURIComponent($('#reportFrom')?.value||'')}&to=${encodeURIComponent($('#reportTo')?.value||'')}`);$('#reportCards').innerHTML=`<article class="report"><span>Sales</span><strong>${money(r.sales)}</strong><small>${r.orders} orders</small></article><article class="report"><span>Delivered sales</span><strong>${money(r.deliveredSales)}</strong><small>${r.delivered} delivered</small></article><article class="report"><span>Average order</span><strong>${money(r.aov)}</strong><small>Sales ÷ ${r.eligibleOrders} eligible orders</small></article><article class="report"><span>Cash collected</span><strong>${money(r.cashCollected)}</strong><small>${r.cashCollectedOrders} collections</small></article><article class="report"><span>Cash pending</span><strong>${money(r.cashPending)}</strong><small>${r.cashPendingOrders} orders</small></article><article class="report"><span>Cancelled</span><strong>${r.cancelled}</strong><small>${money(r.cancelledValue)} value</small></article><article class="report"><span>Customers</span><strong>${r.customers}</strong><small>${r.newCustomers} new · ${r.repeatOrders} repeat orders</small></article>`;$('#topProducts').innerHTML=(r.topProducts||[]).map(x=>`<div class="report-row"><span>${esc(x.name)} · ${x.qty} ${esc(x.unit)}</span><b>${money(x.value)}</b></div>`).join('')||'<div class="empty">No product sales in this period.</div>';$('#topCustomers').innerHTML=(r.topCustomers||[]).map(x=>`<div class="report-row"><span>${esc(x.name)} · ${x.orders} ${x.orders===1?'order':'orders'}</span><b>${money(x.value)}</b></div>`).join('')||'<div class="empty">No customer sales in this period.</div>'}catch(e){toast(e.message)}}
+async function sendNotification(){const channels=[];if($('#channelApp').checked)channels.push('app');if($('#channelWhatsapp').checked)channels.push('whatsapp');const title=$('#notifyTitle').value.trim(),body=$('#notifyBody').value.trim();if(!channels.length||!title||!body)return toast('Choose a channel and enter title + message');if(channels.includes('whatsapp')&&!$('#waTemplate').value.trim())return toast('WhatsApp needs an approved template name');const payload={channels,title,body,url:'/'};if(channels.includes('whatsapp')){payload.templateName=$('#waTemplate').value.trim();payload.languageCode=$('#waLanguage').value.trim()||'en_US';payload.parameters=$('#waParams').value.split(',').map(x=>x.trim()).filter(Boolean)}const b=$('#sendNotificationBtn');b.disabled=true;try{await api('/notifications/broadcast',{method:'POST',body:JSON.stringify(payload)});toast('Notification sent');await loadHistory()}catch(e){toast(e.message)}finally{b.disabled=false}}
+async function productAction(id,patch){try{await api(`/admin/products/${encodeURIComponent(id)}`,{method:'PATCH',body:JSON.stringify(patch)});const d=await api('/admin/products');products=d.products;renderProducts();await loadSummary();toast('Catalogue updated')}catch(e){toast(e.message);throw e}}
+async function deleteProduct(id){const p=products.find(x=>x.id===id);if(!p||!confirm(`Delete ${p.name}? This cannot be undone.`))return;try{await api(`/admin/products/${encodeURIComponent(id)}`,{method:'DELETE'});const d=await api('/admin/products');products=d.products;renderProducts();await loadSummary();toast('Product deleted')}catch(e){toast(e.message)}}
+function openProductEditor(id){const p=products.find(x=>String(x.id)===String(id));if(!p)return;let m=$('#catalogueEditModal');if(!m){m=document.createElement('div');m.id='catalogueEditModal';m.className='modal';m.innerHTML='<div class="modal-card"><button class="modal-close" id="catalogueEditClose">×</button><span class="eyebrow">CATALOGUE</span><h2>Edit product</h2><form id="catalogueEditForm"><input id="ceName" required placeholder="Product name"><div class="two"><input id="cePrice" required type="number" min="0" placeholder="Price"><input id="ceUnit" required placeholder="Unit"></div><input id="ceEmoji" maxlength="8" placeholder="Emoji"><label style="display:flex;gap:8px;align-items:center;margin:12px 0"><input id="ceActive" type="checkbox"> Available to customers</label><button class="primary full" type="submit">Save changes</button></form></div>';document.body.appendChild(m);$('#catalogueEditClose').onclick=()=>closeOwnerOverlay(m)}$('#ceName').value=p.name||'';$('#cePrice').value=p.price??'';$('#ceUnit').value=p.unit||'';$('#ceEmoji').value=p.emoji||'';$('#ceActive').checked=!!p.active;$('#catalogueEditForm').onsubmit=async e=>{e.preventDefault();const patch={name:$('#ceName').value.trim(),price:Number($('#cePrice').value),unit:$('#ceUnit').value.trim(),emoji:$('#ceEmoji').value.trim(),active:$('#ceActive').checked};if(!patch.name||!patch.unit||!Number.isFinite(patch.price)||patch.price<0)return toast('Enter a valid name, price and unit');try{await productAction(p.id,patch);closeOwnerOverlay(m)}catch(_){}};openOwnerOverlay(m)}
+async function refreshOwnerScreen(){
+ const id=location.hash.slice(1)||'overview';
+ const button=$('#refreshBtn');
+ if(button){button.disabled=true;button.setAttribute('aria-busy','true')}
+ try{
+  if(id==='overview')await Promise.all([loadSummary(),loadBusiness(),loadHome()]);
+  else if(id==='orders')await loadOrders(true);
+  else if(id==='delivery')await Promise.all([loadDelivery(true),window.FreshWayOwnerDeliveryManagement?.load()]);
+  else if(id==='stores')await window.FreshWayOwnerStoreManagement?.refresh?.();
+  else if(id==='requests')await window.FreshWayOwnerCustomerRequests?.load();
+  else if(id==='messages')await window.FreshWayOwnerCustomerMessages?.load();
+  else if(id==='cash')await loadCash();
+  else if(id==='customers')await loadCustomers(true);
+  else if(id==='catalogue')await window.freshWayCatalogueRefresh?.();
+  else if(id==='notifications')await Promise.all([loadHistory(),window.FreshWayOwnerPushManagement?.loadCatalogue?.(),window.FreshWayOwnerOrderAlerts?.refreshNotifications?.()]);
+  else if(id==='owner-alert-history')await window.FreshWayOwnerOrderAlerts?.refreshHistory?.();
+  else if(id==='reports')await loadReports();
+  else if(id==='offers'){
+   if(window.FreshWayOwnerDeliveryOffers?.beforeNavigate&&!window.FreshWayOwnerDeliveryOffers.beforeNavigate())return;
+   await window.FreshWayOwnerDeliveryOffers?.load();
+  }
+  else if(id==='settings'){
+   await loadStoreProfileSettings();
+   document.querySelector('#accountDeletionRefresh')?.click();
+  }
+  else await bootstrap(true);
+ }catch(error){toast(error?.message||'Refresh failed')}
+ finally{if(button){button.disabled=false;button.removeAttribute('aria-busy')}}
+}
+window.freshWayOwnerRefresh=refreshOwnerScreen;
+function bind(){document.addEventListener('click',e=>{const attention=e.target.closest('[data-kpi-action="first-new-order"]');if(attention){e.preventDefault();void openFirstNewOrder();return}const processing=e.target.closest('[data-kpi-action="processing-orders"]');if(processing){e.preventDefault();void openProcessingOrders();return}const todayDeliveries=e.target.closest('[data-kpi-action="today-deliveries"]');if(todayDeliveries){e.preventDefault();openTodayDeliveries();return}const pendingCash=e.target.closest('[data-kpi-action="pending-cash"]');if(pendingCash){e.preventDefault();openPendingCash();return}const s=e.target.closest('[data-screen]');if(s){e.preventDefault();navigateAdminScreen(s.dataset.screen);return}const dv=e.target.closest('[data-delivery-view]');if(dv){$$('[data-delivery-view]').forEach(b=>b.classList.toggle('active',b===dv));loadDelivery(true);return}const testToggle=e.target.closest('[data-test-order-toggle]');if(testToggle){const makeTest=testToggle.dataset.isTest!=='1';if(!confirm(makeTest?'Mark this order as a Test Order? It will be hidden from live lists, customer history, customer counts, and business reports.':'Move this order back to live orders? It will reappear in live lists and calculations.'))return;updateOrder(testToggle.dataset.testOrderToggle,{isTestOrder:makeTest});return}const invoiceButton=e.target.closest('[data-download-owner-invoice]');if(invoiceButton){void downloadOwnerInvoice(invoiceButton.dataset.downloadOwnerInvoice,invoiceButton);return}const oc=e.target.closest('[data-open-coords]');if(oc){window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(oc.dataset.openCoords)}`,'_blank');return}const o=e.target.closest('[data-order]');if(o){showOrder(o.dataset.order);return}const c=e.target.closest('[data-customer]');if(c){showCustomer(c.dataset.customer);return}const t=e.target.closest('[data-product-toggle]');if(t){productAction(t.dataset.productToggle,{active:t.dataset.active!=='1'});return}const ed=e.target.closest('[data-product-edit]');if(ed){openProductEditor(ed.dataset.productEdit);return}const del=e.target.closest('[data-product-delete]');if(del){deleteProduct(del.dataset.productDelete);return}});$('#connectBtn').onclick=saveToken;$('#logoutBtn').onclick=logout;$('#refreshBtn').onclick=refreshOwnerScreen;$('#ordersMore').onclick=()=>{orderPage++;loadOrders()};$('#liveOrdersTab').onclick=()=>{if(!testOrderMode){void loadOrders(true);return}setTestOrderMode(false);orderPage=1;orders=[];void loadOrders(true)};$('#testOrdersTab').onclick=()=>{if(testOrderMode){void loadOrders(true);return}setTestOrderMode(true);orderPage=1;orders=[];void loadOrders(true)};$('#customersMore').onclick=()=>{customerPage++;loadCustomers()};$('#clearOrders').onclick=()=>{$$(['#orderSearch','#orderCustomer','#orderFrom','#orderTo','#orderMin','#orderMax']).forEach(x=>{if(x)x.value=''});$('#orderStatus').value='all';$('#orderPayment').value='all';$('#orderPlan').value='all';$('#orderSort').value='newest';$('#orderAdvancedFilters')?.removeAttribute('open');syncOrderFilterSummary();loadOrders(true)};['orderStatus','orderPayment','orderPlan','orderSort','orderCustomer','orderFrom','orderTo','orderMin','orderMax'].forEach(id=>{const x=$('#'+id);if(x)x.onchange=()=>{syncOrderFilterSummary();loadOrders(true)}});$('#orderSearch').oninput=debounce(()=>{syncOrderFilterSummary();loadOrders(true)});syncOrderFilterSummary();syncOrderModeTabs();
+['customerKind','customerSort'].forEach(id=>$('#'+id).onchange=()=>loadCustomers(true));$('#customerSearch').oninput=debounce(()=>loadCustomers(true));$('#productSearch').oninput=renderProducts;$('#productAvailability').onchange=renderProducts;$('#deliveryPlanFilter').onchange=()=>loadDelivery(true);$('#modalClose').onclick=()=>closeOwnerOverlay($('#modal'));$('#channelWhatsapp').onchange=e=>$('#waFields').classList.toggle('hidden',!e.target.checked);$('#sendNotificationBtn').onclick=sendNotification;$('#refreshHistory').onclick=loadHistory;$('#storeProfileForm').onsubmit=saveStoreProfileSettings;$('#reportRange').onchange=()=>{const c=$('#reportCustom');c.classList.toggle('hidden',$('#reportRange').value!=='custom');loadReports()};$('#reportRun').onclick=loadReports;$('#addProductBtn').onclick=()=>openOwnerOverlay($('#productModal'));document.querySelectorAll('[data-close-product]').forEach(b=>b.onclick=()=>closeOwnerOverlay($('#productModal')));$('#productForm').onsubmit=async e=>{e.preventDefault();try{await api('/admin/products',{method:'POST',body:JSON.stringify({name:$('#pName').value.trim(),price:Number($('#pPrice').value),unit:$('#pUnit').value.trim(),emoji:$('#pEmoji').value||'🍎'})});closeOwnerOverlay($('#productModal'));e.target.reset();const d=await api('/admin/products');products=d.products;renderProducts();await loadSummary();toast('Product added')}catch(x){toast(x.message)}}}
+function debounce(fn,ms=300){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
+async function saveToken(){const token=$('#adminToken').value.trim();if(!token)return toast('Enter the Worker ADMIN_TOKEN');try{const d=await api('/admin/login',{method:'POST',body:JSON.stringify({token})});persistSession();$('#adminToken').value='';auth(true);window.dispatchEvent(new Event('freshway:admin-authenticated'));await bootstrap()}catch(e){toast(e.message);auth(false)}}
+async function logout(){try{await api('/admin/logout',{method:'POST'})}catch(_){}clearSession();auth(false);toast('Signed out')}
+async function bootstrap(force=false){if(!session()&&!force)return;const target=setAdminScreenVisual(location.hash.slice(1)||'overview');try{if(target==='overview'){await Promise.all([loadSummary(),loadBusiness(),loadHome()]);}else if(target==='settings'){await loadStoreProfileSettings();}else if(target==='orders'){await loadOrders(true);const pendingOrderId=new URL(location.href).searchParams.get('openOrder');if(pendingOrderId){await showOrder(pendingOrderId);const targetUrl=new URL(location.href);targetUrl.searchParams.delete('openOrder');history.replaceState({...history.state,__freshwayOwner:true,screen:'orders'},'',targetUrl.pathname+targetUrl.search+'#orders')}}else if(target==='delivery'){await loadDelivery(true);await window.FreshWayOwnerDeliveryManagement?.load();}else if(target==='stores'){await window.FreshWayOwnerStoreManagement?.load();const restoreStoreId=history.state?.__freshwayOwner&&history.state?.screen==='stores'?history.state?.storeId:null;if(restoreStoreId)await window.FreshWayOwnerStoreManagement?.open(restoreStoreId);}else if(target==='requests'){await window.FreshWayOwnerCustomerRequests?.load();}else if(target==='messages'){await window.FreshWayOwnerCustomerMessages?.load();}else if(target==='cash'){await loadCash();}else if(target==='customers'){await loadCustomers(true);}else if(target==='catalogue'){/* The dedicated frontend/admin/catalogue.js module owns this screen. Do not render the legacy product list on reload. */}else if(target==='notifications'){await loadHistory();await window.FreshWayOwnerPushManagement?.loadCatalogue();}else if(target==='owner-alert-history'){/* Transactional alert module owns this paginated screen. */}else if(target==='reports'){await loadReports();}else if(target==='offers'){await window.FreshWayOwnerDeliveryOffers?.load();}auth(true);}catch(e){if(/Unauthorized/i.test(e.message)){clearSession();auth(false)}else toast(e.message)}}
+window.addEventListener('popstate',event=>{
+  if(ownerOverlayElement()){closeOwnerOverlayNow();return}
+  const s=event.state;
+  const current=document.querySelector('.screen.active')?.id||location.hash.slice(1)||'overview';
+  const requested=s?.__freshwayOwner?(s.screen||location.hash.slice(1)||'overview'):(location.hash.slice(1)||'overview');
+  const navigation=navigateAdminScreen(requested,{historyMode:'none'});
+  // A cancelled confirmation happens after the browser has moved to the prior
+  // entry. Restore the visible screen and, for Store management, its exact ID.
+  if(navigation===false){
+    const context=current==='stores'?(window.FreshWayOwnerStoreManagement?.historyContext?.()||{}):{};
+    const state={__freshwayOwner:true,screen:current,...context};
+    history.pushState(state,'','#'+current);
+    return;
+  }
+  if(requested==='stores'&&s?.storeId){Promise.resolve(navigation).then(()=>window.FreshWayOwnerStoreManagement?.open(s.storeId)).catch(error=>toast(error?.message||'Could not reopen store products.'));}
+  const activeAfter=document.querySelector('.screen.active')?.id||'overview';
+  if(activeAfter===current&&requested!==current){
+    const context=current==='stores'?(window.FreshWayOwnerStoreManagement?.historyContext?.()||{}):{};
+    const state={__freshwayOwner:true,screen:current,...context};
+    history.pushState(state,'','#'+current);
+  }
+});
+function initOwnerHistory(){const screen=location.hash.slice(1)||'overview';if(!history.state?.__freshwayOwner){const state={__freshwayOwner:true,screen};history.replaceState(state,'',location.href);history.pushState(state,'',location.href)}}
+bind();
+function startOwnerApp(){
+  // Supporting Owner modules are loaded by later script tags in admin.html.
+  // Wait until DOMContentLoaded so a direct refresh on Settings cannot race their registration.
+  initOwnerHistory();
+  if(session()){setAdminScreenVisual(location.hash.slice(1)||'overview');auth(true);bootstrap()}else auth(false);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startOwnerApp,{once:true});
+else startOwnerApp();;

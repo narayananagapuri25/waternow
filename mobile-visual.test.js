@@ -1,0 +1,85 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+
+const view=fs.readFileSync('frontend/customer/product-view.js','utf8');
+const cartView=fs.readFileSync('frontend/customer/cart-view.js','utf8');
+const css=fs.readFileSync('styles.css','utf8');
+const designSystem=fs.readFileSync('frontend/customer/design-system.css','utf8');
+const privacyPage=fs.readFileSync('privacy.html','utf8');
+const cartBar=fs.readFileSync('frontend/customer/cart-bar.js','utf8');
+const categoryFoldStyles=fs.readFileSync('frontend/customer/category-fold-fit.css','utf8');
+const adminCss=fs.readFileSync('admin.css','utf8');
+const sw=fs.readFileSync('sw.js','utf8');
+const index=fs.readFileSync('index.html','utf8');
+const productionCustomerWorkflow=fs.readFileSync('.github/workflows/production-customer-playwright.yml','utf8');
+const messages=fs.readFileSync('frontend/customer/messages.js','utf8');
+assert.ok(index.includes('styles.css?v=20261030-aa-contrast-v1'),'HTML loads the current mobile viewport stylesheet');
+assert.ok(index.includes('frontend/customer/design-system.css?v=ds3'),'customer screens load the shared production design system');
+assert.doesNotMatch(messages,/button\.setAttribute\('aria-label'/,'Messages button must derive its accessible name from its visible heading and status text');
+assert.ok(index.includes('<span aria-hidden="true">✉️</span>')&&index.includes('<b aria-hidden="true">›</b>'),'Messages navigation decorative icon and chevron must be hidden from screen readers');
+assert.ok(index.includes('frontend/customer/cart-bar.js?v=20261029-cartbar-v2'),'customer app loads the fixed floating cart behavior');
+assert.ok(sw.includes('/frontend/customer/cart-bar.js?v=20261029-cartbar-v2'),'service worker caches the fixed floating cart behavior');
+assert.ok(sw.includes("const CACHE = 'freshway-v129'"),'service worker refreshes the app shell after the current customer shell asset update');
+assert.ok(productionCustomerWorkflow.includes('grep -qF "freshway-v129" "$sw_file"'),'production customer Playwright deployment gate must wait for the same customer shell cache');
+assert.ok(index.includes('frontend/customer/orders.js?v=ba')&&sw.includes('/frontend/customer/orders.js?v=ba'),'Buy Again helper is versioned and included in the customer app shell');
+assert.ok(index.includes('frontend/customer/orders-view.js?v=ba')&&sw.includes('/frontend/customer/orders-view.js?v=ba'),'Buy Again order-card action is loaded from the current app shell');
+assert.ok(index.includes('app.js?v=107')&&sw.includes('/app.js?v=107'),'Buy Again cart action is loaded from the current app shell');
+assert.ok(index.includes('frontend/customer/delivery-offers.js?v=20261103-store-pricing-v1'),'customer HTML loads the store-aware checkout quote module');
+assert.ok(sw.includes('/frontend/customer/delivery-offers.js?v=20261103-store-pricing-v1'),'service worker precaches the same store-aware checkout quote module');
+assert.match(privacyPage,/grid-template-columns: minmax\(145px, \.36fr\) minmax\(0, 1fr\)/,'privacy contact details use a clear desktop label/value layout');
+assert.match(privacyPage,/@media \(max-width: 600px\)[\s\S]*?\.contact-line \{ grid-template-columns: minmax\(0, 1fr\)/,'privacy contact details stack cleanly on mobile');
+assert.match(privacyPage,/This policy remains a working draft/,'privacy policy clearly retains the operator-review status');
+assert.match(cartBar,/const homeActive=!!document\.querySelector\('#homeView\.active-view'\)[\s\S]*?const showBar=n>0&&homeActive/,'floating cart shortcut is restricted to the shopping screen');
+assert.ok(sw.includes('/frontend/customer/design-system.css?v=ds3'),'service worker caches the shared production design system');
+assert.match(designSystem,/--fw-font-ui:/,'customer screens use a defined shared font stack');
+assert.match(designSystem,/--fw-heading-md: 23px/,'customer screens use a consistent heading scale');
+assert.match(designSystem,/#app \.form-card input[\s\S]*?min-height: 48px/,'checkout fields meet the shared touch-target height');
+assert.match(designSystem,/#app \.nav-item[\s\S]*?font-size: 11px/,'bottom navigation labels remain readable');
+assert.ok(cartView.includes('placeholder="Enter code"'),'coupon placeholder stays short enough for small mobile inputs');
+assert.ok(index.includes('frontend/customer/delivery-offers.css?v=20261028-cart-offers-stable-v1'),'HTML loads delivery/coupon UI styles');
+assert.ok(sw.includes('/frontend/customer/delivery-offers.css?v=20261028-cart-offers-stable-v1'),'service worker caches delivery/coupon UI styles');
+assert.ok(index.includes('frontend/customer/delivery-booking.css?v=20261106-area1')&&sw.includes('/frontend/customer/delivery-booking.css?v=20261106-area1'),'customer shell and service worker load the current non-deliverable help styles');
+assert.ok(index.includes('frontend/customer/delivery-booking.js?v=20261106-area1')&&sw.includes('/frontend/customer/delivery-booking.js?v=20261106-area1'),'customer shell and service worker load the current non-deliverable availability UI');
+assert.ok(index.includes('frontend/customer/category-fold-fit.css?v=20261021-full-images-refresh-v2'),'HTML loads the selected-category fold-fit stylesheet');
+assert.ok(categoryFoldStyles.includes('height:100%!important;aspect-ratio:1/1'),'product artwork uses a square contained image box so the complete illustration is visible');
+assert.ok(sw.includes('/styles.css?v=20261030-aa-contrast-v1'),'service worker caches the current mobile viewport stylesheet');
+assert.ok(sw.includes('/frontend/customer/category-fold-fit.css?v=20261021-full-images-refresh-v2'),'service worker caches the selected-category fold-fit stylesheet');
+const customerCatalogueScript=index.split('<script src="')
+  .map(part=>part.split('"')[0])
+  .find(path=>path.startsWith('frontend/customer/catalogue.js?v='));
+assert.ok(customerCatalogueScript,'HTML loads the current category navigation asset');
+assert.ok(sw.includes('/'+customerCatalogueScript),'service worker caches the exact category navigation asset loaded by HTML');
+assert.ok(css.includes('body{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}'),'body reserves Android safe-area space');
+assert.ok(css.includes('main{padding:14px 16px calc(98px + env(safe-area-inset-bottom,0px))}'),'main reserves scroll space below fixed navigation');
+assert.ok(css.includes('.bottom-nav{height:calc(68px + env(safe-area-inset-bottom,0px))}'),'bottom navigation includes device safe area');
+assert.ok(css.includes('.info-page{display:grid;gap:10px;padding:2px 0 8px;min-width:0}'),'About/Contact pages use the shared scroll reserve');
+assert.ok(css.includes('.store-about-hero{margin-top:0;display:flex;align-items:center;gap:10px;padding:12px 13px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);min-width:0}'),'About brand panel shrinks safely on narrow screens');
+assert.ok(css.includes('.store-info-section{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 5px 16px rgba(20,70,45,.04);min-width:0}'),'store information cards prevent horizontal overflow');
+assert.ok(css.includes('.store-contact-cta{display:flex;justify-content:center;align-items:center;min-height:48px;padding:10px 12px;border-radius:13px;'),'contact action remains compact and tappable');
+
+assert.match(view,/product-action-info/);
+assert.match(view,/product-action-control/);
+assert.match(css,/\.product-action-info/);
+assert.match(css,/\.product-action-control/);
+assert.match(css,/fw-cart-bar-visible main/);
+
+assert.match(adminCss,/\.customer-card \.address/);
+assert.match(sw,/const CACHE = 'freshway-v\d+'/);
+assert.doesNotMatch(sw,/admin\.css\?v=20260907-owner-v2/);
+assert.doesNotMatch(sw,/app\.js\?v=20261007-catalogue-a1/);
+
+const admin=fs.readFileSync('admin.js','utf8');
+const lifecycle=fs.readFileSync('owner-lifecycle.js','utf8');
+const adminHtml=fs.readFileSync('admin.html','utf8');
+assert.match(admin,/function openOwnerOverlay/);
+assert.match(admin,/__freshwayOwnerOverlay/);
+assert.match(admin,/if\(ownerOverlayElement\(\)\)\{closeOwnerOverlayNow\(\);return\}/);
+assert.match(lifecycle,/openOwnerOverlay\(\$\('#modal'\)\)/);
+assert.match(adminHtml,/openOwnerOverlay\(m\)/);
+assert.match(adminHtml,/closeOwnerOverlay\(m\)/);
+console.log('mobile visual and PWA freshness contract OK');
+
+const baseStyles=fs.readFileSync('styles.css','utf8');
+const installStyles=fs.readFileSync('frontend/customer/pwa-install.css','utf8');
+assert.ok(baseStyles.includes('.signout-row small{color:#745d5d}'),'profile sign-out helper text must meet WCAG AA contrast');
+assert.ok(installStyles.includes('color:#657269'),'PWA installation helper text must meet WCAG AA contrast');

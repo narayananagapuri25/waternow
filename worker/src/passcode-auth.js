@@ -1,0 +1,353 @@
+import original from './index.js';
+import { handleAddress, saveOrderSnapshot } from './address-api.js';
+import { getInvoiceRecord } from './invoice-service.js';
+import { createInvoicePdf } from './invoice-pdf.js';
+import { handleCustomerDeliveryRequest } from './delivery-scheduling.js';
+import { handleCustomerMessages } from './customer-messages.js';
+import { handleCustomerDeliveryOffersRequest } from './delivery-offers.js';
+
+const COOKIE = 'freshway-customer-session';
+const MAX_AGE = 60 * 60 * 24 * 30;
+const PBKDF2_ITERATIONS = 100000;
+const enc = value => new TextEncoder().encode(String(value));
+const hex = bytes => [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+const bytesFromHex = value => { const out = new Uint8Array(value.length / 2); for (let i = 0; i < out.length; i++) out[i] = parseInt(value.slice(i * 2, i * 2 + 2), 16); return out; };
+const corsOrigins = env => [...new Set([env.APP_ORIGINS, env.APP_ORIGIN].flatMap(value => String(value || '').split(',').map(origin => origin.trim())).filter(value => value && value !== 'https://YOUR-FRESHWAY-DOMAIN' && value !== 'null'))];
+const allowedOriginSuffixes = env => String(env.APP_ORIGIN_SUFFIXES || '').split(',').map(value => value.trim().toLowerCase()).filter(value => /^\.[a-z0-9.-]+$/.test(value));
+const isAllowedOrigin = (env, origin) => {
+  if (corsOrigins(env).includes(origin)) return true;
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'https:' && url.origin === origin && allowedOriginSuffixes(env).some(suffix => url.hostname.length > suffix.length && url.hostname.endsWith(suffix));
+  } catch (_) { return false; }
+};
+const corsOrigin = (env, requested = '') => { const origins = corsOrigins(env), origin = String(requested || '').trim(); return origin && isAllowedOrigin(env, origin) ? origin : origins[0] || 'null'; };
+const cleanPhone = value => { const digits = String(value || '').replace(/\D/g, ''); if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2); return digits.length === 10 ? digits : ''; };
+const normalizedPhone = value => { const phone = cleanPhone(value); return phone ? `91${phone}` : ''; };
+const clientIp = request => String(request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown').split(',')[0].trim().slice(0, 80) || 'unknown';
+function response(data, status, env, extra = {}) { return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': corsOrigin(env), 'access-control-allow-credentials': 'true', 'cache-control': 'private, no-store', ...extra } }); }
+async function sessionKey(env) { const secret = String(env.CUSTOMER_SESSION_SECRET || '').trim(); if (!secret) throw new Error('Customer session signing is not configured.'); return crypto.subtle.importKey('raw', enc(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']); }
+async function signSession(env, customerId) {
+  const issued = Math.floor(Date.now() / 1000);
+  const account = await env.DB.prepare('SELECT auth_version FROM customers WHERE id=? LIMIT 1').bind(customerId).first();
+  const version = Math.max(0, Number(account?.auth_version || 0));
+  const payload = String(customerId).slice(0, 100) + '.' + issued + '.' + version;
+  const signature = await crypto.subtle.sign('HMAC', await sessionKey(env), enc(payload));
+  const encoded = btoa(payload).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return encoded + '.' + hex(new Uint8Array(signature));
+}
+function cookieValue(request) { const raw = request.headers.get('Cookie') || ''; const match = raw.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`)); return match ? match[1] : ''; }
+async function sessionCustomerId(request, env) {
+  const raw = cookieValue(request);
+  if (!raw) return null;
+  const parts = raw.split('.');
+  if (parts.length !== 2 || !/^[0-9a-f]{64}$/i.test(parts[1])) return null;
+  let payload;
+  try { payload = atob(parts[0].replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((parts[0].length + 3) % 4)); }
+  catch (_) { return null; }
+  const [customerId, issuedRaw, versionRaw, ...extra] = payload.split('.');
+  if (extra.length || !customerId) return null;
+  const issued = Number(issuedRaw), now = Math.floor(Date.now() / 1000);
+  const version = versionRaw === undefined ? 0 : Number(versionRaw);
+  if (!Number.isSafeInteger(issued) || issued < now - MAX_AGE || issued > now + 60 ||
+      !Number.isSafeInteger(version) || version < 0) return null;
+  try {
+    const expected = new Uint8Array(await crypto.subtle.sign('HMAC', await sessionKey(env), enc(payload)));
+    const actual = bytesFromHex(parts[1]);
+    if (actual.length !== expected.length) return null;
+    let diff = 0;
+    for (let i = 0; i < actual.length; i++) diff |= actual[i] ^ expected[i];
+    if (diff !== 0) return null;
+    const account = await env.DB.prepare('SELECT auth_version,deleted_at FROM customers WHERE id=? LIMIT 1').bind(customerId).first();
+    if (!account || account.deleted_at || Math.max(0, Number(account.auth_version || 0)) !== version) return null;
+    return customerId;
+  } catch (_) { return null; }
+}
+function withSession(data, env, token) { const res = response(data, 200, env); const headers = new Headers(res.headers); headers.append('Set-Cookie', `${COOKIE}=${token}; Max-Age=${MAX_AGE}; Path=/; HttpOnly; Secure; SameSite=None`); return new Response(res.body, { status: res.status, headers }); }
+function clearSession(env) { return response({ ok: true }, 200, env, { 'Set-Cookie': `${COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=None` }); }
+function safeInvoiceFilename(invoice){return 'FreshWay-invoice-'+String(invoice.invoiceNumber||invoice.orderId||'order').replace(/[^A-Za-z0-9_-]/g,'-')+'.pdf'}
+async function customerInvoice(request,env,encodedOrderId){
+  const origin=corsOrigin(env,request.headers.get('Origin')||'');
+  const fail=(data,status)=>response(data,status,env,{'access-control-allow-origin':origin});
+  const customerId=await sessionCustomerId(request,env);
+  if(!customerId||!(await customerExists(env,customerId)))return fail({error:'Customer authentication required.'},401);
+  let orderId='';try{orderId=decodeURIComponent(encodedOrderId)}catch(_){return fail({error:'Invoice not found.'},404)}
+  const invoice=await getInvoiceRecord(env,orderId);
+  if(!invoice||invoice.customerId!==customerId)return fail({error:'Invoice is not available for this order.'},404);
+  const bytes=await createInvoicePdf(invoice);
+  return new Response(bytes,{status:200,headers:{'content-type':'application/pdf','content-disposition':'attachment; filename="'+safeInvoiceFilename(invoice)+'"','cache-control':'private, no-store','access-control-allow-origin':origin,'access-control-allow-credentials':'true','vary':'Origin','x-content-type-options':'nosniff'}});
+}
+async function rateLimit(env, key, limit) { const windowStart = Math.floor(Date.now() / 1000 / 600) * 600; const keyName = String(key).slice(0, 180); await env.DB.prepare(`INSERT INTO auth_rate_limits (key,window_start,count) VALUES (?,?,1) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN auth_rate_limits.window_start=? THEN auth_rate_limits.count+1 ELSE 1 END, window_start=?, updated_at=CURRENT_TIMESTAMP`).bind(keyName, windowStart, windowStart, windowStart).run(); const row = await env.DB.prepare('SELECT count,window_start FROM auth_rate_limits WHERE key=?').bind(keyName).first(); return !!row && Number(row.window_start) === windowStart && Number(row.count) <= limit; }
+function limited(env) { return response({ error: 'Too many attempts. Please try again later.' }, 429, env, { 'retry-after': '600' }); }
+async function derivePasscode(passcode, saltHex) { const baseKey = await crypto.subtle.importKey('raw', enc(passcode), 'PBKDF2', false, ['deriveBits']); return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: bytesFromHex(saltHex), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' }, baseKey, 256)); }
+async function makePasscodeHash(passcode) { const salt = new Uint8Array(16); crypto.getRandomValues(salt); const saltHex = hex(salt); return { saltHex, hashHex: hex(await derivePasscode(passcode, saltHex)) }; }
+async function verifyPasscode(passcode, saltHex, expectedHex) { if (!/^[0-9a-f]{32}$/i.test(saltHex || '') || !/^[0-9a-f]{64}$/i.test(expectedHex || '')) return false; const actual = await derivePasscode(passcode, saltHex), expected = bytesFromHex(expectedHex); let diff = 0; for (let i = 0; i < actual.length; i++) diff |= actual[i] ^ expected[i]; return diff === 0; }
+async function customerByPhone(env, phone) { return env.DB.prepare('SELECT id,name,phone,passcode_salt,passcode_hash FROM customers WHERE phone=? AND deleted_at IS NULL LIMIT 1').bind(phone).first(); }
+async function customerExists(env, id) { return !!(await env.DB.prepare('SELECT id FROM customers WHERE id=? AND deleted_at IS NULL LIMIT 1').bind(id).first()); }
+function validPasscode(value) { return /^\d{6}$/.test(String(value || '')); }
+async function register(request, env) { let payload = {}; try { payload = await request.json(); } catch (_) {} const phone = normalizedPhone(payload.phone), passcode = String(payload.passcode || ''), name = String(payload.name || '').trim().slice(0, 120); if (!phone || !validPasscode(passcode) || !name) return response({ error: 'Enter your name, a valid 10-digit mobile number and a 6-digit passcode.' }, 400, env); if (!(await rateLimit(env, `auth:register:phone:${phone}`, 5)) || !(await rateLimit(env, `auth:register:ip:${clientIp(request)}`, 20))) return limited(env); const existing = await customerByPhone(env, phone), customerId = existing?.id || crypto.randomUUID(); if (existing?.passcode_hash) return response({ error: 'This mobile number is already registered. Please log in with your 6-digit passcode.' }, 409, env); const { saltHex, hashHex } = await makePasscodeHash(passcode); await env.DB.prepare(`INSERT INTO customers (id,name,phone,passcode_salt,passcode_hash,whatsapp_opt_in,updated_at) VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET name=excluded.name,phone=excluded.phone,passcode_salt=excluded.passcode_salt,passcode_hash=excluded.passcode_hash,updated_at=CURRENT_TIMESTAMP`).bind(customerId, name, phone, saltHex, hashHex, payload.whatsappOptIn ? 1 : 0).run(); return withSession({ ok: true, customerId, phone: `******${phone.slice(-4)}`, registeredPhone: phone, name, registered: true }, env, await signSession(env, customerId)); }
+async function login(request, env) { let payload = {}; try { payload = await request.json(); } catch (_) {} const phone = normalizedPhone(payload.phone), passcode = String(payload.passcode || ''); if (!phone || !validPasscode(passcode)) return response({ error: 'Enter your mobile number and 6-digit passcode.' }, 400, env); if (!(await rateLimit(env, `auth:login:phone:${phone}`, 5)) || !(await rateLimit(env, `auth:login:ip:${clientIp(request)}`, 20))) return limited(env); const customer = await customerByPhone(env, phone); if (!customer?.id || !customer.passcode_hash) return response({ error: 'This mobile number is not registered yet. Choose Create account.' }, 404, env); if (!(await verifyPasscode(passcode, customer.passcode_salt, customer.passcode_hash))) return response({ error: 'Incorrect mobile number or passcode.' }, 401, env); return withSession({ ok: true, customerId: customer.id, phone: `******${phone.slice(-4)}`, registeredPhone: phone, name: customer.name || '' }, env, await signSession(env, customer.id)); }
+function twilioConfig(env) {
+  const accountSid = String(env.TWILIO_ACCOUNT_SID || '').trim();
+  const authToken = String(env.TWILIO_AUTH_TOKEN || '').trim();
+  const serviceSid = String(env.TWILIO_VERIFY_SERVICE_SID || '').trim();
+  return accountSid && authToken && /^VA[0-9a-f]{32}$/i.test(serviceSid) ? { accountSid, authToken, serviceSid } : null;
+}
+async function twilioVerify(env, operation, fields) {
+  const config = twilioConfig(env);
+  if (!config) throw new Error('PASSCODE_RECOVERY_NOT_CONFIGURED');
+  const url = `https://verify.twilio.com/v2/Services/${config.serviceSid}/${operation}`;
+  const auth = btoa(`${config.accountSid}:${config.authToken}`);
+  const result = await fetch(url, {
+    method: 'POST',
+    headers: { authorization: `Basic ${auth}`, 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(fields).toString()
+  });
+  const data = await result.json().catch(() => ({}));
+  if (!result.ok) {
+    // Do not log a phone number or verification code. Twilio controls code expiry
+    // and retry checks; client error messages remain intentionally generic.
+    console.error('FreshWay passcode verification provider rejected a request.', result.status);
+    throw new Error('PASSCODE_VERIFICATION_FAILED');
+  }
+  return data;
+}
+function recoveryUnavailable(env) {
+  return response({ error: 'Passcode recovery is temporarily unavailable. Please contact FreshWay support.' }, 503, env);
+}
+async function startPasscodeReset(request, env) {
+  let payload = {};
+  try { payload = await request.json(); } catch (_) {}
+  const phone = normalizedPhone(payload.phone);
+  if (!phone) return response({ error: 'Enter the registered 10-digit mobile number.' }, 400, env);
+  if (!twilioConfig(env)) return recoveryUnavailable(env);
+  if (!(await rateLimit(env, `auth:reset:start:phone:${phone}`, 3)) ||
+      !(await rateLimit(env, `auth:reset:start:ip:${clientIp(request)}`, 10))) return limited(env);
+  const customer = await customerByPhone(env, phone);
+  // Return the same response for unknown and known numbers to avoid account enumeration.
+  if (customer?.id && customer.passcode_hash) {
+    try {
+      await twilioVerify(env, 'Verifications', { To: `+${phone}`, Channel: 'sms' });
+    } catch (error) {
+      if (error.message === 'PASSCODE_RECOVERY_NOT_CONFIGURED') return recoveryUnavailable(env);
+      return response({ error: 'Could not send a verification code. Please wait and try again.' }, 502, env);
+    }
+  }
+  return response({ ok: true, message: 'If this mobile is registered, a verification code has been sent.' }, 200, env);
+}
+async function completePasscodeReset(request, env) {
+  let payload = {};
+  try { payload = await request.json(); } catch (_) {}
+  const phone = normalizedPhone(payload.phone);
+  const code = String(payload.code || '').trim();
+  const passcode = String(payload.passcode || '');
+  if (!phone || !/^\d{6}$/.test(code) || !validPasscode(passcode)) {
+    return response({ error: 'Enter your registered mobile number, 6-digit SMS code and new 6-digit passcode.' }, 400, env);
+  }
+  if (!twilioConfig(env)) return recoveryUnavailable(env);
+  if (!(await rateLimit(env, `auth:reset:complete:phone:${phone}`, 5)) ||
+      !(await rateLimit(env, `auth:reset:complete:ip:${clientIp(request)}`, 15))) return limited(env);
+  const customer = await customerByPhone(env, phone);
+  if (!customer?.id || !customer.passcode_hash) return response({ error: 'The verification code is invalid or expired. Request a new code.' }, 401, env);
+  let verification;
+  try {
+    verification = await twilioVerify(env, 'VerificationCheck', { To: `+${phone}`, Code: code });
+  } catch (error) {
+    if (error.message === 'PASSCODE_RECOVERY_NOT_CONFIGURED') return recoveryUnavailable(env);
+    return response({ error: 'The verification code could not be checked. Request a new code and try again.' }, 502, env);
+  }
+  if (verification.status !== 'approved') return response({ error: 'The verification code is invalid or expired. Request a new code.' }, 401, env);
+  const { saltHex, hashHex } = await makePasscodeHash(passcode);
+  await env.DB.prepare('UPDATE customers SET passcode_salt=?,passcode_hash=?,auth_version=COALESCE(auth_version,0)+1,updated_at=CURRENT_TIMESTAMP WHERE id=? AND phone=?')
+    .bind(saltHex, hashHex, customer.id, phone).run();
+  const refreshed = await env.DB.prepare('SELECT auth_version FROM customers WHERE id=? LIMIT 1').bind(customer.id).first();
+  const version = Math.max(0, Number(refreshed?.auth_version || 0));
+  const token = await signSession(env, customer.id);
+  return withSession({
+    ok: true, customerId: customer.id, phone: `******${phone.slice(-4)}`,
+    registeredPhone: phone, name: customer.name || '', passcodeReset: true
+  }, env, token);
+}
+async function updateCustomer(request, env) { const sessionId = await sessionCustomerId(request, env); if (!sessionId) return response({ error: 'Customer authentication required.' }, 401, env); let payload = {}; try { payload = await request.json(); } catch (_) {} if (String(payload.id || '').trim() !== sessionId) return response({ error: 'Customer identity does not match the signed-in account.' }, 409, env); await env.DB.prepare('UPDATE customers SET whatsapp_opt_in=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(payload.whatsappOptIn ? 1 : 0, sessionId).run(); return response({ ok: true, customerId: sessionId }, 200, env); }
+export async function customerOrdersFromSnapshots(request, env, customerId) {
+  const { results } = await env.DB.prepare(`SELECT o.id,o.customer_name,o.customer_phone,o.total,o.items_subtotal,o.delivery_fee,o.coupon_code,o.coupon_discount,o.pricing_breakdown_known,o.payment_status,o.delivery_status,o.delivery_plan,o.created_at,o.updated_at,o.delivered_at,o.payment_collected_at,o.scheduled_delivery_date,o.scheduled_slot_id,o.assigned_store_id,o.scheduled_start_minute,o.scheduled_end_minute,o.schedule_status,ds.name assigned_store_name,
+    c.name registered_name,c.phone registered_phone,
+    COALESCE(s.recipient_name,a.recipient_name,o.customer_name) recipient_name,
+    COALESCE(s.delivery_phone,a.delivery_phone) delivery_phone,
+    COALESCE(s.house_flat,a.house) house,COALESCE(s.building,a.building) building,COALESCE(s.floor,a.floor) floor,
+    COALESCE(s.street,a.street) street,COALESCE(s.area,a.area) area,COALESCE(s.locality,a.locality) locality,
+    COALESCE(s.city,a.city) city,COALESCE(s.district,a.district) district,COALESCE(s.state,a.state) state,
+    COALESCE(s.pincode,a.pincode) pincode,COALESCE(s.landmark,a.landmark) landmark,COALESCE(s.delivery_note,a.note) note,
+    s.latitude,s.longitude,s.accuracy_meters,s.location_source,s.place_id,s.location_updated_at,
+    i.invoice_number,i.document_type invoice_document_type,i.issue_date invoice_issue_date,
+    oi.product_id,oi.name,oi.unit,oi.qty,oi.price,oi.line_total
+    FROM orders o
+    LEFT JOIN customers c ON c.id=o.customer_id
+    LEFT JOIN delivery_stores ds ON ds.id=o.assigned_store_id
+    LEFT JOIN order_address_snapshots s ON s.order_id=o.id
+    LEFT JOIN addresses a ON a.id=o.address_id
+    LEFT JOIN order_items oi ON oi.order_id=o.id
+    LEFT JOIN invoices i ON i.order_id=o.id
+    WHERE o.customer_id=? AND COALESCE(o.is_test_order,0)=0
+    ORDER BY o.created_at DESC,oi.id ASC`).bind(customerId).all();
+  const map = new Map();
+  for (const row of results || []) {
+    if (!map.has(row.id)) map.set(row.id, {
+      id: row.id,
+      customer: { name: row.registered_name || row.customer_name, phone: row.registered_phone || row.customer_phone },
+      address: {
+        house: row.house, building: row.building, floor: row.floor, street: row.street, area: row.area,
+        locality: row.locality, city: row.city, district: row.district, state: row.state, pincode: row.pincode,
+        landmark: row.landmark, note: row.note, recipientName: row.recipient_name || row.customer_name,
+        deliveryPhone: row.delivery_phone || '', latitude: row.latitude, longitude: row.longitude,
+        accuracyMeters: row.accuracy_meters, locationSource: row.location_source, placeId: row.place_id,
+        locationUpdatedAt: row.location_updated_at
+      },
+      items: [], total: row.total, pricingBreakdownKnown:Number(row.pricing_breakdown_known)===1, itemsSubtotal:Number(row.pricing_breakdown_known)===1?row.items_subtotal:null, deliveryFee:Number(row.pricing_breakdown_known)===1?row.delivery_fee:null, couponCode:Number(row.pricing_breakdown_known)===1?(row.coupon_code||null):null, couponDiscount:Number(row.pricing_breakdown_known)===1?row.coupon_discount:null, payment: row.payment_status, status: row.delivery_status,
+      deliveryPlan: row.delivery_plan, scheduledDelivery: row.scheduled_delivery_date ? { date: row.scheduled_delivery_date, slotId: row.scheduled_slot_id, storeId: row.assigned_store_id, storeName: row.assigned_store_name || '', startMinute: row.scheduled_start_minute, endMinute: row.scheduled_end_minute, startTime: row.scheduled_start_minute == null ? '' : String(Math.floor(Number(row.scheduled_start_minute)/60)).padStart(2,'0')+':'+String(Number(row.scheduled_start_minute)%60).padStart(2,'0'), endTime: row.scheduled_end_minute == null ? '' : String(Math.floor(Number(row.scheduled_end_minute)/60)).padStart(2,'0')+':'+String(Number(row.scheduled_end_minute)%60).padStart(2,'0'), status: row.schedule_status || 'unscheduled' } : null, scheduleStatus: row.schedule_status || 'unscheduled', createdAt: row.created_at, updatedAt: row.updated_at, deliveredAt: row.delivered_at,
+      paymentCollectedAt: row.payment_collected_at,
+      invoice: row.invoice_number?{number:row.invoice_number,documentType:row.invoice_document_type,issuedAt:row.invoice_issue_date}:null
+    });
+    if (row.product_id) map.get(row.id).items.push({
+      id: row.product_id, name: row.name, unit: row.unit, qty: row.qty, price: row.price, lineTotal: row.line_total
+    });
+  }
+  return response({ orders: [...map.values()] }, 200, env);
+}
+async function protectedOrders(request, env, ctx) {
+  const sessionId = await sessionCustomerId(request, env);
+  if (!sessionId || !(await customerExists(env, sessionId))) return response({ error: 'Customer authentication required.' }, 401, env);
+  const url = new URL(request.url);
+  if (request.method === 'GET') {
+    if (String(url.searchParams.get('customerId') || '').trim() !== sessionId) {
+      return response({ error: 'Customer identity does not match the signed-in account.' }, 403, env);
+    }
+    return customerOrdersFromSnapshots(request, env, sessionId);
+  }
+  if (request.method !== 'POST') return original.fetch(request, env, {});
+  let payload = {};
+  try { payload = await request.clone().json(); } catch (_) {}
+  if (String(payload.customerId || '') !== sessionId) {
+    return response({ error: 'Customer identity does not match the signed-in account.' }, 403, env);
+  }
+  const deliveryPhone = cleanPhone(payload.address?.deliveryPhone || payload.customer?.phone);
+  if (!deliveryPhone || !/^\d{10}$/.test(deliveryPhone)) {
+    return response({ error: 'Enter a valid 10-digit delivery contact number.' }, 400, env);
+  }
+  const registration = await env.DB.prepare('SELECT phone FROM customers WHERE id=? LIMIT 1').bind(sessionId).first();
+  const registeredPhone = String(registration?.phone || '');
+  if (!/^91\d{10}$/.test(registeredPhone)) {
+    return response({ error: 'Customer registration phone is not configured.' }, 409, env);
+  }
+  // Identity always comes from the signed-in account. The delivery contact is an
+  // order-specific field and is stored only in the immutable address snapshot.
+  const address = { ...(payload.address || {}), deliveryPhone: `91${deliveryPhone}` };
+  // The legacy order writer validates customer.phone as ten local digits. Keep the account identity canonical in D1 and restore its canonical value on the order row below.
+  const forwarded = { ...payload, customer: { ...(payload.customer || {}), phone: registeredPhone.slice(2) }, address };
+  const responseFromOriginal = await original.fetch(new Request(request, {
+    method: 'POST', body: JSON.stringify(forwarded)
+  }), env, ctx || {});
+  if (!responseFromOriginal.ok) return responseFromOriginal;
+  let result = {};
+  try { result = await responseFromOriginal.clone().json(); } catch (_) {}
+  if (result?.id) {
+    try {
+      await saveOrderSnapshot(env, String(result.id), address);
+    } catch (error) {
+      return response({ error: error.message || 'Could not save the final delivery address.' }, 500, env);
+    }
+    // Repair the legacy duplicated field too, so every new order row stores the
+    // account mobile even if the underlying order writer changes its mapping.
+    await env.DB.prepare('UPDATE orders SET customer_phone=? WHERE id=? AND customer_id=?')
+      .bind(registeredPhone, String(result.id), sessionId).run();
+  }
+  return responseFromOriginal;
+}
+async function protectedPush(request, env) { const sessionId = await sessionCustomerId(request, env); if (!sessionId || !(await customerExists(env, sessionId))) return response({ error: 'Customer authentication required.' }, 401, env); let payload = {}; try { payload = await request.clone().json(); } catch (_) {} if (String(payload.customerId || '') !== sessionId) return response({ error: 'Customer identity does not match the signed-in account.' }, 403, env); return original.fetch(request, env, {}); }
+async function createAccountDeletionRequest(env, customerId, phone, source) {
+  const existing = await env.DB.prepare("SELECT id,status FROM account_deletion_requests WHERE customer_id=? AND status IN ('pending','in_review') ORDER BY created_at DESC LIMIT 1").bind(customerId).first();
+  if (existing?.id) return { requestId: existing.id, status: existing.status, alreadyRequested: true };
+  const id = crypto.randomUUID();
+  await env.DB.prepare("INSERT OR IGNORE INTO account_deletion_requests (id,customer_id,phone_snapshot,status,source,created_at,updated_at) VALUES (?,?,?,'pending',?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)").bind(id, customerId, phone, source).run();
+  const row = await env.DB.prepare("SELECT id,status FROM account_deletion_requests WHERE customer_id=? AND status IN ('pending','in_review') ORDER BY created_at DESC LIMIT 1").bind(customerId).first();
+  return { requestId: row?.id || id, status: row?.status || 'pending', alreadyRequested: row?.id !== id };
+}
+async function startAccountDeletionVerification(request, env) {
+  let payload = {}; try { payload = await request.json(); } catch (_) {}
+  const phone = normalizedPhone(payload.phone);
+  if (!phone) return response({ error: 'Enter a valid 10-digit Indian mobile number.' }, 400, env);
+  if (!twilioConfig(env)) return response({ error: 'SMS verification is not configured. Please request deletion while signed in or contact FreshWay through the app.' }, 503, env);
+  if (!(await rateLimit(env, 'deletion:start:phone:' + phone, 3)) || !(await rateLimit(env, 'deletion:start:ip:' + clientIp(request), 10))) return limited(env);
+  const customer = await env.DB.prepare('SELECT id FROM customers WHERE phone=? AND deleted_at IS NULL LIMIT 1').bind(phone).first();
+  if (customer?.id) { try { await twilioVerify(env, 'Verifications', { To: '+' + phone, Channel: 'sms' }); } catch (_) { return response({ error: 'Could not send a verification code. Please try again later.' }, 503, env); } }
+  return response({ ok: true, message: 'If a FreshWay account matches this number, a verification code has been sent.' }, 200, env);
+}
+async function verifyAccountDeletionRequest(request, env) {
+  let payload = {}; try { payload = await request.json(); } catch (_) {}
+  const phone = normalizedPhone(payload.phone), code = String(payload.code || '').replace(/\s/g, '');
+  if (!phone || !/^\d{4,10}$/.test(code)) return response({ error: 'Enter the mobile number and SMS verification code.' }, 400, env);
+  if (!(await rateLimit(env, 'deletion:verify:phone:' + phone, 5)) || !(await rateLimit(env, 'deletion:verify:ip:' + clientIp(request), 15))) return limited(env);
+  if (!twilioConfig(env)) return response({ error: 'SMS verification is not configured. Please try again later.' }, 503, env);
+  let result; try { result = await twilioVerify(env, 'VerificationCheck', { To: '+' + phone, Code: code }); } catch (_) { return response({ error: 'The code is incorrect or expired. Request a new code and try again.' }, 401, env); }
+  if (result.status !== 'approved' || result.valid === false) return response({ error: 'The code is incorrect or expired. Request a new code and try again.' }, 401, env);
+  const customer = await env.DB.prepare('SELECT id,phone FROM customers WHERE phone=? AND deleted_at IS NULL LIMIT 1').bind(phone).first();
+  if (!customer?.id) return response({ ok: true, message: 'If a FreshWay account matches this number, the deletion request has been recorded. If no account exists, no further action is needed.' }, 202, env);
+  const info = await createAccountDeletionRequest(env, customer.id, customer.phone, 'external_verified_phone');
+  return response({ ok: true, ...info, message: 'Your account-deletion request has been recorded. FreshWay will review linked records and applicable retention obligations.' }, 202, env);
+}
+async function requestAccountDeletionFromSession(request, env) {
+  const customerId = await sessionCustomerId(request, env);
+  if (!customerId || !(await customerExists(env, customerId))) return response({ error: 'Sign in to FreshWay or use the external phone-verification flow.' }, 401, env);
+  const customer = await env.DB.prepare('SELECT phone FROM customers WHERE id=? LIMIT 1').bind(customerId).first();
+  if (!customer?.phone) return response({ error: 'Your account has no registered mobile number. Please contact FreshWay support through the app.' }, 409, env);
+  const info = await createAccountDeletionRequest(env, customerId, customer.phone, 'authenticated_customer');
+  return response({ ok: true, ...info, message: 'Your deletion request has been recorded. The account is not deleted immediately; FreshWay must review linked order and invoice records.' }, 202, env);
+}
+
+export default { async fetch(request, env, ctx) { const url = new URL(request.url), requestOrigin = String(request.headers.get('Origin') || '').trim(), origins = corsOrigins(env), allowedOrigin = corsOrigin(env, requestOrigin), requestEnvironment = String(request.headers.get('X-Freshway-Environment') || '').trim().toLowerCase(), deploymentEnvironment = String(env.FRESHWAY_ENVIRONMENT || '').trim().toLowerCase(); if (requestEnvironment && deploymentEnvironment && requestEnvironment !== deploymentEnvironment) return response({ error: 'Environment mismatch.' }, 403, env); if (requestOrigin && !isAllowedOrigin(env, requestOrigin)) return response({ error: 'Origin not allowed.' }, 403, env); if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'access-control-allow-origin': allowedOrigin, 'access-control-allow-methods': 'GET,POST,PATCH,DELETE,OPTIONS', 'access-control-allow-headers': 'Content-Type,Authorization,X-Freshway-Admin-Token', 'access-control-allow-credentials': 'true' } }); if (url.pathname === '/api/account-deletion/start' && request.method === 'POST') { try { return await startAccountDeletionVerification(request, env); } catch (_) { return response({ error: 'Could not start verification. Please try again later.' }, 503, env); } } if (url.pathname === '/api/account-deletion/verify' && request.method === 'POST') { try { return await verifyAccountDeletionRequest(request, env); } catch (_) { return response({ error: 'Could not verify the request. Please try again later.' }, 503, env); } } if (url.pathname === '/api/account-deletion/request' && request.method === 'POST') { const contentType = String(request.headers.get('content-type') || '').split(';')[0].trim().toLowerCase(); if (contentType !== 'application/json' || !requestOrigin || !isAllowedOrigin(env, requestOrigin)) return response({ error: 'Request origin could not be verified.' }, 403, env); try { return await requestAccountDeletionFromSession(request, env); } catch (error) { console.error('FreshWay account-deletion request failed:', error?.message || error); return response({ error: 'Could not record the request. Please try again later.' }, 500, env); } } if (url.pathname === '/api/auth/session' && request.method === 'GET') { const id = await sessionCustomerId(request, env); if (!id || !(await customerExists(env, id))) return response({ error: 'Customer authentication required.' }, 401, env); const row = await env.DB.prepare('SELECT id,name,phone FROM customers WHERE id=? LIMIT 1').bind(id).first(); return response({ ok: true, customerId: id, name: row?.name || '', phone: row?.phone ? `******${String(row.phone).slice(-4)}` : '', registeredPhone: row?.phone || '' }, 200, env); } if (url.pathname === '/api/auth/logout' && request.method === 'POST') return clearSession(env); if (url.pathname === '/api/auth/register' && request.method === 'POST') { try { return await register(request, env); } catch (error) { return response({ error: error.message || 'Could not create your account.' }, 500, env); } } if (url.pathname === '/api/auth/login' && request.method === 'POST') { try { return await login(request, env); } catch (error) { return response({ error: error.message || 'Could not sign you in.' }, 500, env); } } if (url.pathname === '/api/auth/passcode-reset/start' && request.method === 'POST') { try { return await startPasscodeReset(request, env); } catch (error) { console.error('FreshWay passcode reset start failed:', error?.message || error); return response({ error: 'Could not start passcode recovery. Please try again.' }, 500, env); } } if (url.pathname === '/api/auth/passcode-reset/complete' && request.method === 'POST') { try { return await completePasscodeReset(request, env); } catch (error) { console.error('FreshWay passcode reset completion failed:', error?.message || error); return response({ error: 'Could not reset your passcode. Please try again.' }, 500, env); } } if (url.pathname === '/api/customers/register' && request.method === 'POST') return updateCustomer(request, env); const invoiceMatch=url.pathname.match(/^\/api\/orders\/([^/]+)\/invoice$/);if(invoiceMatch&&request.method==='GET'){try{return await customerInvoice(request,env,invoiceMatch[1])}catch(error){console.error('FreshWay customer invoice download failed:',error?.message||error);return response({error:'Could not download this invoice.'},500,env,{'access-control-allow-origin':corsOrigin(env,request.headers.get('Origin')||'')})}}if ((url.pathname === '/api/delivery/store' || url.pathname === '/api/delivery/availability' || url.pathname === '/api/delivery/slots') && request.method === 'POST') {
+      const deliveryResponse = await handleCustomerDeliveryRequest(request, env, '');
+      if (deliveryResponse) { const headers = new Headers(deliveryResponse.headers); headers.set('access-control-allow-origin', corsOrigin(env, request.headers.get('Origin') || '')); headers.set('access-control-allow-credentials','true'); headers.set('vary','Origin'); return new Response(deliveryResponse.body,{status:deliveryResponse.status,headers}); }
+    }
+    if (url.pathname.startsWith('/api/customer/messages')) {
+      const messageCustomerId = await sessionCustomerId(request, env);
+      if (!messageCustomerId || !(await customerExists(env, messageCustomerId))) return response({ error: 'Customer authentication required.' }, 401, env);
+      if (['POST', 'PATCH'].includes(request.method) && (!requestOrigin || !isAllowedOrigin(env, requestOrigin))) return response({ error: 'Request origin could not be verified.' }, 403, env);
+      const result = await handleCustomerMessages(request, env, messageCustomerId);
+      return response(result.data, result.status, env);
+    }
+    if ((url.pathname === '/api/delivery-offers' && request.method === 'GET') ||
+        (url.pathname === '/api/coupons/available' && request.method === 'GET') ||
+        (url.pathname === '/api/checkout/quote' && request.method === 'POST')) {
+      const offerSessionId = await sessionCustomerId(request, env);
+      const offerCustomerId = offerSessionId && await customerExists(env, offerSessionId) ? offerSessionId : null;
+      const offerResponse = await handleCustomerDeliveryOffersRequest(request, env, offerCustomerId);
+      if (offerResponse) {
+        const headers = new Headers(offerResponse.headers);
+        headers.set('access-control-allow-origin', corsOrigin(env, request.headers.get('Origin') || ''));
+        headers.set('access-control-allow-credentials', 'true');
+        headers.set('vary', 'Origin');
+        return new Response(offerResponse.body, { status: offerResponse.status, statusText: offerResponse.statusText, headers });
+      }
+    }
+    const deliveryActionMatch = url.pathname.match(/^\/api\/orders\/[^/]+\/(?:cancel|reschedule|request)$/);
+    if (deliveryActionMatch && request.method === 'POST') {
+      const deliveryCustomerId = await sessionCustomerId(request, env);
+      if (!deliveryCustomerId || !(await customerExists(env, deliveryCustomerId))) return response({ error: 'Customer authentication required.' }, 401, env);
+      const deliveryResponse = await handleCustomerDeliveryRequest(request, env, deliveryCustomerId);
+      if (deliveryResponse) { const headers = new Headers(deliveryResponse.headers); headers.set('access-control-allow-origin', corsOrigin(env, request.headers.get('Origin') || '')); headers.set('access-control-allow-credentials','true'); headers.set('vary','Origin'); return new Response(deliveryResponse.body,{status:deliveryResponse.status,headers}); }
+    }
+    if (url.pathname === '/api/orders' && ['GET','POST'].includes(request.method)) return protectedOrders(request, env, ctx); if (url.pathname === '/api/push/subscribe' && request.method === 'POST') return protectedPush(request, env); if (url.pathname === '/api/addresses' && request.method === 'GET') { const id=await sessionCustomerId(request,env); if(!id||!(await customerExists(env,id)))return response({error:'Customer authentication required.'},401,env); return handleAddress(request,env,id,'list'); } if (url.pathname === '/api/addresses' && request.method === 'POST') { const id=await sessionCustomerId(request,env); if(!id||!(await customerExists(env,id)))return response({error:'Customer authentication required.'},401,env); return handleAddress(request,env,id,'create'); } {
+      const addressMatch = url.pathname.match(/^\/api\/addresses\/(\d+)(?:\/delete)?\/?$/);
+      if (addressMatch) {
+        const id=await sessionCustomerId(request,env);
+        if(!id||!(await customerExists(env,id)))return response({error:'Customer authentication required.'},401,env);
+        const isDeleteAlias = /\/delete\/?$/.test(url.pathname);
+        if (isDeleteAlias) {
+          if (request.method !== 'POST') return response({ error:'Method not allowed.' },405,env);
+          const deleteRequest = new Request(new URL(`/api/addresses/${addressMatch[1]}`,url), { method:'DELETE', headers:request.headers });
+          return handleAddress(deleteRequest,env,id,'delete');
+        }
+        const action=request.method==='PATCH'?'update':request.method==='DELETE'?'delete':'update';
+        return handleAddress(request,env,id,action);
+      }
+    } return original.fetch(request,env,ctx); } };

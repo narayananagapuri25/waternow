@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0f7a4b">
+  <title>Privacy Policy | FreshWay</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17251d;
+      --muted: #5e6e64;
+      --line: #e1e9e3;
+      --green: #0f7a4b;
+      --green-deep: #075b38;
+      --green-soft: #edf7f0;
+      --paper: #ffffff;
+      --page: #f5f8f5;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--page); -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font: 16px/1.7 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    .wrap {
+      width: min(100% - 36px, 940px);
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 18px;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .015em;
+    }
+    .brand::before {
+      content: "FW";
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 38px;
+      border-radius: 12px;
+      background: var(--green-soft);
+      color: var(--green-deep);
+      font-size: 13px;
+      letter-spacing: -.04em;
+    }
+    .paper {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: clamp(24px, 5vw, 52px);
+      box-shadow: 0 14px 42px rgba(22, 58, 38, .045);
+    }
+    h1 {
+      margin: 0 0 12px;
+      color: var(--ink);
+      font-size: clamp(30px, 4.8vw, 44px);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -.045em;
+    }
+    h1 + p strong {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #f1f5f2;
+      color: #46584d;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    p { margin: 12px 0; }
+    article > p { max-width: 76ch; color: #405147; }
+    h2 {
+      margin: 34px 0 10px;
+      padding-top: 22px;
+      border-top: 1px solid #edf1ed;
+      color: var(--ink);
+      font-size: clamp(18px, 2.5vw, 21px);
+      font-weight: 760;
+      line-height: 1.3;
+      letter-spacing: -.025em;
+    }
+    ul { padding-left: 22px; margin: 12px 0 20px; color: #405147; }
+    li { margin: 8px 0; padding-left: 3px; }
+    li::marker { color: var(--green); }
+    a {
+      color: var(--green-deep);
+      font-weight: 650;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+      overflow-wrap: anywhere;
+    }
+    a:hover { color: var(--green); }
+    a:focus-visible {
+      outline: 3px solid rgba(15, 122, 75, .28);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+    .note {
+      margin: 18px 0;
+      padding: 15px 17px;
+      border: 1px solid #d9eade;
+      border-left: 4px solid var(--green);
+      border-radius: 14px;
+      background: #f3f9f4;
+      color: #364d3e;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .contact-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+      margin: 14px 0;
+      padding: 8px 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fbfdfb;
+    }
+    .contact-line {
+      display: grid;
+      grid-template-columns: minmax(145px, .36fr) minmax(0, 1fr);
+      align-items: start;
+      gap: 12px;
+      margin: 0;
+      padding: 11px 0;
+      border-bottom: 1px solid #edf2ee;
+      overflow-wrap: anywhere;
+    }
+    .contact-line:last-child { border-bottom: 0; }
+    .contact-line strong {
+      min-width: 0;
+      color: #59695e;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .contact-line span, .contact-line a { min-width: 0; font-size: 14px; }
+    .contact-missing { color: #80511b; font-size: 13px; }
+    [aria-busy="true"] { color: var(--muted); }
+    .paper > p:last-child {
+      margin-top: 32px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+    }
+    @media (max-width: 600px) {
+      body { font-size: 15px; line-height: 1.65; }
+      .wrap { width: calc(100% - 20px); padding: 12px 0 28px; }
+      .brand { margin: 0 0 12px 4px; font-size: 12px; }
+      .brand::before { width: 34px; height: 34px; flex-basis: 34px; border-radius: 11px; }
+      .paper { padding: 22px 17px; border-radius: 19px; }
+      h1 { font-size: clamp(28px, 8vw, 34px); }
+      h2 { margin-top: 27px; padding-top: 20px; font-size: 19px; }
+      .note { padding: 13px 14px; font-size: 13px; }
+      .contact-card { padding: 4px 13px; }
+      .contact-line { grid-template-columns: minmax(0, 1fr); gap: 3px; padding: 10px 0; }
+      .contact-line strong { font-size: 12px; }
+      .contact-line span, .contact-line a { font-size: 14px; }
+      ul { padding-left: 19px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+    @media print {
+      html, body { background: #fff; }
+      .wrap { width: 100%; padding: 0; }
+      .paper { border: 0; border-radius: 0; box-shadow: none; padding: 0; }
+      .brand::before { border: 1px solid #ddd; background: #fff; }
+      a { color: #111; }
+      .note { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <p class="brand">FreshWay · Eat Fresh, Stay Healthy</p>
+    <article class="paper">
+      <h1>Privacy Policy</h1>
+      <p><strong>Effective date: 23 October 2026</strong></p>
+      <p>This policy describes information FreshWay processes when you browse products, place local-delivery orders, manage your account, or contact the business. The operator must review it against the live configuration and applicable law before relying on it for a store or app-store submission.</p>
+
+      <h2>Business and privacy contact</h2>
+      <p>Public store contacts are loaded from the store profile configured by FreshWay. The store name is a brand label and does not, by itself, establish the legal identity of the business operator.</p>
+      <section id="privacyContact" class="contact-card" aria-live="polite" aria-busy="true">
+        <p>Loading public business contact details…</p>
+      </section>
+      <p class="note">Before Google Play submission, the operator must verify the legal business name, public business address, monitored privacy/support contact and applicable retention periods. A dedicated privacy email must be configured and monitored; a missing field must not be treated as a valid contact.</p>
+
+      <h2>Information we process</h2>
+      <ul>
+        <li>Account name, registered mobile number, authentication data and session security information.</li>
+        <li>Delivery recipient/contact details, addresses, landmarks and delivery instructions.</li>
+        <li>Order contents, quantities, totals, status, delivery details and support history.</li>
+        <li>Invoice and receipt records that may be needed for accounting, tax or dispute purposes.</li>
+        <li>Notification subscriptions and preferences when notifications or optional WhatsApp updates are enabled.</li>
+        <li>Technical and security information used to operate the service, limit abuse and protect accounts.</li>
+      </ul>
+
+      <h2>How information is used</h2>
+      <p>Information is used to authenticate customers, accept and fulfil orders, coordinate delivery, provide support, prepare transaction documents, send requested updates, maintain service security and meet applicable legal obligations. Optional messaging should not be treated as mandatory unless the app clearly explains otherwise.</p>
+
+      <h2>Service providers and sharing</h2>
+      <p>The application architecture uses Cloudflare-hosted application and database services. SMS verification, web push and WhatsApp integrations may be enabled depending on production configuration. Providers process relevant information when needed to deliver an enabled feature. Information may also be shared with delivery personnel to fulfil an order and with authorities where legally required. The operator must keep this description aligned with actual production settings and provider terms.</p>
+
+      <h2>Retention and deletion</h2>
+      <p>FreshWay keeps information as needed to provide the service, resolve disputes, protect the service and meet legal obligations. When an account-deletion request is completed, the account profile and operational delivery details are redacted and login credentials are removed. Issued invoice buyer snapshots are currently preserved unchanged; the operator must confirm the lawful retention basis and publish the applicable retention period before store submission. Other records may be retained only as required for accounting, tax, security or dispute purposes, with use restricted where appropriate.</p>
+      <p>Submit a request from Profile in the app or use the <a href="/delete-account.html">external account-deletion request page</a>. Requests are reviewed; linked orders and invoices are not immediately erased.</p>
+
+      <h2>Security</h2>
+      <p>FreshWay uses authentication controls, protected sessions, access controls and rate limits where implemented. No internet service can guarantee absolute security. Contact FreshWay if you suspect unauthorised use of your account.</p>
+
+      <h2>Children and international processing</h2>
+      <p>FreshWay is intended for customers able to place orders and manage an account. Contact FreshWay if a child has provided personal information. Service providers may process data in other locations; the operator should confirm provider locations and applicable safeguards.</p>
+
+      <h2>Changes and contact</h2>
+      <p>This policy may be updated when features or data practices change. For questions or to follow up on a request, use one of the public store contacts above or open <a href="/">FreshWay</a> and use Contact Us in Profile. Before app-store submission, the operator must verify the legal business identity, a monitored privacy contact, retention periods and all actual production data flows.</p>
+      <div class="note"><strong>Operator review required:</strong> This policy remains a working draft until business/legal review and a production data-flow check are complete.</div>
+      <p><a href="/">← Back to FreshWay</a></p>
+    </article>
+  </main>
+
+  <script>
+    (() => {
+      const root = document.getElementById('privacyContact');
+      const clean = value => String(value == null ? '' : value).trim();
+      const digits = value => clean(value).replace(/\D/g, '');
+
+      function addLine(label, value, href = '') {
+        const printable = clean(value);
+        if (!printable) return false;
+        const line = document.createElement('p');
+        line.className = 'contact-line';
+        const heading = document.createElement('strong');
+        heading.textContent = label + ':';
+        line.appendChild(heading);
+        if (href) {
+          const link = document.createElement('a');
+          link.textContent = printable;
+          link.href = href;
+          if (href.startsWith('https://')) {
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+          }
+          line.appendChild(link);
+        } else {
+          const span = document.createElement('span');
+          span.textContent = printable;
+          line.appendChild(span);
+        }
+        root.appendChild(line);
+        return true;
+      }
+
+      async function loadPublicContact() {
+        try {
+          const response = await fetch('/api/store-profile', {
+            method: 'GET',
+            headers: { accept: 'application/json' },
+            cache: 'no-store',
+            credentials: 'omit'
+          });
+          if (!response.ok) throw new Error('Public store profile is unavailable.');
+          const data = await response.json();
+          const profile = data && data.storeProfile ? data.storeProfile : {};
+          root.replaceChildren();
+
+          let found = false;
+          found = addLine('Store name', profile.storeName) || found;
+          found = addLine('Public business address', profile.address) || found;
+
+          const phone = clean(profile.phone);
+          const phoneDigits = digits(phone);
+          const phoneHref = phoneDigits
+            ? 'tel:+' + (phoneDigits.length === 10 ? '91' : '') + phoneDigits
+            : '';
+          found = addLine('Phone', phone, phoneHref) || found;
+
+          const whatsapp = clean(profile.whatsapp || profile.phone);
+          const whatsappDigits = digits(whatsapp);
+          const whatsappHref = whatsappDigits
+            ? 'https://wa.me/' + (whatsappDigits.length === 10 ? '91' + whatsappDigits : whatsappDigits)
+            : '';
+          found = addLine('WhatsApp', whatsapp, whatsappHref) || found;
+
+          const email = clean(profile.email);
+          const emailHref = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'mailto:' + email : '';
+          found = addLine('Email', email, emailHref) || found;
+
+          if (!emailHref) {
+            const missing = document.createElement('p');
+            missing.className = 'contact-missing';
+            missing.textContent = 'A valid privacy/support email is not configured in the public store profile. Please use Contact Us in FreshWay while the operator configures a monitored privacy contact.';
+            root.appendChild(missing);
+          }
+          if (!found) {
+            const empty = document.createElement('p');
+            empty.textContent = 'No public business contact details are configured yet. Open FreshWay and choose Profile → Contact Us.';
+            root.appendChild(empty);
+          }
+          root.setAttribute('aria-busy', 'false');
+        } catch (_) {
+          root.replaceChildren();
+          const fallback = document.createElement('p');
+          fallback.textContent = 'Public contact details could not be loaded. Open FreshWay and choose Profile → Contact Us. The operator must verify this page and its contact details before app-store submission.';
+          root.appendChild(fallback);
+          root.setAttribute('aria-busy', 'false');
+        }
+      }
+
+      loadPublicContact();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+const MAX_IMAGE_DATA=900000;
+const ALLOWED_IMAGE_MIME=new Set(['image/png','image/jpeg','image/webp']);
+const clean=(v,max)=>String(v??'').trim().slice(0,max);
+const normalizeAltText=value=>String(value??'').normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase('en');
+const GENERIC_ALT_TEXT=new Set(['image','image preview','banner','offer','promo','promotion','promotion preview','promotion image','freshway promotion']);
+const id=()=>`promo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
+
+const json=(data,status=200)=>new Response(JSON.stringify(data),{
+  status,
+  headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store, no-cache, must-revalidate, max-age=0'}
+});
+
+function imageFields(payload){
+  const data=payload.imageData===null||payload.imageData===undefined?null:String(payload.imageData||'').trim();
+  const mime=clean(payload.imageMimeType||payload.image_mime_type||'',40);
+  if(data===null||data==='')return{imageData:null,imageMimeType:null};
+  if(data.length>MAX_IMAGE_DATA)throw new Error('Promotion image is too large after compression.');
+  if(!/^[A-Za-z0-9+/=]+$/.test(data))throw new Error('Promotion image data is invalid.');
+  if(!ALLOWED_IMAGE_MIME.has(mime))throw new Error('Promotion image format must be PNG, JPEG, or WebP.');
+  return{imageData:data,imageMimeType:mime};
+}
+
+function isUsefulAltText(value){
+  const normalized=normalizeAltText(value);
+  return normalized.length>=3&&!GENERIC_ALT_TEXT.has(normalized);
+}
+
+function validPayload(payload,current={},options={}){
+  const image=imageFields({
+    imageData:payload.imageData===undefined?current.image_data:payload.imageData,
+    imageMimeType:payload.imageMimeType===undefined?current.image_mime_type:payload.imageMimeType
+  });
+  const alt=clean(payload.altText===undefined?current.alt_text:payload.altText,160).replace(/\s+/g,' ');
+  const order=Number(payload.displayOrder===undefined?current.display_order:payload.displayOrder);
+  const active=payload.active===undefined?Number(current.active??1)===1:payload.active===true||payload.active===1;
+  if(!Number.isInteger(order)||order<1||order>99999)throw new Error('Promotion display order must be a positive whole number.');
+  if(!image.imageData)throw new Error('Promotion image is required.');
+  if(!options.allowLegacyAltForHide&&!isUsefulAltText(alt)){
+    throw new Error('Enter a meaningful image description (at least 3 characters; not a generic label like “Promotion”).');
+  }
+  return{...image,altText:alt,displayOrder:order,active};
+}
+
+async function assertUniqueAltText(env,altText,excludeId=''){
+  const normalized=normalizeAltText(altText);
+  const {results}=await env.DB.prepare(
+    'SELECT id,alt_text FROM home_promotions WHERE id<>?'
+  ).bind(excludeId).all();
+  const duplicate=(results||[]).find(row=>normalizeAltText(row.alt_text)===normalized);
+  if(duplicate)throw new Error('Each banner needs a unique image description. Change the wording so screen-reader users can distinguish this offer.');
+}
+
+function decodeImageData(value){
+  const input=String(value||'');
+  if(!input||input.length>MAX_IMAGE_DATA||!/^[A-Za-z0-9+/]+={0,2}$/.test(input))return null;
+  const unpadded=input.replace(/=+$/,'');
+  if(unpadded.length%4===1)return null;
+  const padded=unpadded+'='.repeat((4-unpadded.length%4)%4);
+  try{
+    const binary=atob(padded);
+    const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    return bytes;
+  }catch(_){return null;}
+}
+
+async function sha256(bytes){
+  const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+  return Array.from(digest,value=>value.toString(16).padStart(2,'0')).join('');
+}
+
+async function promotions(env,includeHidden=false){
+  const where=includeHidden?'':' WHERE active=1';
+  const {results}=await env.DB.prepare(
+    `SELECT id,image_data,image_mime_type,alt_text,display_order,active,created_at,updated_at
+     FROM home_promotions${where}
+     ORDER BY display_order ASC,id ASC
+     LIMIT ${includeHidden?20:8}`
+  ).all();
+  const rows=results||[];
+  if(includeHidden)return{promotions:rows};
+  return{promotions:await Promise.all(rows.map(async row=>{
+    const {image_data,image_mime_type,...metadata}=row;
+    const bytes=decodeImageData(image_data);
+    const validMime=ALLOWED_IMAGE_MIME.has(String(image_mime_type||'').toLowerCase());
+    return{
+      ...metadata,
+      image_url:bytes&&validMime?'/api/promotions/images/'+encodeURIComponent(row.id)+'?v='+await sha256(bytes):null
+    };
+  }))};
+}
+
+function promotionImageNotFound(){
+  return new Response('Image not found.',{status:404,headers:{
+    'content-type':'text/plain; charset=utf-8',
+    'cache-control':'no-store',
+    'x-content-type-options':'nosniff'
+  }});
+}
+
+async function publicPromotionImage(request,env,promotionId){
+  const row=await env.DB.prepare(
+    'SELECT image_data,image_mime_type FROM home_promotions WHERE id=? AND active=1'
+  ).bind(promotionId).first();
+  const mime=String(row?.image_mime_type||'').toLowerCase();
+  const bytes=decodeImageData(row?.image_data);
+  if(!row||!bytes||!ALLOWED_IMAGE_MIME.has(mime))return promotionImageNotFound();
+  const etag='"'+await sha256(bytes)+'"';
+  const headers=new Headers({
+    'content-type':mime,
+    'content-length':String(bytes.byteLength),
+    'cache-control':'public, max-age=31536000, immutable',
+    etag,
+    'x-content-type-options':'nosniff'
+  });
+  const supplied=String(request.headers.get('if-none-match')||'').split(',').map(value=>value.trim());
+  if(supplied.some(value=>value==='*'||value.replace(/^W\//,'')===etag))return new Response(null,{status:304,headers});
+  return new Response(request.method==='HEAD'?null:bytes,{status:200,headers});
+}
+
+async function createPromotion(env,payload){
+  const v=validPayload(payload);
+  await assertUniqueAltText(env,v.altText);
+  const promotionId=id();
+  await env.DB.prepare(
+    'INSERT INTO home_promotions (id,image_data,image_mime_type,alt_text,display_order,active) VALUES (?,?,?,?,?,?)'
+  ).bind(promotionId,v.imageData,v.imageMimeType,v.altText,v.displayOrder,v.active?1:0).run();
+  return{ok:true,promotion:{id:promotionId,image_data:v.imageData,image_mime_type:v.imageMimeType,alt_text:v.altText,display_order:v.displayOrder,active:v.active?1:0}};
+}
+
+async function updatePromotion(env,promotionId,payload){
+  const current=await env.DB.prepare('SELECT * FROM home_promotions WHERE id=?').bind(promotionId).first();
+  if(!current)throw new Error('Promotion not found.');
+  const hasAltText=Object.prototype.hasOwnProperty.call(payload,'altText');
+  const requestedActive=payload.active===undefined?Number(current.active??1)===1:payload.active===true||payload.active===1;
+  // Keep legacy banners manageable: an existing banner with a blank description
+  // can still be hidden without forcing an unrelated content edit. It cannot be
+  // saved through the form or activated until its description is corrected.
+  const allowLegacyAltForHide=!hasAltText&&!requestedActive;
+  const v=validPayload(payload,current,{allowLegacyAltForHide});
+  if(hasAltText||v.active)await assertUniqueAltText(env,v.altText,promotionId);
+  await env.DB.prepare(
+    'UPDATE home_promotions SET image_data=?,image_mime_type=?,alt_text=?,display_order=?,active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?'
+  ).bind(v.imageData,v.imageMimeType,v.altText,v.displayOrder,v.active?1:0,promotionId).run();
+  return{ok:true};
+}
+
+async function deletePromotion(env,promotionId){
+  const result=await env.DB.prepare('DELETE FROM home_promotions WHERE id=?').bind(promotionId).run();
+  if(!result.meta?.changes)throw new Error('Promotion not found.');
+  return{ok:true};
+}
+
+export async function handlePromotionRequest(request,env){
+  const url=new URL(request.url),path=url.pathname;
+  try{
+    const imageMatch=path.match(/^\/api\/promotions\/images\/([^/]+)$/);
+    if(imageMatch&&(request.method==='GET'||request.method==='HEAD')){
+      let promotionId;
+      try{promotionId=decodeURIComponent(imageMatch[1]);}catch(_){return promotionImageNotFound();}
+      return publicPromotionImage(request,env,promotionId);
+    }
+    if(path==='/api/promotions'&&request.method==='GET')return json(await promotions(env,false));
+    if(path==='/api/admin/promotions'&&request.method==='GET')return json(await promotions(env,true));
+    if(path==='/api/admin/promotions'&&request.method==='POST')return json(await createPromotion(env,await request.json()),201);
+    if(path.startsWith('/api/admin/promotions/')&&request.method==='PATCH'){
+      return json(await updatePromotion(env,decodeURIComponent(path.split('/').pop()),await request.json()));
+    }
+    if(path.startsWith('/api/admin/promotions/')&&request.method==='DELETE'){
+      return json(await deletePromotion(env,decodeURIComponent(path.split('/').pop())));
+    }
+    return null;
+  }catch(e){
+    return json({error:e?.message||'Promotion request failed.'},400);
+  }
+}

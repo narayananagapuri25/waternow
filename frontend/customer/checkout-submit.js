@@ -1,0 +1,149 @@
+// Customer checkout submission boundary.
+// Owns checkout form orchestration while keeping business helpers and UI modules injected.
+(function(){
+  const create=({document,cartItems,state,save,customerAddress,customerAddressFlow,customerCheckout,customerAuth,customerId,api,customerNotifications,toast,renderProducts,renderProfile,showConfirmation,updateCartBar,setView,money})=>{
+    const $=selector=>document.querySelector(selector);
+    const checkoutClientId=(data,address)=>{
+      const result=customerCheckout.clientOrderId(data,address,cartItems().map(x=>({id:x.product.id,qty:x.qty})),state);
+      if(result===undefined)return null;
+      if(typeof result==='string')return result;
+      state.profile.pendingCheckout=result;
+      save();
+      return result.key;
+    };
+    const submitOrder=async e=>{
+      e.preventDefault();
+      if(!cartItems().length){toast('Your cart is empty');setView('home');return}
+      const form=e.target;
+      const selectedAddress=window.FreshWayAddressSystem?.getSelectedAddress?.()||null;
+      const formAddress=customerAddressFlow.read(document,customerAddress);
+      // Saved-address checkout hides these fields. Validate from the selected saved address, not stale hidden values.
+      const address=customerAddress.normalize(selectedAddress?Object.assign({},formAddress,{
+        house:selectedAddress.houseFlat||selectedAddress.house||formAddress.house,
+        area:selectedAddress.area||formAddress.area,
+        city:selectedAddress.city||formAddress.city,
+        pincode:selectedAddress.pincode||formAddress.pincode,
+        landmark:selectedAddress.landmark||formAddress.landmark,
+        note:selectedAddress.note||formAddress.note
+      }):formAddress);
+      // The selected saved map pin is required by the store-radius check. Keep
+      // coordinates separate from the text-only normalized address fields.
+      const locationPoint=selectedAddress||formAddress||{};
+      const latitude=locationPoint.latitude??locationPoint.lat,longitude=locationPoint.longitude??locationPoint.lng;
+      if(latitude!==undefined&&latitude!==null&&longitude!==undefined&&longitude!==null){
+        address.latitude=Number(latitude);
+        address.longitude=Number(longitude);
+      }
+      const selectedName=String(selectedAddress?.recipientName||'').trim();
+      const name=(selectedName.length>=2?selectedName:'')||$('#customerName')?.value.trim()||customerAuth.registeredName?.()||'';
+      const normalizePhone=customerCheckout.normalizePhone;
+      const selectedPhone=normalizePhone?normalizePhone(selectedAddress?.deliveryPhone):String(selectedAddress?.deliveryPhone||'').replace(/\D/g,'');
+      const rawPhone=/^\d{10}$/.test(String(selectedPhone||''))?selectedPhone:($('#customerPhone')?.value||customerAuth.registeredPhone?.()||'');
+      const phone=normalizePhone?normalizePhone(rawPhone):String(rawPhone).trim();
+      const validationError=customerCheckout.validate(name,phone,address);
+      if(validationError)return toast(validationError);
+      const data={name,phone};
+      const clientOrderId=checkoutClientId(data,address);
+      const button=form.querySelector('button[type="submit"]');
+      if(button){button.disabled=true;button.textContent='Placing order…'}
+      try{
+        await customerAuth.ensureAuthenticated(phone);
+        const id=customerId();
+        if(!id)throw new Error('Please log in before placing your order.');
+        const orderPayload=customerCheckout.payload(data,address,cartItems().map(x=>({id:x.product.id,qty:x.qty})),id,clientOrderId,$('#whatsappOptIn')?.checked||false);
+        const deliveryOffers=window.FreshWayCustomerDeliveryOffers;
+        const couponCode=deliveryOffers?.getAppliedCode?.()||'';
+        const oldTotal=deliveryOffers?.getDisplayedTotal?.();
+        const deliveryBooking=window.FreshWayCustomerDeliveryBookingInstance;
+        const storeCatalogue=window.FreshWayCustomerStoreCatalogue;
+        const ensureCurrentStore=async availability=>{
+          if(!availability||availability.status!=='available'||!availability.store?.id){
+            throw new Error(availability?.message||'Delivery is not available for this address and basket.');
+          }
+          const availableStoreId=String(availability.store.id);
+          const currentStoreId=String(storeCatalogue?.selectedStoreId?.()||'');
+          if(currentStoreId!==availableStoreId){
+            const switched=await storeCatalogue?.switchToStore?.(availability.store,{review:true});
+            if(!switched?.ok)throw new Error('Your delivery store has changed. Confirm the store catalogue before continuing.');
+            setView('cart');
+            throw new Error('Your delivery store has changed. Review your cart and prices, then continue to checkout again.');
+          }
+          return currentStoreId;
+        };
+        const initialAvailability=await deliveryBooking?.checkAvailability?.();
+        const storeId=await ensureCurrentStore(initialAvailability);
+        orderPayload.storeId=storeId;
+        let quote;
+        try{
+          quote=await api('/api/checkout/quote',{method:'POST',body:JSON.stringify({items:cartItems().map(x=>({id:x.product.id,qty:x.qty})),couponCode,storeId})});
+        }catch(error){
+          deliveryOffers?.invalidateDisplayedQuote?.();
+          throw error;
+        }
+        const pricing=quote?.pricing;
+        if(!pricing||!Number.isSafeInteger(Number(pricing.finalTotal))){
+          deliveryOffers?.invalidateDisplayedQuote?.();
+          throw new Error('Could not verify the order total. Return to your cart and try again.');
+        }
+        const expectedItems=cartItems().map(item=>({id:String(item.product?.id??''),qty:Number(item.qty)}));
+        const quotedItems=Array.isArray(pricing.items)?pricing.items:[];
+        const quotedById=new Map(quotedItems.map(item=>[String(item?.id??''),item]));
+        if(!expectedItems.length||quotedItems.length!==expectedItems.length||expectedItems.some(item=>{const matched=quotedById.get(item.id);return !matched||Number(matched.qty)!==item.qty;})){
+          deliveryOffers?.invalidateDisplayedQuote?.();
+          throw new Error('We could not verify every item in your cart. Return to your cart, refresh it, and remove any unavailable item before checkout.');
+        }
+        window.FreshWayCustomerCatalogue?.syncQuotedItems?.(pricing.items);
+        deliveryOffers?.renderCheckoutQuote?.(pricing,money);
+        if(oldTotal!=null&&Number(oldTotal)!==Number(pricing.finalTotal)&&!window.confirm('Your order total changed from '+money(oldTotal)+' to '+money(pricing.finalTotal)+'. Continue with the updated total?'))throw new Error('Review the updated total before placing the order.');
+        orderPayload.couponCode=couponCode;
+        orderPayload.expectedTotal=Number(pricing.finalTotal);
+        if(deliveryBooking?.checkoutEnabled?.()){
+          const preferredDeliveryDate=deliveryBooking.selectedCheckoutDate?.();
+          if(!preferredDeliveryDate)throw new Error('Choose a preferred delivery day before placing your order.');
+          orderPayload.preferredDeliveryDate=preferredDeliveryDate;
+        }
+        const finalAvailability=await deliveryBooking?.checkAvailability?.();
+        await ensureCurrentStore(finalAvailability);
+        const result=await api('/api/orders',{method:'POST',body:JSON.stringify(orderPayload)});
+        const registeredPhone=customerAuth.registeredPhone?.()||'';
+        const order={id:result.id,customer:{name:customerAuth.registeredName?.()||name,phone:registeredPhone},address:{...address,recipientName:address.recipientName||name,deliveryPhone:phone},items:(result.items||[]).map(i=>({name:i.name,unit:i.unit,qty:i.qty,price:i.price,lineTotal:i.lineTotal})),total:result.total,pricingBreakdownKnown:result.pricingBreakdownKnown===true,itemsSubtotal:result.itemsSubtotal??null,deliveryFee:result.deliveryFee??null,couponCode:result.couponCode||null,couponDiscount:result.couponDiscount??null,payment:result.payment,status:result.status,deliveryPlan:result.deliveryPlan,scheduledDelivery:result.scheduledDelivery||null,scheduleStatus:result.scheduledDelivery?.status||'unscheduled',createdAt:result.createdAt,updatedAt:result.updatedAt};
+        state.orders=[order,...state.orders.filter(x=>x.id!==order.id)];
+        state.cart={};
+        state.cartProducts={};
+        window.FreshWayCustomerDeliveryBookingInstance?.clearCheckoutDate?.();
+        state.profile.address=customerAddress.format(address);
+        state.profile.checkout={name,phone,address};
+        delete state.profile.pendingCheckout;
+        save();
+        // Notification/customer-registration bookkeeping must never turn a successfully
+        // created order into a checkout failure message.
+        try{await customerNotifications.registerCustomer(name,phone,$('#whatsappOptIn')?.checked||false)}catch(error){console.warn('FreshWay customer notification registration failed after order creation:',error?.message||error)}
+        form.reset();
+        renderProducts();
+        renderProfile();
+        showConfirmation(order);
+      }catch(err){toast(err.message||'Could not place order. Your cart is still saved.')}finally{
+        if(button){
+          button.disabled=false;
+          const remainingItems=cartItems();
+          const displayedTotal=window.FreshWayCustomerDeliveryOffers?.getDisplayedTotal?.();
+          const hasVerifiedTotal=displayedTotal!==null&&displayedTotal!==undefined&&displayedTotal!==''&&Number.isSafeInteger(Number(displayedTotal));
+          if(!remainingItems.length){button.disabled=true;button.textContent='Your cart is empty'}
+          else if(!hasVerifiedTotal){button.disabled=true;button.textContent='Total unavailable — retry checkout'}
+          else{button.disabled=false;button.innerHTML='Place order · <span id="checkoutTotal">'+money(displayedTotal)+'</span>'}
+        }
+        updateCartBar();
+      }
+    };
+    const bind=()=>{
+      const form=$('#checkoutForm');
+      if(!form||form.__freshwayCheckoutSubmitBound)return;
+      form.__freshwayCheckoutSubmitBound=true;
+      // Saved-address checkout hides required fields; bypass native blocking and validate in submitOrder.
+      form.noValidate=true;
+      form.addEventListener('submit',submitOrder);
+    };
+    return Object.freeze({bind,submitOrder});
+  };
+  window.FreshWayCustomerCheckoutSubmit=Object.freeze({create});
+})();

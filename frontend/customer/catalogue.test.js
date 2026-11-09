@@ -1,0 +1,216 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+
+const source=fs.readFileSync('frontend/customer/catalogue.js','utf8');
+const app=fs.readFileSync('app.js','utf8');
+const freshness=fs.readFileSync('frontend/customer/state-freshness.js','utf8');
+const ordersData=fs.readFileSync('frontend/customer/orders-data.js','utf8');
+
+// Cart IDs become strings when saved in localStorage. Keep matching stable when
+// catalogue IDs arrive as numbers, and retain the item snapshot if catalogue fetch fails.
+const cartBoundary=fs.readFileSync('frontend/customer/catalogue-cart.js','utf8');
+const cartContext={window:{}};
+vm.createContext(cartContext);
+vm.runInContext(cartBoundary,cartContext);
+const savedCart={cart:{'42':1},cartProducts:{'42':{id:'42',name:'Groundnut oil/5ltrs',unit:'kg',price:1850,emoji:'🛢️',unavailable:false}}};
+const numericProduct={id:42,name:'Groundnut oil/5ltrs',unit:'kg',price:1850,emoji:'🛢️'};
+assert.equal(cartContext.window.FreshWayCatalogueCart.items(savedCart,[numericProduct])[0].product.id,42,'numeric catalogue IDs must match string keys from localStorage');
+assert.equal(cartContext.window.FreshWayCatalogueCart.total(savedCart,[numericProduct]),1850,'the saved item total must remain ₹1,850 after the catalogue refresh');
+const offlineCart=cartContext.window.FreshWayCatalogueCart.items(savedCart,[]);
+assert.equal(offlineCart.length,1,'a temporary empty catalogue must not hide a saved cart line');
+assert.equal(offlineCart[0].product.name,'Groundnut oil/5ltrs');
+assert.equal(cartContext.window.FreshWayCatalogueCart.total(savedCart,[]),1850,'a saved cart snapshot preserves the line while catalogue data is unavailable');
+const legacyCart=cartContext.window.FreshWayCatalogueCart.items({cart:{'old-id':1}},[]);
+assert.equal(legacyCart.length,1,'older carts without snapshots must still retain their item quantity and ID');
+assert.equal(legacyCart[0].product.id,'old-id');
+assert.match(fs.readFileSync('frontend/customer/cart-persistence.js','utf8'),/const clearCatalogue=\(\)=>\{[\s\S]*Empty\/failed catalogue response is not a customer cart-delete action/);
+
+
+assert.match(source,/window\.FreshWayCustomerAPI\?\.request/);
+assert.match(source,/selected=\(window\.history\.state\?\.__freshwayCustomer&&window\.history\.state\.view==='home'\?window\.history\.state\.category:null\)\|\|getStoredCategory\(\)\|\|null/,'refresh restores the selected category from history or session storage');
+assert.match(source,/sessionStorage\.setItem\(CATEGORY_STORAGE_KEY,String\(selected\)\)/,'selected category is persisted for reload restoration');
+assert.match(source,/sessionStorage\.removeItem\(CATEGORY_STORAGE_KEY\)/,'explicitly returning to Home clears the persisted category');
+assert.match(source,/history==='none'&&state\.view==='home'&&state\.category!==selected/,'restored category selection is synchronized back into browser history');
+assert.match(source,/history:selected\?'replace':'none'/,'a deleted category clears stale selection from history instead of restoring it on every refresh');
+assert.match(source,/Promise\.allSettled\(\[/);
+assert.doesNotMatch(source,/fetch\(['"]\/api\/(categories|products)/);
+assert.match(source,/window\.FreshWayCustomerCatalogue\?\.setProducts/);
+assert.match(source,/loadToken/);
+assert.match(source,/hadData/);
+assert.match(source,/freshWayCustomerCatalogueRefresh/);
+assert.doesNotMatch(source,/productOk\)window\.FreshWayCustomerCatalogue\?\.clear/);
+assert.match(source,/window\.FreshWayCustomerCatalogue\?\.clear/);
+assert.match(source,/role="alert"/);
+assert.match(source,/fwCatalogueRetry/);
+assert.match(source,/errorCode==='AREA_UNAVAILABLE'/,'a real out-of-area Worker response must have a dedicated customer home state');
+assert.match(source,/nearby RTC bus stand/,'out-of-area customers must see the possible nearby handover option');
+assert.match(source,/postal delivery options/,'out-of-area customers must see the possible postal delivery option');
+assert.match(source,/data-fw-delivery-contact/,'out-of-area customers must have a working contact action');
+assert.match(source,/window\.setView\?\.\('contact'\)/,'the home-screen delivery contact action must navigate to Contact Us');
+assert.match(source,/x\.image_url\|\|media\?\.image\('categories'/);
+assert.doesNotMatch(source,/data:'\+x\.image_mime_type/,'the public category list must not inline image payloads');
+assert.doesNotMatch(app,/FALLBACK_PRODUCTS/);
+assert.match(app,/window\.FreshWayCustomerCatalogue/);
+assert.match(app,/FreshWayCustomerStateFreshness/);
+assert.match(app,/freshway:session-expired/);
+assert.match(app,/freshway:catalogue-sync/);
+assert.match(freshness,/pageshow/);
+assert.match(freshness,/visibilitychange/);
+assert.match(freshness,/cart/);
+assert.match(freshness,/checkout/);
+assert.match(ordersData,/customerId\(\)!==result\.id/);
+assert.match(ordersData,/state\.orders=\[\]/);
+assert.match(app,/customerOrderData\.load\(\)/);
+assert.match(app,/customerOrderData\.stop\(\)/);
+
+const serviceWorker=fs.readFileSync('sw.js','utf8');
+assert.match(serviceWorker,/const CACHE = 'freshway-v\d+'/);
+assert.match(serviceWorker,/const REQUIRED_SHELL\s*=\s*\[\s*'\/'\s*,\s*'\/index\.html'\s*\]/);
+assert.doesNotMatch(serviceWorker,/index\.html\?v=20261007-seo-v1/);
+console.log('PWA service worker install contract OK');
+
+console.log('catalogue server-authority/error-boundary OK');
+
+const cartView=fs.readFileSync('frontend/customer/cart-view.js','utf8');
+assert.match(cartView,/image_data&&x\.product\.image_mime_type/);
+assert.match(cartView,/cart-product-media/);
+const productView=fs.readFileSync('frontend/customer/product-view.js','utf8');
+assert.match(productView,/stock_status/);
+assert.match(productView,/OUT OF STOCK/);
+assert.match(productView,/data-plus/);
+assert.match(productView,/stock-cart-warning/);
+
+const media=fs.readFileSync('frontend/catalogue-media.js','utf8');
+assert.match(media,/cat-oils/);
+assert.match(media,/p-1788808795819-x0yy/);
+assert.match(media,/groundnut-oil\.svg/);
+assert.doesNotMatch(media, new RegExp('api/admin|r2|D1', 'i'));
+assert.match(productView,/FreshWayCatalogueMedia/);
+assert.match(productView,/image_data&&p\.image_mime_type/);
+const styles=fs.readFileSync('styles.css','utf8');
+const categoryFoldStyles=fs.readFileSync('frontend/customer/category-fold-fit.css','utf8');
+assert.match(styles,/grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/);
+assert.match(styles,/\.product-image img\{[^}]*object-fit:contain/);
+assert.match(styles,/\.product-card\{min-width:0;overflow:hidden\}/);
+assert.match(styles,/\.fw-category-icon\{width:54px;height:54px/);
+assert.match(styles,/\.fw-category-back\{min-height:54px/);
+assert.match(styles,/\.product-image\{height:132px/);
+assert.match(styles,/\.product-actions \.qty-control\{flex:0 0 auto;min-width:98px\}/);
+assert.match(styles,/\.qty-control button\{border:0;background:#f5f8f6;width:34px;min-width:34px;height:38px\}/);
+assert.match(styles,/@media\(max-width:380px\)/);
+const ownerCatalogue=fs.readFileSync('frontend/admin/catalogue.js','utf8');
+assert.match(ownerCatalogue,/type="file"/);
+assert.match(ownerCatalogue,/compressProductImage/);
+assert.match(ownerCatalogue,/imageData:image\.data/);
+assert.match(ownerCatalogue,/fwCatImage/);
+assert.match(ownerCatalogue,/fwRemoveCatImage/);
+assert.match(ownerCatalogue,/Category image/);
+const migration=fs.readFileSync('worker/migrations/0015_product_images.sql','utf8');
+const categoryMigration=fs.readFileSync('worker/migrations/0016_category_images.sql','utf8');
+assert.match(migration,/ALTER TABLE products ADD COLUMN image_data TEXT/);
+assert.match(migration,/ALTER TABLE products ADD COLUMN image_mime_type TEXT/);
+assert.match(categoryMigration,/ALTER TABLE categories ADD COLUMN image_data TEXT/);
+assert.match(categoryMigration,/ALTER TABLE categories ADD COLUMN image_mime_type TEXT/);
+const catalogueApi=fs.readFileSync('worker/src/catalogue-api.js','utf8');
+assert.match(catalogueApi,/MAX_IMAGE_DATA/);
+assert.match(catalogueApi,/image_data/);
+assert.match(catalogueApi,/imageFields\(p,'Category'\)/);
+assert.match(catalogueApi,/async function publicCatalogueImage/);
+assert.match(catalogueApi,/image_url/);
+assert.match(catalogueApi,/cache-control/);
+console.log('catalogue UI-only media mapping OK');
+
+const navigation=fs.readFileSync('frontend/customer/navigation.js','utf8');
+assert.match(navigation,/__freshwayCustomer/);
+assert.match(source,/history\.pushState/);
+assert.match(source,/history\.back\(\)/);
+assert.match(source,/category:selected/);
+console.log('customer category back navigation contract OK');
+
+const ownerLifecycle=fs.readFileSync('owner-lifecycle.js','utf8');
+const adminSource=fs.readFileSync('admin.js','utf8');
+assert.match(ownerLifecycle,/refreshOwnerAfterOrderMutation/);
+assert.match(ownerLifecycle,/await refreshOwnerAfterOrderMutation\(\)/);
+assert.match(adminSource,/async function refreshOwnerAfterOrderMutation/);
+assert.match(adminSource,/if\(id==='overview'\)await Promise\.all\(\[loadSummary\(\),loadBusiness\(\),loadHome\(\)\]\)/);
+assert.match(adminSource,/else if\(id==='orders'\)await Promise\.all\(\[loadSummary\(\),loadBusiness\(\),loadOrders\(true\)\]\)/);
+
+assert.match(source,/All categories/);
+assert.match(source,/heading\.classList\.remove\('fw-category-home-hidden'\)/);
+assert.match(source,/const hero=\$\('\.hero-banner'\)/,'the promotional banner remains the stable category anchor after customer search is removed');
+assert.match(source,/home\.insertBefore\(c,\s*hero\.nextSibling\)/,'category tiles stay below the promotional banner so adding categories cannot move it');
+assert.doesNotMatch(source,/search-wrap|searchInput/,'category placement no longer depends on the removed customer search control');
+assert.match(source,/heading\.classList\.add\('fw-category-home-hidden'\)/,'product heading stays hidden before selecting a category');
+assert.match(source,/if\(!selected\)\{grid\.classList\.add\('fw-category-home-hidden'\);return\}/,'products stay hidden until category selection');
+assert.match(source,/fw-category-grid'\+\(usable\.length===1\?' is-single':''\)/,'single category uses a compact full-width tile');
+assert.match(source,/\.fw-category-back button\{[^}]*flex:0 0 auto/,'All categories control must size to its label instead of wrapping into a narrow icon width');
+assert.match(source,/\.fw-category-grid\.is-single \.fw-category-card/,'single category card styling is defined');
+assert.match(source,/window\.freshWayCustomerCatalogueGoHome=\(\)=>\{const state=window\.history\.state;if\(state\?\.__freshwayCustomer&&state\.category\)window\.history\.replaceState\(\{\.\.\.state,category:null\},'',window\.location\.href\);setMode\(null,\{history:'none'\}\)\}/,'explicit Home navigation clears selected category without replacing the current view state');
+assert.doesNotMatch(source,/querySelectorAll\('\[data-nav\]'\).*setMode\(null/,'category reset is centralized rather than duplicated in the Home-tab handler');
+assert.match(source,/hero\.classList\.add\('fw-category-home-hidden'\)/);
+assert.match(source,/label\.textContent='CATALOGUE'/);
+assert.doesNotMatch(source,/search\.classList\.add\('fw-category-home-hidden'\)/);
+assert.match(productView,/Organic Groundnut Oil/);
+assert.match(productView,/Organic Sunflower Oil/);
+assert.match(productView,/productNameAliases/);
+console.log('premium category selection, navigation and customer-facing product naming contracts OK');
+
+assert.match(source,/fw-category-selected/,'selected category applies a scoped compact layout');
+assert.ok(categoryFoldStyles.includes('body.fw-category-selected .product-card{height:196px'),'category product cards are compact enough for a four-item first view');
+assert.ok(categoryFoldStyles.includes('body.fw-category-selected .product-image{height:76px'),'category product images use a compact height');
+assert.match(categoryFoldStyles,/max-height:800px/,'short mobile screens receive an additional compact layout');
+assert.match(categoryFoldStyles,/\.product-image img\{[^}]*width:auto!important;height:100%!important;aspect-ratio:1\/1[^}]*max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center!important/,'category product images render as centered square artwork without stretching/cropping');
+console.log('four-product category fold-fit contract OK');
+
+
+// Repeated catalogue refreshes with unchanged cart contents must not rebuild the
+// pricing/coupon DOM or re-trigger quote/coupon requests.
+{
+  let cartItemsHTML='';
+  let cartSummaryHTML='';
+  let summaryWrites=0;
+  const cartItemsElement={
+    get innerHTML(){return cartItemsHTML},
+    set innerHTML(value){cartItemsHTML=String(value)},
+    querySelector(selector){
+      if(selector==='.empty')return cartItemsHTML.includes('class="empty"')?{}:null;
+      if(selector==='[data-fw-cart-product]')return cartItemsHTML.includes('data-fw-cart-product=')?{}:null;
+      return null;
+    }
+  };
+  const cartSummaryElement={
+    get innerHTML(){return cartSummaryHTML},
+    set innerHTML(value){summaryWrites++;cartSummaryHTML=String(value)},
+    querySelector(selector){
+      const marker={'#fwDeliveryPricing':'id="fwDeliveryPricing"','#fwAvailableCoupons':'id="fwAvailableCoupons"'}[selector];
+      return marker&&cartSummaryHTML.includes(marker)?{}:null;
+    }
+  };
+  const testDocument={querySelector(selector){
+    if(selector==='#cartItems')return cartItemsElement;
+    if(selector==='#cartSummary')return cartSummaryElement;
+    return null;
+  }};
+  let pricingRenders=0;
+  const testContext={document:testDocument,window:{FreshWayCustomerDeliveryOffers:{renderCart(){pricingRenders++}}}};
+  vm.createContext(testContext);
+  vm.runInContext(cartView,testContext);
+  const view=testContext.window.FreshWayCustomerCartView;
+  const renderOptions={esc:value=>String(value??''),money:value=>'₹'+value,setView(){}};
+  const product={id:'p1',name:'Groundnut oil',unit:'kg',price:1850,emoji:'🫙',image_mime_type:'image/png',image_data:'image-data-v1'};
+  view.render([{product,qty:1}],1850,renderOptions);
+  const writesAfterInitialRender=summaryWrites;
+  assert.equal(pricingRenders,1);
+  view.render([{product:{...product},qty:1}],1850,renderOptions);
+  assert.equal(summaryWrites,writesAfterInitialRender,'an unchanged catalogue refresh must preserve the existing pricing/coupon UI');
+  assert.equal(pricingRenders,1,'an unchanged catalogue refresh must not restart pricing and coupon requests');
+  view.render([{product:{...product,price:1900},qty:1}],1900,renderOptions);
+  assert.equal(summaryWrites,writesAfterInitialRender+1,'a real product price change must rerender the cart');
+  assert.equal(pricingRenders,2,'a real product price change must refresh the quote');
+  cartSummaryElement.innerHTML='';
+  const writesAfterExternalClear=summaryWrites;
+  view.render([{product:{...product,price:1900},qty:1}],1900,renderOptions);
+  assert.equal(summaryWrites,writesAfterExternalClear+1,'missing pricing DOM must be rebuilt even when cart contents are unchanged');
+}
+console.log('customer cart stable-render regression OK');
