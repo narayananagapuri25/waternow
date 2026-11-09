@@ -190,7 +190,7 @@ test('Owner failed status/payment saves reconcile from the database before repor
 });
 
 test('unexpected admin database errors are logged with a reference and returned as HTTP 500', () => {
-  assert.ok(adminDataSource.includes("event:'freshway_admin_data_error'"));
+  assert.ok(adminDataSource.includes("event:'waternow_admin_data_error'"));
   assert.ok(adminDataSource.includes("code:'INTERNAL_ERROR',errorId"));
   assert.ok(adminDataSource.includes('},500)'));
   assert.ok(adminDataSource.includes('},409)'));
