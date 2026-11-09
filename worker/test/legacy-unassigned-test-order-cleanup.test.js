@@ -93,7 +93,7 @@ test('migration hard-deletes the target orders and linked records while preservi
     ]) assert.equal(count(table),0,table+' must be empty after cleanup');
     assert.equal(count('customers'),1,'customer account must be preserved');
     assert.equal(count('addresses'),1,'saved address must be preserved');
-    assert.equal(count('products'),1,'product master data must be preserved');
+    assert.deepEqual(db.prepare('SELECT id FROM products ORDER BY id').all().map(row=>row.id),productIdsBefore,'all existing product master data must be preserved, including the two WaterNow packs');
     assert.equal(count('delivery_stores'),1,'store master data must be preserved');
     assert.equal(Number(db.prepare("SELECT stock_quantity FROM products WHERE id='cleanup-product'").get().stock_quantity),15,
       'legacy unassigned reservations must be restored once before deletion');
