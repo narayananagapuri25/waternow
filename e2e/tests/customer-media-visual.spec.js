@@ -4,12 +4,12 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const products = [
-  { id:'water-20l',name:'20L Drinking Water Can',unit:'can',price:120,active:1,category_id:'water-20l',category_name:'20L Water Can',category_slug:'20l-water-can' },
-  { id:'water-10l-pair',name:'2 × 10L Drinking Water Cans',unit:'pack',price:90,active:1,category_id:'water-10l-pair',category_name:'2 × 10L Water Cans',category_slug:'two-10l-water-cans' }
+  { id:'water-20l',name:'20L Drinking Water Can',unit:'can',price:120,active:1,category_id:'water-20l',category_name:'20L Water Can',category_slug:'20l-water-can',image_url:'/frontend/media/catalogue/water-20l.svg' },
+  { id:'water-10l-pair',name:'2 × 10L Drinking Water Cans',unit:'pack',price:90,active:1,category_id:'water-10l-pair',category_name:'2 × 10L Water Cans',category_slug:'two-10l-water-cans',image_url:'/frontend/media/catalogue/water-10l-pair.svg' }
 ];
 const categories = [
-  { id:'water-20l',name:'20L Water Can',slug:'20l-water-can',icon:'💧',description:'Reusable 20-litre drinking water can',product_count:1,display_order:1 },
-  { id:'water-10l-pair',name:'2 × 10L Water Cans',slug:'two-10l-water-cans',icon:'🚰',description:'Two 10-litre drinking water cans',product_count:1,display_order:2 }
+  { id:'water-20l',name:'20L Water Can',slug:'20l-water-can',icon:'💧',description:'Reusable 20-litre drinking water can',product_count:1,display_order:1,image_url:'/frontend/media/catalogue/water-20l.svg' },
+  { id:'water-10l-pair',name:'2 × 10L Water Cans',slug:'two-10l-water-cans',icon:'🚰',description:'Two 10-litre drinking water cans',product_count:1,display_order:2,image_url:'/frontend/media/catalogue/water-10l-pair.svg' }
 ];
 const promoFixtureFiles = ['fixtures/promotion-visual-fixture-1.png','fixtures/promotion-visual-fixture-2.png'];
 const promotionImages = promoFixtureFiles.map(file=>readFileSync(resolve(process.cwd(),file)));
@@ -49,19 +49,19 @@ test('WaterNow catalogue artwork and promotion images load and decode on mobile 
   await page.setViewportSize({width:390,height:844});
   await page.goto('/');
   const semanticMedia=await page.evaluate(()=>({
-    twentyLCategory:window.WaterNowCatalogueMedia.image('categories','renamed-category',{name:'20L Water Can',slug:'20l-water-can'}),
-    twinPackCategory:window.WaterNowCatalogueMedia.image('categories','renamed-twin-pack',{name:'2 × 10L Water Cans',slug:'two-10l-water-cans'}),
-    twentyLProduct:window.WaterNowCatalogueMedia.image('products','renamed-20l-product',{name:'20L Drinking Water Can'}),
-    twinPackProduct:window.WaterNowCatalogueMedia.image('products','renamed-10l-product',{name:'2 × 10L Drinking Water Cans'}),
-    directTwentyL:window.WaterNowCatalogueMedia.image('products','water-20l',{name:'Unknown name'}),
+    twentyLCategory:window.WaterNowCatalogueMedia.image('categories','renamed-category',{name:'Renamed category',image_url:'/frontend/media/catalogue/water-20l.svg'}),
+    twinPackCategory:window.WaterNowCatalogueMedia.image('categories','renamed-twin-pack',{name:'Renamed pack',image_url:'/frontend/media/catalogue/water-10l-pair.svg'}),
+    twentyLProduct:window.WaterNowCatalogueMedia.image('products','renamed-20l-product',{name:'Renamed product',image_url:'/frontend/media/catalogue/water-20l.svg'}),
+    twinPackProduct:window.WaterNowCatalogueMedia.image('products','renamed-10l-product',{name:'Renamed pack',image_url:'/frontend/media/catalogue/water-10l-pair.svg'}),
+    productImageData:window.WaterNowCatalogueMedia.image('products','custom-product',{image_data:'YWJj',image_mime_type:'image/png'}),
     unknownProduct:window.WaterNowCatalogueMedia.image('products','unmapped-product',{name:'Unmapped Product'})
   }));
   expect(semanticMedia).toEqual({
-    twentyLCategory :'frontend/media/catalogue/water-20l.svg',
-    twinPackCategory :'frontend/media/catalogue/water-10l-pair.svg',
-    twentyLProduct :'frontend/media/catalogue/water-20l.svg',
-    twinPackProduct :'frontend/media/catalogue/water-10l-pair.svg',
-    directTwentyL :'frontend/media/catalogue/water-20l.svg',
+    twentyLCategory:'/frontend/media/catalogue/water-20l.svg',
+    twinPackCategory:'/frontend/media/catalogue/water-10l-pair.svg',
+    twentyLProduct:'/frontend/media/catalogue/water-20l.svg',
+    twinPackProduct:'/frontend/media/catalogue/water-10l-pair.svg',
+    productImageData:'data:image/png;base64,YWJj',
     unknownProduct:''
   });
 
