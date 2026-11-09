@@ -16,7 +16,7 @@ assert.match(source,/state\.previousView===target/,'a page Back button may use b
 assert.match(source,/setView\(target,\{history:'replace'\}\)/,'deep links without an in-app predecessor must still honour the explicit Back destination');
 const app=fs.readFileSync('app.js','utf8');
 assert.match(app,/navigation\.goBack\(backButton\.dataset\.back\|\|'home'\)/,'in-app back buttons must honor their declared destination instead of blindly trusting browser history');
-assert.match(app,/function setView\(name,options\)\{if\(name==='home'&&options\?\.history!=='none'\)window\.freshWayCustomerCatalogueGoHome\?\.\(\);navigation\.setView\(name,options\)\}/,'explicit Home actions reset category selection while popstate restoration preserves the history state');
+assert.match(app,/function setView\(name,options\)\{if\(name==='home'&&options\?\.history!=='none'\)window\.waterNowCustomerCatalogueGoHome\?\.\(\);navigation\.setView\(name,options\)\}/,'explicit Home actions reset category selection while popstate restoration preserves the history state');
 const viewState=fs.readFileSync('frontend/customer/view-state.js','utf8');
 assert.match(viewState,/history:'replace'/);
 assert.match(viewState,/window\.history\?\.state\?\.__waterNowCustomer/,'refresh restoration should trust the active history entry before older session storage');
