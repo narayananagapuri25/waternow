@@ -1,3 +1,5 @@
+import { ensureStoreCatalogueRows } from './store-catalogue.js';
+
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 const clean=(value,max=160)=>String(value??'').trim().slice(0,max);
 const bool=value=>value===true||value===1||value==='1';
@@ -16,11 +18,15 @@ async function listNetwork(env){
       (SELECT COUNT(*) FROM water_delivery_partner_service_areas a WHERE a.partner_id=p.id AND a.is_active=1) AS service_area_count
       FROM water_delivery_partners p ORDER BY p.city,p.name`).all()
   ]);
-  const supplierProducts=await env.DB.prepare(`SELECT sp.supplier_id,sp.product_id,p.name AS product_name,
-    sp.selling_price,sp.stock_quantity,sp.is_available
-    FROM water_supplier_products sp JOIN products p ON p.id=sp.product_id
-    ORDER BY p.display_order,p.name`).all();
-  return {suppliers:supplierRows.results||[],deliveryPartners:partnerRows.results||[],supplierProducts:supplierProducts.results||[]};
+  const [supplierProducts,deliveryStores]=await Promise.all([
+    env.DB.prepare(`SELECT sp.supplier_id,sp.product_id,p.name AS product_name,
+      sp.selling_price,sp.stock_quantity,sp.is_available
+      FROM water_supplier_products sp JOIN products p ON p.id=sp.product_id
+      ORDER BY p.display_order,p.name`).all(),
+    env.DB.prepare(`SELECT id,name,address,service_radius_km,is_active,supplier_id,delivery_model,delivery_partner_id FROM delivery_stores ORDER BY name`).all()
+  ]);
+  return {suppliers:supplierRows.results||[],deliveryPartners:partnerRows.results||[],
+    supplierProducts:supplierProducts.results||[],deliveryStores:deliveryStores.results||[]};
 }
 
 function validateSupplier(payload){
@@ -88,11 +94,14 @@ async function updateSupplier(env,id,payload){
   }
   const note=clean(payload.complianceNote??current.compliance_note,1000);
   const active=status==='verified'?1:0;
-  await env.DB.prepare(`UPDATE water_suppliers SET
-    fssai_license_number=?,fssai_license_expiry=?,water_testing_scheme_acknowledged=?,
-    compliance_status=?,compliance_note=?,verified_at=CASE WHEN ?='verified' THEN CURRENT_TIMESTAMP ELSE NULL END,
-    is_active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-    .bind(license,expiry||null,testing,status,note,status,active,id).run();
+  await env.DB.batch([
+    env.DB.prepare(`UPDATE water_suppliers SET
+      fssai_license_number=?,fssai_license_expiry=?,water_testing_scheme_acknowledged=?,
+      compliance_status=?,compliance_note=?,verified_at=CASE WHEN ?='verified' THEN CURRENT_TIMESTAMP ELSE NULL END,
+      is_active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+      .bind(license,expiry||null,testing,status,note,status,active,id),
+    env.DB.prepare('UPDATE delivery_stores SET is_active=?,updated_at=CURRENT_TIMESTAMP WHERE supplier_id=?').bind(active,id)
+  ]);
   return {supplier:await env.DB.prepare('SELECT * FROM water_suppliers WHERE id=?').bind(id).first()};
 }
 
@@ -103,14 +112,54 @@ async function updateSupplierProduct(env,supplierId,productId,payload){
   if(!Number.isSafeInteger(stock)||stock<0||stock>100000)throw new Error('Enter a valid available stock quantity.');
   const supplier=await env.DB.prepare('SELECT id,is_active FROM water_suppliers WHERE id=?').bind(supplierId).first();
   if(!supplier)throw new Error('Water supplier not found.');
-  await env.DB.prepare(`INSERT INTO water_supplier_products
-    (supplier_id,product_id,selling_price,stock_quantity,is_available,updated_at)
-    VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)
-    ON CONFLICT(supplier_id,product_id) DO UPDATE SET
-      selling_price=excluded.selling_price,stock_quantity=excluded.stock_quantity,
-      is_available=excluded.is_available,updated_at=CURRENT_TIMESTAMP`)
-    .bind(supplierId,productId,price,stock,price>0&&stock>0?1:0).run();
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO water_supplier_products
+      (supplier_id,product_id,selling_price,stock_quantity,is_available,updated_at)
+      VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)
+      ON CONFLICT(supplier_id,product_id) DO UPDATE SET
+        selling_price=excluded.selling_price,stock_quantity=excluded.stock_quantity,
+        is_available=excluded.is_available,updated_at=CURRENT_TIMESTAMP`)
+      .bind(supplierId,productId,price,stock,price>0&&stock>0?1:0),
+    env.DB.prepare(`UPDATE delivery_store_catalogue SET is_available=?,price_override=?,updated_at=CURRENT_TIMESTAMP
+      WHERE product_id=? AND store_id IN (SELECT id FROM delivery_stores WHERE supplier_id=?)`)
+      .bind(price>0&&stock>0?1:0,price>0?price:null,productId,supplierId),
+    env.DB.prepare(`UPDATE delivery_store_inventory SET stock_quantity=?,updated_at=CURRENT_TIMESTAMP
+      WHERE product_id=? AND store_id IN (SELECT id FROM delivery_stores WHERE supplier_id=?)`)
+      .bind(stock,productId,supplierId)
+  ]);
   return {ok:true};
+}
+
+async function linkSupplierStore(env,supplierId,payload){
+  const supplier=await env.DB.prepare('SELECT * FROM water_suppliers WHERE id=?').bind(supplierId).first();
+  if(!supplier)throw new Error('Water supplier not found.');
+  const storeId=clean(payload.storeId,120),model=String(payload.fulfilmentModel||supplier.fulfilment_model),partnerId=clean(payload.deliveryPartnerId,120);
+  if(!storeId)throw new Error('Choose a delivery location to link.');
+  if(!validType(model,['supplier_delivery','platform_delivery']))throw new Error('Choose a valid fulfilment model.');
+  const store=await env.DB.prepare('SELECT id FROM delivery_stores WHERE id=?').bind(storeId).first();
+  if(!store)throw new Error('Delivery location not found. Add it in the Stores screen first.');
+  if(model==='platform_delivery'){
+    if(!partnerId)throw new Error('Choose a verified WaterNow delivery partner for platform delivery.');
+    const partner=await env.DB.prepare('SELECT id,is_active FROM water_delivery_partners WHERE id=?').bind(partnerId).first();
+    if(!partner||Number(partner.is_active)!==1)throw new Error('Choose a verified and active delivery partner.');
+  }
+  await ensureStoreCatalogueRows(env,storeId);
+  const active=Number(supplier.is_active)===1?1:0;
+  const statements=[
+    env.DB.prepare('UPDATE delivery_stores SET supplier_id=?,delivery_model=?,delivery_partner_id=?,is_active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
+      .bind(supplierId,model,model==='platform_delivery'?partnerId:null,active,storeId),
+    ...['water-20l','water-10l-pair'].map(productId=>env.DB.prepare(`UPDATE delivery_store_catalogue SET
+      is_available=COALESCE((SELECT is_available FROM water_supplier_products WHERE supplier_id=? AND product_id=?),0),
+      price_override=(SELECT CASE WHEN selling_price>0 THEN selling_price ELSE NULL END FROM water_supplier_products WHERE supplier_id=? AND product_id=?),
+      updated_at=CURRENT_TIMESTAMP WHERE store_id=? AND product_id=?`)
+      .bind(supplierId,productId,supplierId,productId,storeId,productId)),
+    ...['water-20l','water-10l-pair'].map(productId=>env.DB.prepare(`UPDATE delivery_store_inventory SET
+      stock_quantity=COALESCE((SELECT stock_quantity FROM water_supplier_products WHERE supplier_id=? AND product_id=?),0),
+      updated_at=CURRENT_TIMESTAMP WHERE store_id=? AND product_id=?`)
+      .bind(supplierId,productId,storeId,productId))
+  ];
+  await env.DB.batch(statements);
+  return {ok:true,store:await env.DB.prepare('SELECT id,name,supplier_id,delivery_model,delivery_partner_id,is_active FROM delivery_stores WHERE id=?').bind(storeId).first()};
 }
 
 async function createPartner(env,payload){
@@ -148,6 +197,11 @@ export async function handleWaterNetworkRequest(request,env){
   if(path==='/api/admin/water-suppliers'&&method==='POST'){
     try{return json({supplier:await createSupplier(env,await readBody(request))},201)}
     catch(error){return json({error:error.message||'Could not add the water supplier.'},400)}
+  }
+  const storeLink=path.match(/^\\/api\\/admin\\/water-suppliers\\/([^/]+)\\/link-store$/);
+  if(storeLink&&method==='POST'){
+    try{return json(await linkSupplierStore(env,decodeURIComponent(storeLink[1]),await readBody(request)))}
+    catch(error){return json({error:error.message||'Could not link supplier to this delivery location.'},400)}
   }
   const supplierProduct=path.match(/^\/api\/admin\/water-suppliers\/([^/]+)\/products\/(water-20l|water-10l-pair)$/);
   if(supplierProduct&&method==='PATCH'){
