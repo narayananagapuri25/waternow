@@ -73,11 +73,25 @@ jobs:
         with:
           node-version: 22
 
-      - name: Syntax-check public production smoke runner
-        run: node --check e2e/scripts/production-public-smoke.mjs
+      - name: Install Playwright test dependencies
+        working-directory: e2e
+        run: npm ci
+
+      - name: Install Chromium for live browser UI checks
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Syntax-check public production smoke runners
+        run: |
+          node --check e2e/scripts/production-public-smoke.mjs
+          node --check e2e/scripts/production-browser-smoke.mjs
 
       - name: Verify live customer, catalogue, delivery, pricing and protected Owner APIs
         run: node e2e/scripts/production-public-smoke.mjs
+
+      - name: Verify live customer and Owner browser UI on mobile and desktop
+        working-directory: e2e
+        run: node ./scripts/production-browser-smoke.mjs
 
   production-lifecycle:
     name: Real production customer and Owner lifecycle
