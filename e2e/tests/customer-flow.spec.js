@@ -1077,12 +1077,6 @@ test('captures the remaining implemented customer screens and modal states', asy
     });
   };
 
-  await page.route('**/api/auth/passcode-reset/start', async route => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify({ ok: true, message: 'If this mobile is registered, a verification code has been sent.' })
-  }));
-
   savedAddresses = [{
     id: 51,
     label: 'Home',
@@ -1125,8 +1119,9 @@ test('captures the remaining implemented customer screens and modal states', asy
   await page.locator('#addressModal [data-close-modal]').click();
   await expect(page.locator('#addressModal')).toHaveClass(/hidden/);
 
-  // The production authentication surface is the dynamic passcode modal,
-  // not the legacy static OTP markup retained in the HTML shell.
+  // Customer sign-in and account creation use only the 6-digit passcode. SMS/OTP
+  // controls remain absent until a supported verification provider is configured.
+  await expect(page.locator('#otpModal')).toHaveCount(0);
   await page.evaluate(() => { window.FreshWayNotifications.login().catch(() => {}); });
   await expect(page.locator('#passcodeModal')).toBeVisible();
   await expect(page.locator('#passcodePhone')).toBeVisible();
@@ -1138,17 +1133,12 @@ test('captures the remaining implemented customer screens and modal states', asy
   await capture('mobile-passcode-registration');
 
   await page.locator('#passcodeMode').click();
-  await page.locator('#passcodeForgot').click();
-  await expect(page.locator('#passcodeHint')).toContainText('verification code');
-  await expect(page.locator('#passcodeResetCode')).toBeHidden();
-  await capture('mobile-passcode-recovery-start');
-
-  await page.locator('#passcodePhone').fill('9876543210');
-  await page.locator('#passcodeSubmit').click();
-  await expect(page.locator('#passcodeResetCode')).toBeVisible();
-  await expect(page.locator('#passcodeResetNew')).toBeVisible();
-  await expect(page.locator('#passcodeResetConfirm')).toBeVisible();
-  await capture('mobile-passcode-recovery-code');
+  await expect(page.locator('#passcodeForgot')).toHaveCount(0);
+  await expect(page.locator('#passcodeResetCode')).toHaveCount(0);
+  await expect(page.locator('#passcodeResetNew')).toHaveCount(0);
+  await expect(page.locator('#passcodeHint')).toContainText('passcode');
+  await expect(page.locator('.otp-footnote')).toContainText('Contact Us');
+  await capture('mobile-passcode-only-auth');
   await page.locator('#passcodeCancel').click();
   await expect(page.locator('#passcodeModal')).toBeHidden();
 
@@ -1191,11 +1181,12 @@ test('captures the remaining implemented customer screens and modal states', asy
   await expect(page.locator('#passcodeName')).toBeVisible();
   await capture('desktop-passcode-registration');
   await page.locator('#passcodeMode').click();
-  await page.locator('#passcodeForgot').click();
-  await page.locator('#passcodePhone').fill('9876543210');
-  await page.locator('#passcodeSubmit').click();
-  await expect(page.locator('#passcodeResetCode')).toBeVisible();
-  await capture('desktop-passcode-recovery-code');
+  await expect(page.locator('#passcodeForgot')).toHaveCount(0);
+  await expect(page.locator('#passcodeResetCode')).toHaveCount(0);
+  await expect(page.locator('#passcodeResetNew')).toHaveCount(0);
+  await expect(page.locator('#passcodeHint')).toContainText('passcode');
+  await expect(page.locator('.otp-footnote')).toContainText('Contact Us');
+  await capture('desktop-passcode-only-auth');
   await page.locator('#passcodeCancel').click();
 
   await page.evaluate(() => window.setView('profile'));
