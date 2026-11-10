@@ -184,8 +184,10 @@
     } catch (_) {}
   }
 
+  // Startup restoration is not a customer-requested address change.
+  let initialAddressLoadPending = true;
   let lastStoreAddressSignature = null;
-  function renderDisplays() {
+  function renderDisplays({ initial = initialAddressLoadPending } = {}) {
     const preferred = activeAddress || defaultAddress();
     const signature = preferred ? JSON.stringify([
       preferred.id ?? null,preferred.latitude ?? null,preferred.longitude ?? null,
@@ -193,7 +195,7 @@
     ]) : '';
     if (signature !== lastStoreAddressSignature) {
       lastStoreAddressSignature = signature;
-      window.dispatchEvent(new CustomEvent('freshway:address-changed',{detail:{address:preferred||null}}));
+      window.dispatchEvent(new CustomEvent('freshway:address-changed',{detail:{address:preferred||null,initial:initial===true}}));
     }
     const home = $('#homeAddress');
     const profile = $('#profileAddressText');
@@ -206,7 +208,8 @@
     selectionRevision += 1;
     activeAddress = address ? normalizeAddress(address) : null;
     persistAddressSelection(activeAddress);
-    renderDisplays();
+    initialAddressLoadPending = false;
+    renderDisplays({initial:false});
   }
 
   async function readJsonResponse(response) {
@@ -287,6 +290,8 @@
       renderDisplays();
       if ($('#addressModal') && !$('#addressModal').classList.contains('hidden') && !(options && options.deferRender)) renderManager();
       return false;
+    } finally {
+      initialAddressLoadPending = false;
     }
   }
   function ensureCheckoutSummary() {
