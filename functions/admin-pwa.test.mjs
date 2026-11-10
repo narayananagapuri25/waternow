@@ -81,7 +81,7 @@ assert.equal(shellResponse.headers.get('x-robots-tag'), 'noindex, nofollow');
 assert.match(shellResponse.headers.get('content-type') || '', /text\/html/i);
 assert.match(shellHtml, /WaterNow Owner/);
 assert.match(shellHtml, /href="\/admin\/manifest\.webmanifest"/);
-assert.match(shellHtml, /href="\/admin\/waternow-logo\.svg"/);
+assert.match(shellHtml, /src="\\/admin\\/waternow-logo\\.svg"/);
 assert.match(shellHtml, /src="\/admin\/admin\.js\?v=waternow-v1"/);
 assert.match(shellHtml, /id="liveOrdersTab"/);
 assert.match(shellHtml, /id="testOrdersTab"/);
