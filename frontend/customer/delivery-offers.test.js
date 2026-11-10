@@ -15,7 +15,7 @@ assert.ok(deliveryOffersScript,
   'HTML must load the updated delivery-offers module');
 assert.ok(worker.includes('/'+deliveryOffersScript),
   'service worker must cache the exact delivery-offers module URL loaded by HTML');
-assert.match(worker,/const CACHE = 'freshway-v129'/,
+assert.match(worker,/const CACHE = 'waternow-customer-v10'/,
   'the service-worker cache version must match the current customer shell');
 const deliveryBookingScript=index.split('<script src="')
   .map(part=>part.split('"')[0])
@@ -27,13 +27,15 @@ assert.ok(worker.includes('/'+deliveryBookingScript),
 const customerCatalogueScript=index.split('<script src="')
   .map(part=>part.split('"')[0])
   .find(path=>path.startsWith('frontend/customer/catalogue.js?v='));
-assert.equal(customerCatalogueScript,'frontend/customer/catalogue.js?v=20261106-out-of-area-contact-v1',
+assert.equal(customerCatalogueScript,'frontend/customer/catalogue.js?v=20261110-guest-store-restore-v1',
   'HTML must load the cache-busted out-of-area customer catalogue');
 assert.ok(worker.includes('/'+customerCatalogueScript),
   'service worker must cache the exact out-of-area customer catalogue URL loaded by HTML');
 const deliveryBookingStyles=index.match(/<link rel="stylesheet" href="([^"]*delivery-booking\.css\?v=[^"]+)">/);
 assert.ok(deliveryBookingStyles,'HTML must load delivery-picker styles');
 assert.ok(worker.includes('/'+deliveryBookingStyles[1]),'service worker must cache delivery-picker styles');
+assert.match(source,/ensureSelectedStore/,'checkout and cart quotes must wait for the address-aware store resolver');
+assert.match(source,/error.code = 'STORE_REQUIRED'/,'missing location must be distinct from an out-of-stock quote');
 assert.match(source,/function isCouponEligibilityError\(error\)/,
   'only a server-confirmed coupon eligibility error may clear an applied coupon');
 assert.match(source,/!appliedCode \|\| !isCouponEligibilityError\(error\)/,
