@@ -21,7 +21,12 @@ async function openPage(browser, name, path, viewport, verify) {
   const sameOriginFailures = [];
   page.on('pageerror', error => pageErrors.push(error.message));
   page.on('response', response => {
-    if (response.url().startsWith(BASE) && response.status() >= 400) {
+    if (!response.url().startsWith(BASE) || response.status() < 400) return;
+    const pathname = new URL(response.url()).pathname;
+    // Unauthenticated customer/Owner API requests may correctly return 401;
+    // treat only API server errors and failed same-origin page assets as failures.
+    if ((pathname.startsWith('/api/') && response.status() >= 500) ||
+        (!pathname.startsWith('/api/') && response.status() >= 400)) {
       sameOriginFailures.push({ status: response.status(), url: response.url() });
     }
   });
