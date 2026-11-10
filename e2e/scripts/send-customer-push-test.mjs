@@ -1,3 +1,4 @@
+// Re-run this guarded single-device check after the customer notification worker fix is live in production.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
