@@ -88,6 +88,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - name: Verify PWA raster icon integrity
+        run: node pwa-icons-integrity.mjs
       - name: Run customer service-worker regression tests
         run: node sw-notification-refresh.test.js
       - name: Run customer catalogue display regression tests
