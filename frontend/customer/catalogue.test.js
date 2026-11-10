@@ -43,6 +43,7 @@ assert.match(source,/freshWayCustomerCatalogueRefresh/);
 assert.match(source,/event\.detail\?\.initial===true/);
 assert.match(source,/reviewChange:!initial/);
 assert.match(source,/if\(waitForAddress\)/);
+assert.match(source,/waitForAddress=bootAddressResolutionPending/,'every refresh during initial hydration waits for the saved address');
 assert.match(source,/if\(initial&&bootAddressResolutionPending\)return/);
 assert.match(source,/if\(token!==loadToken\)return false/);
 assert.match(addressSystem,/get ready\(\) \{ return initialAddressLoadPromise; \}/);
@@ -79,11 +80,11 @@ assert.match(app,/customerOrderData\.stop\(\)/);
 
 const serviceWorker=fs.readFileSync('sw.js','utf8');
 const customerHtml=fs.readFileSync('index.html','utf8');
-for(const asset of ['app.js?v=108','frontend/customer/product-view.js?v=20261110-browse-only-v1','frontend/customer/catalogue.js?v=20261110-address-hydration-v2']){
+for(const asset of ['app.js?v=108','frontend/customer/product-view.js?v=20261110-browse-only-v1','frontend/customer/catalogue.js?v=20261110-address-hydration-v3']){
   assert.ok(customerHtml.includes(asset),'customer HTML must reference the updated immutable asset URL: '+asset);
   assert.ok(serviceWorker.includes('/'+asset),'customer service worker must precache the same updated asset URL: '+asset);
 }
-assert.match(serviceWorker,/const CACHE = 'waternow-customer-v4'/);
+assert.match(serviceWorker,/const CACHE = 'waternow-customer-v5'/);
 assert.match(serviceWorker,/const REQUIRED_SHELL\s*=\s*\[\s*'\/'\s*,\s*'\/index\.html'\s*\]/);
 assert.doesNotMatch(serviceWorker,/index\.html\?v=20261007-seo-v1/);
 console.log('PWA service worker install contract OK');
