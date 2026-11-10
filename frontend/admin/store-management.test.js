@@ -76,6 +76,7 @@ async function run() {
   const stockInput = { dataset: { inventoryProduct: 'oil-d1' }, value: '24', disabled: false };
   const hiddenStockInput = { dataset: { inventoryProduct: 'hidden-oil' }, value: '4', disabled: false };
   const status = { textContent: '' };
+  const storeStatus = { textContent: '' };
   const searchInput = { value: '' };
   const filterEmpty = { hidden: true };
   const saveButton = { disabled: false, textContent: '' };
@@ -89,6 +90,7 @@ async function run() {
       if (selector === '[data-inventory-product="oil-d1"]') return stockInput;
       if (selector === '[data-inventory-product="hidden-oil"]') return hiddenStockInput;
       if (selector === '[data-store-management-status]') return status;
+      if (selector === '[data-store-status]') return storeStatus;
       if (selector === '[data-store-product-search]') return searchInput;
       if (selector === '[data-store-filter-empty]') return filterEmpty;
       if (selector === '[data-save-store-management]') return saveButton;
@@ -104,7 +106,8 @@ async function run() {
   };
   const stores = [
     { id: 'store-one', name: 'Store One', address: 'First address', service_radius_km: 5, is_active: 1 },
-    { id: 'store-two', name: 'Store Two', address: 'Second address', service_radius_km: 5, is_active: 1 }
+    { id: 'store-two', name: 'Store Two', address: 'Second address', service_radius_km: 5, is_active: 1 },
+    { id: 'store-no-stock', name: 'Store Without Stock', address: 'Third address', latitude: 17.4, longitude: 78.5, service_radius_km: 5, is_active: 0 }
   ];
   const fixtures = {
     'store-one': fixture('store-one', 'Store One', 179, 7),
@@ -126,6 +129,12 @@ async function run() {
     const body = options.body ? JSON.parse(options.body) : null;
     calls.push({ url, method, body });
     if (url === '/api/admin/delivery/stores' && method === 'GET') return response({ stores });
+    if (url === '/api/admin/delivery/stores/store-no-stock' && method === 'PATCH') {
+      assert.deepEqual(body, { isActive: true }, 'activation must be a status-only update');
+      const store = stores.find(item => item.id === 'store-no-stock');
+      store.is_active = 1;
+      return response({ ok: true, store: { ...store } });
+    }
     const match = String(url).match(/^\/api\/admin\/delivery\/stores\/([^/]+)\/(catalogue|inventory)$/);
     assert.ok(match, 'unexpected Owner store API request: ' + url);
     const [, storeId, resource] = match;
@@ -183,6 +192,15 @@ async function run() {
   assert.ok(root.innerHTML.includes('data-manage-store="store-one"'));
   assert.ok(root.innerHTML.includes('data-manage-store="store-two"'));
   assert.ok(root.innerHTML.includes('data-store-id="store-two"'));
+  assert.ok(root.innerHTML.includes('data-activate-store="store-no-stock"'), 'inactive stores must have a direct Activate action');
+  const activationButton = { dataset: { activateStore: 'store-no-stock' }, disabled: false };
+  await click({ target: { closest: selector => selector.includes('[data-activate-store]') ? activationButton : null } });
+  assert.ok(calls.some(call => call.url === '/api/admin/delivery/stores/store-no-stock' && call.method === 'PATCH' && JSON.stringify(call.body) === '{"isActive":true}'),
+    'activation must update only isActive without asking for stock quantities');
+  assert.equal(stores.find(item => item.id === 'store-no-stock').is_active, 1, 'the store state must follow the server-confirmed status');
+  assert.ok(!root.innerHTML.includes('data-activate-store="store-no-stock"'), 'the Activate action must disappear after successful activation');
+  assert.match(storeStatus.textContent, /is Active/);
+  assert.ok(!calls.some(call => call.url.includes('/store-no-stock/inventory')), 'activating a store must not load or validate inventory');
   assert.doesNotMatch(root.innerHTML, /data-edit-inventory=|data-edit-catalogue=/);
   const click = root.listeners.get('click');
 
