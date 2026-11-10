@@ -109,7 +109,7 @@ export async function dispatchOrderAlert(env, alert) {
   const payload = JSON.stringify({
     title, body, url,
     tag: eventKey,
-    icon: audience === 'owner' ? '/admin/icons/icon-192.svg' : '/icon.svg',
+    icon: audience === 'owner' ? '/admin/icons/icon-192.svg' : '/icons/icon-192-brand-v2.png',
     data: { audience, orderId, eventType }
   });
   try {
