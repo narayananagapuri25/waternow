@@ -7,6 +7,7 @@ const RUN_ID = String(process.env.GITHUB_RUN_ID || Date.now());
 const ADMIN_TOKEN = String(process.env.WATERNOW_ADMIN_TOKEN || '').trim();
 const STORE_ID = 'waternow-boduppal';
 const STORE_ADDRESS = {
+  recipientName: 'WaterNow Production QA',
   house: 'QA Test House — Brindavan Colony',
   houseFlat: 'QA Test House — Brindavan Colony',
   area: 'Brindavan Colony',
