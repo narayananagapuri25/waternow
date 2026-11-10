@@ -47,7 +47,7 @@ jobs:
 
       - name: Install Wrangler dependencies
         working-directory: worker
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Create or verify production fixed ₹30 coupon
         run: node e2e/scripts/ensure-production-coupon.mjs
