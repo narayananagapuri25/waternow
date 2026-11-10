@@ -451,6 +451,8 @@ jobs:
           test -n "${CLOUDFLARE_API_TOKEN}" || { echo "::error::Add the CLOUDFLARE_API_TOKEN GitHub Actions secret."; exit 1; }
       - name: Install Worker and Wrangler dependencies
         run: npm install --no-audit --no-fund
+      - name: Ensure production Web Push credentials exist (create once; never rotate)
+        run: node ./scripts/ensure-production-vapid.mjs
       - name: Bootstrap existing production D1 baseline when ledger is absent (preflight-gated)
         run: node ./scripts/bootstrap-production-d1-baseline.mjs
       - name: Verify production D1 migration baseline
@@ -486,6 +488,9 @@ jobs:
 
           const status = await requestJson(workerBase + '/api/admin/status');
           if (status.ok !== true) throw new Error('WaterNow Worker health endpoint did not report ok=true');
+          if (status.pushConfigured !== true) throw new Error('Production Web Push credentials were not provisioned successfully.');
+          const pushConfig = await requestJson(workerBase + '/api/push/public-key');
+          if (!String(pushConfig.publicKey || '').trim()) throw new Error('Production Web Push public key is missing after deployment.');
 
           let lastError;
           for (let attempt = 1; attempt <= 24; attempt += 1) {
