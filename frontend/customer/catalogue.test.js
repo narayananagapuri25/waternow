@@ -47,6 +47,13 @@ assert.match(source,/if\(waitForAddress\)/);
 assert.match(source,/waitForAddress=bootAddressResolutionPending/,'every refresh during initial hydration waits for the saved address');
 assert.match(source,/if\(bootAddressResolutionPending&&bootAddressResolutionPromise&&!forceRefresh\)return bootAddressResolutionPromise/,'page-resume refreshes share the single initial store resolution');
 assert.match(source,/bootAddressResolutionPromise=load\(\{reviewChange:false,waitForAddress:true\}\)/,'the initial address-aware request is shared until it completes');
+
+assert.match(source,/let storeResolutionPromise=null/,'cart quotes must be able to await address-driven store resolution');
+assert.match(source,/function trackedLoad\(options\)/,'initial and user-selected address lookups must share a tracked promise');
+assert.match(source,/async function ensureSelectedStore\(\)[\s\S]*?await pending[\s\S]*?if\(selectedStore\?\.id\)return selectedStore/,'cart quotes must wait until the selected delivery store is actually resolved');
+assert.match(source,/ensureSelectedStore\});/,'the customer quote module must use the address-aware store resolver rather than a stale storage id');
+assert.match(source,/window\.FreshWayAddressSystem\?\.getSelectedAddress\?\.\(\)/,'store retries must use the currently selected address and map pin');
+
 assert.match(source,/if\(initial&&bootAddressResolutionPending\)return/);
 assert.match(source,/if\(token!==loadToken\)return false/);
 assert.match(addressSystem,/get ready\(\) \{ return initialAddressLoadPromise; \}/);
