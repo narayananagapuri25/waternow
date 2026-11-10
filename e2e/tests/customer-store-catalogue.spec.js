@@ -4,6 +4,7 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   const quoteStoreIds=[];
   const addressRequests=[];
   const resolvedStoreAddresses=[];
+  const apiRouteCalls=[];
   const products=[
     {id:'water-20l',name:'20L Drinking Water Can',unit:'can',price:189,emoji:'💧',active:1,category_id:'water-20l',category_name:'20L Water Can',category_slug:'20l-water-can',stock_status:'in_stock'},
     {id:'water-10l-pair',name:'2 × 10L Drinking Water Cans',unit:'pack',price:149,emoji:'🚰',active:1,category_id:'water-10l-pair',category_name:'2 × 10L Water Cans',category_slug:'two-10l-water-cans',stock_status:'in_stock'},
@@ -11,6 +12,7 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   ];
   await page.route('**/api/**',async route=>{
     const request=route.request(),url=new URL(request.url()),method=request.method();
+    apiRouteCalls.push({path:url.pathname,method});
     const send=(data,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});
     if(url.pathname==='/api/addresses'&&method==='GET'){
       addressRequests.push(Date.now());
@@ -79,11 +81,26 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   await expect.poll(()=>quoteStoreIds.some(id=>id==='store-a')).toBe(true);
   await page.evaluate(()=>localStorage.setItem('waternow-selected-store-v1','legacy-store-id'));
   const addressRequestsBeforeReload=addressRequests.length;
+  const storeResolutionsBeforeReload=resolvedStoreAddresses.length;
   await page.reload();
-  await expect(page.locator('#productGrid .product-card')).toHaveCount(3,{timeout:20000});
-  expect(addressRequests.length).toBeGreaterThan(addressRequestsBeforeReload,'reload must restore the signed-in customer address');
+  await expect.poll(()=>addressRequests.length,{timeout:10000}).toBeGreaterThan(addressRequestsBeforeReload);
+  await expect.poll(()=>resolvedStoreAddresses.length,{timeout:10000}).toBeGreaterThan(storeResolutionsBeforeReload);
+  await page.evaluate(async()=>{await window.FreshWayAddressSystem?.ready;});
+  const reloadDiagnostics=await page.evaluate(()=>({
+    selectedAddress:window.FreshWayAddressSystem?.getSelectedAddress?.()||null,
+    selectedStore:window.FreshWayCustomerStoreCatalogue?.selectedStore?.()||null,
+    catalogueNotice:document.querySelector('#fwCatalogueNotice')?.textContent||'',
+    gridText:document.querySelector('#productGrid')?.textContent||'',
+    cartViewActive:document.querySelector('#cartView')?.classList.contains('active-view')
+  }));
+  console.log('WaterNow reload diagnostics',JSON.stringify({
+    reloadDiagnostics,addressRequests:addressRequests.length,
+    resolvedStoreAddresses:resolvedStoreAddresses.slice(-3),apiRouteCalls:apiRouteCalls.slice(-12),
+    pageErrors
+  }));
   expect(resolvedStoreAddresses.every(address=>address.latitude===17.385044&&address.longitude===78.486671),
     'reload must never resolve a store using an empty startup address');
+  await expect(page.locator('#productGrid .product-card')).toHaveCount(3,{timeout:20000});
   await expect.poll(()=>page.evaluate(()=>window.FreshWayCustomerStoreCatalogue?.selectedStore()?.name)).toBe('Store A');
   expect(unexpectedDialogs).toEqual([],'refreshing the same address must not prompt for a store change');
   await page.locator('#viewCartBtn').click();
