@@ -348,6 +348,8 @@ test('customer can browse, add a product, checkout, and receive confirmation', a
   await expect(page.locator('#fwAddressLocationStatus')).toContainText('Delivery pin selected');
   await page.locator('#fwAddressSave').click();
   await expect(page.locator('#homeAddress')).toContainText('New Colony');
+  // Saving returns to the address manager list; the customer closes it to continue.
+  await page.locator('#addressModal [data-close-modal]').click();
   await expect(page.locator('#addressModal')).toHaveClass(/hidden/);
   // Close the animated address sheet before tapping the product grid.
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
