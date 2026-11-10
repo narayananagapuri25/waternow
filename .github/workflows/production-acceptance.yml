@@ -1,0 +1,57 @@
+name: WaterNow Production Lifecycle Acceptance
+
+on:
+  push:
+    branches:
+      - qa/production-lifecycle-20261110
+    paths:
+      - e2e/scripts/production-lifecycle.mjs
+      - .github/workflows/production-acceptance.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: waternow-production-lifecycle
+  cancel-in-progress: false
+
+jobs:
+  production-lifecycle:
+    name: Real production customer and Owner lifecycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      WATERNOW_APP_ORIGIN: https://waternow.pages.dev
+      WATERNOW_ADMIN_TOKEN: ${{ secrets.WATERNOW_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Validate secured Owner test credential
+        shell: bash
+        run: |
+          set +x
+          test -n "${WATERNOW_ADMIN_TOKEN}" || {
+            echo "::error::Add the current WaterNow Owner test code as the WATERNOW_ADMIN_TOKEN Actions secret (or ADMIN_TOKEN). No production data was changed."
+            exit 1
+          }
+
+      - name: Install Playwright test dependencies
+        working-directory: e2e
+        run: npm ci
+
+      - name: Install Chromium for real browser push subscriptions
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run production checkout, lifecycle, reporting, support and push acceptance
+        working-directory: e2e
+        env:
+          CI: "true"
+        run: node ./scripts/production-lifecycle.mjs
