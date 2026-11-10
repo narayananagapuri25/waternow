@@ -8,6 +8,7 @@ const m55 = read('../migrations/0055_waternow_legacy_10l_pack.sql');
 const m56 = read('../migrations/0056_waternow_boduppal_store.sql');
 const m57 = read('../migrations/0057_waternow_store_inventory_source.sql');
 const m58 = read('../migrations/0058_waternow_single_10l_can.sql');
+const m59 = read('../migrations/0059_waternow_normalize_20l_can.sql');
 
 function database() {
   const db = new DatabaseSync(':memory:');
@@ -104,6 +105,59 @@ test('0057 activates Boduppal directly and clears the obsolete global stock quan
   } finally { db.close(); }
 });
 
+
+
+test('0059 normalizes the live 20L unit to can without changing prices, availability, stock or history', () => {
+  const db = database();
+  try {
+    db.exec(m55);
+    db.exec(m56);
+    db.exec(m57);
+    db.exec(m58);
+
+    // Reproduce the actual production mismatch discovered by the read-only D1 diagnostic.
+    db.prepare("UPDATE products SET unit='bottle' WHERE id='water-20l'").run();
+    db.prepare("UPDATE categories SET name='20L Water Cans' WHERE id='water-20l'").run();
+    db.prepare("UPDATE delivery_store_catalogue SET is_available=0,price_override=37 WHERE store_id='waternow-boduppal' AND product_id='water-20l'").run();
+    db.prepare("UPDATE delivery_store_inventory SET stock_quantity=14 WHERE store_id='waternow-boduppal' AND product_id='water-20l'").run();
+    db.prepare("INSERT INTO order_items(order_id,product_id,name,unit,qty,price,line_total) VALUES('historic-order','water-20l','Historic 20L bottle','bottle',1,30,30)").run();
+
+    const before = db.prepare("SELECT price,stock_quantity,active FROM products WHERE id='water-20l'").get();
+    db.exec(m59);
+
+    const product = db.prepare("SELECT id,name,unit,price,stock_quantity,active,category_id FROM products WHERE id='water-20l'").get();
+    assert.equal(product.name,'20L Drinking Water Can');
+    assert.equal(product.unit,'can');
+    assert.equal(product.category_id,'water-20l');
+    assert.equal(product.price,before.price,'the central 20L price must not change');
+    assert.equal(product.stock_quantity,before.stock_quantity,'the deprecated global stock quantity must not change');
+    assert.equal(product.active,before.active,'the migration must not override the Owner visibility setting');
+
+    const category = db.prepare("SELECT name,slug,active FROM categories WHERE id='water-20l'").get();
+    assert.equal(category.name,'20L Water Can');
+    assert.equal(category.slug,'20l-water-can');
+    assert.equal(category.active,1);
+
+    const storeCatalogue = db.prepare("SELECT is_available,price_override FROM delivery_store_catalogue WHERE store_id='waternow-boduppal' AND product_id='water-20l'").get();
+    assert.equal(storeCatalogue.is_available,0,'existing per-store availability is preserved');
+    assert.equal(storeCatalogue.price_override,37,'existing per-store price override is preserved');
+    assert.equal(db.prepare("SELECT stock_quantity FROM delivery_store_inventory WHERE store_id='waternow-boduppal' AND product_id='water-20l'").get().stock_quantity,14,'physical store stock is preserved');
+
+    const history = db.prepare("SELECT name,unit,price,qty,line_total FROM order_items WHERE order_id='historic-order' AND product_id='water-20l'").get();
+    assert.equal(history.name,'Historic 20L bottle');
+    assert.equal(history.unit,'bottle');
+    assert.equal(history.price,30);
+    assert.equal(history.qty,1);
+    assert.equal(history.line_total,30);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+
+    db.exec(m59);
+    const after = db.prepare("SELECT price,unit FROM products WHERE id='water-20l'").get();
+    assert.equal(after.price,before.price,'migration 0059 is idempotent and never rewrites prices');
+    assert.equal(after.unit,'can');
+    assert.equal(db.prepare("SELECT COUNT(*) count FROM products WHERE active=1").get().count,2);
+  } finally { db.close(); }
+});
 
 test('0058 keeps one 10L can and the 20L can while preserving prices, stock, store overrides and order history', () => {
   const db = database();
