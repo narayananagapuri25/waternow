@@ -119,7 +119,8 @@ export async function dispatchOrderAlert(env, alert) {
         const endpoint = validatePushEndpoint(subscription.endpoint);
         await webpush.sendNotification(
           { endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
-          payload
+          payload,
+          { TTL: 86400, urgency: 'high' }
         );
         sent++;
       } catch (error) {
