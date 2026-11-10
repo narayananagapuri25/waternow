@@ -167,6 +167,26 @@ async function main() {
     pass('Owner API protected without session: ' + path, { status: 401 });
   }
 
+  await request('/api/orders', { expected: [401] });
+  pass('Customer order history requires a customer session');
+
+  await request('/api/customer/messages', { expected: [401] });
+  pass('Customer support inbox requires a customer session');
+
+  await request('/api/customer/messages', {
+    method: 'POST',
+    body: { subject: 'Unauthenticated QA probe', message: 'This request must be rejected.' },
+    expected: [401]
+  });
+  pass('Unauthenticated customer support message cannot be created');
+
+  await request('/api/orders', {
+    method: 'POST',
+    body: { customer: { name: 'QA', phone: '9999999999' }, items: [], expectedTotal: 0, preferredDeliveryDate: istDate(1) },
+    expected: [401]
+  });
+  pass('Unauthenticated customer cannot create an order');
+
   console.log(JSON.stringify({ passed: checks.length, failed: 0, checks }, null, 2));
 }
 
