@@ -42,7 +42,7 @@ assert.match(source,/hadData/);
 assert.match(source,/freshWayCustomerCatalogueRefresh/);
 assert.match(source,/event\.detail\?\.initial===true/);
 assert.match(source,/reviewChange:!initial/);
-assert.match(source,/waitForAddress\);/);
+assert.match(source,/if\(waitForAddress\)/);
 assert.match(source,/if\(initial&&bootAddressResolutionPending\)return/);
 assert.match(source,/if\(token!==loadToken\)return false/);
 assert.match(addressSystem,/get ready\(\) \{ return initialAddressLoadPromise; \}/);
