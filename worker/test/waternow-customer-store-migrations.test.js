@@ -133,7 +133,12 @@ test('0058 keeps one 10L can and the 20L can while preserving prices, stock, sto
     assert.equal(db.prepare("SELECT price_override FROM delivery_store_catalogue WHERE store_id='waternow-boduppal' AND product_id='p-mw99d1uv-vx6mg'").get().price_override,23,'the store price override is preserved');
     assert.equal(db.prepare("SELECT stock_quantity FROM delivery_store_inventory WHERE store_id='waternow-boduppal' AND product_id='p-mw99d1uv-vx6mg'").get().stock_quantity,17,'physical store stock is preserved');
     const history=db.prepare("SELECT product_id,name,unit,price,qty,line_total FROM order_items WHERE order_id='historic-order'").get();
-    assert.deepEqual(history,{product_id:'p-mw99d1uv-vx6mg',name:'10L Drinking water can',unit:'bottle',price:20,qty:2,line_total:40});
+    assert.equal(history.product_id,'p-mw99d1uv-vx6mg');
+    assert.equal(history.name,'10L Drinking water can');
+    assert.equal(history.unit,'bottle');
+    assert.equal(history.price,20);
+    assert.equal(history.qty,2);
+    assert.equal(history.line_total,40);
     assert.equal(db.prepare('SELECT is_active FROM delivery_stores WHERE id=?').get('waternow-boduppal').is_active,1);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
     db.exec(m58);
