@@ -221,6 +221,8 @@ jobs:
           echo "WaterNow 0051 indexes:"
           npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT name, sql FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_water_%' ORDER BY name" --json
           echo "WaterNow catalogue and invoice seed state from 0051/0052:"
+          echo "Exact production WaterNow product/category values including unit (read only):"
+          npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT p.id,p.name,p.unit,p.price,p.active,p.category_id,c.name category_name,c.slug category_slug,c.active category_active FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id IN ('water-20l','p-mw99d1uv-vx6mg','water-10l-pair') ORDER BY p.display_order,p.id" --json
           npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT id,name,price,active,stock_managed,stock_quantity FROM products WHERE id IN ('water-20l','water-10l-pair') ORDER BY id" --json
           npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT id,name,slug,active FROM categories WHERE id IN ('water-20l','water-10l-pair') ORDER BY id" --json
           npx wrangler d1 execute waternow-production --remote --config wrangler.production.jsonc --command "SELECT id,series_prefix FROM invoice_settings WHERE id=1" --json
