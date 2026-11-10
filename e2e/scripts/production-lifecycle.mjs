@@ -279,6 +279,19 @@ async function main() {
   await createCustomerSession();
   record('Customer registration and six-digit passcode session', { phoneLast4: customerPhone.slice(-4) });
 
+  browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  customerContext = await browser.newContext({ permissions: ['notifications'] });
+  await customerContext.addCookies([browserCookie(customerCookie)]);
+  customerPage = await customerContext.newPage();
+  customerPush = await subscribePush(customerPage, 'customer', customerId);
+  record('Customer push subscription saved', { endpointHost: customerPush.endpointHost });
+
+  ownerContext = await browser.newContext({ permissions: ['notifications'] });
+  await ownerContext.addCookies([browserCookie(adminCookie)]);
+  ownerPage = await ownerContext.newPage();
+  ownerPush = await subscribePush(ownerPage, 'owner', '');
+  record('Owner push subscription saved', { endpointHost: ownerPush.endpointHost });
+
   const store = await request('/api/delivery/store', {
     method: 'POST', body: { address: STORE_ADDRESS }
   });
