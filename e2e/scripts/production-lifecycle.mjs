@@ -88,8 +88,8 @@ function browserCookie(cookie) {
   return {
     name: pair.slice(0, index),
     value: pair.slice(index + 1),
+    // Playwright requires either url OR the domain/path pair, not both.
     url: BASE,
-    path: '/',
     secure: true,
     httpOnly: true,
     sameSite: 'Lax'
