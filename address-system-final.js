@@ -5,6 +5,10 @@
 
   const $ = function (selector) { return document.querySelector(selector); };
   const SELECTED_ADDRESS_STORAGE_KEY = 'freshway-selected-address-id-v1';
+  // Guest delivery details stay in this tab only. They survive reloads, but are
+  // never written to the account address book or long-lived local storage.
+  const GUEST_ADDRESS_SESSION_KEY = 'waternow-guest-address-session-v1';
+  const GUEST_ADDRESS_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
   const esc = function (value) {
     return String(value == null ? '' : value).replace(/[&<>'"]/g, function (character) {
       return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[character];
@@ -209,6 +213,8 @@
     selectionRevision += 1;
     activeAddress = address ? normalizeAddress(address) : null;
     persistAddressSelection(activeAddress);
+    if (activeAddress && activeAddress.id != null) clearGuestAddressDraft();
+    else if (guestAddressMode && activeAddress) persistGuestAddressDraft(activeAddress);
     initialAddressLoadPending = false;
     renderDisplays({initial:false});
   }
@@ -220,10 +226,58 @@
     catch (_) { throw new Error('Address service returned invalid data. Please try again.'); }
   }
 
+  function clearGuestAddressDraft() {
+    try { window.sessionStorage.removeItem(GUEST_ADDRESS_SESSION_KEY); } catch (_) {}
+  }
+
+  function readGuestAddressDraft() {
+    try {
+      const raw = window.sessionStorage.getItem(GUEST_ADDRESS_SESSION_KEY);
+      if (!raw) return null;
+      const saved = JSON.parse(raw);
+      if (!saved || saved.version !== 1 || !Number.isFinite(Number(saved.expiresAt)) || Number(saved.expiresAt) <= Date.now()) {
+        clearGuestAddressDraft();
+        return null;
+      }
+      const address = normalizeAddress(saved.address);
+      if (address.id != null || !validCoords(address.latitude, address.longitude) || checkoutAddressIssue(address)) {
+        clearGuestAddressDraft();
+        return null;
+      }
+      address.id = null;
+      address.isDefault = false;
+      return address;
+    } catch (_) {
+      clearGuestAddressDraft();
+      return null;
+    }
+  }
+
+  function persistGuestAddressDraft(address) {
+    const normalized = normalizeAddress(address);
+    if (normalized.id != null || !validCoords(normalized.latitude, normalized.longitude) || checkoutAddressIssue(normalized)) {
+      clearGuestAddressDraft();
+      return false;
+    }
+    normalized.id = null;
+    normalized.isDefault = false;
+    try {
+      window.sessionStorage.setItem(GUEST_ADDRESS_SESSION_KEY, JSON.stringify({
+        version: 1,
+        expiresAt: Date.now() + GUEST_ADDRESS_SESSION_TTL_MS,
+        address: normalized
+      }));
+      return true;
+    } catch (_) { return false; }
+  }
+
   function enterGuestAddressMode(options) {
     addresses = [];
-    // Keep a temporary guest checkout draft; saved-address management still requires sign-in.
-    if (!(activeAddress && activeAddress.id == null && validCoords(activeAddress.latitude, activeAddress.longitude))) activeAddress = null;
+    // Prefer the address the guest has just chosen in this live page. If the
+    // page was reloaded, restore only a complete, map-pinned, unexpired tab draft.
+    if (!(activeAddress && activeAddress.id == null && validCoords(activeAddress.latitude, activeAddress.longitude) && !checkoutAddressIssue(activeAddress))) {
+      activeAddress = readGuestAddressDraft();
+    }
     guestAddressMode = true;
     addressLoadError = 'Sign in to load and manage your saved delivery addresses.';
     renderDisplays();
@@ -261,7 +315,9 @@
           addresses = [];
           // A guest can keep an in-memory checkout address draft; only saved-address
           // management requires an account session.
-          if (!(activeAddress && activeAddress.id == null && validCoords(activeAddress.latitude, activeAddress.longitude))) activeAddress = null;
+          if (!(activeAddress && activeAddress.id == null && validCoords(activeAddress.latitude, activeAddress.longitude) && !checkoutAddressIssue(activeAddress))) {
+            activeAddress = readGuestAddressDraft();
+          }
           guestAddressMode = true;
           addressLoadError = 'Sign in to load and manage your saved delivery addresses.';
           renderDisplays();
@@ -274,6 +330,9 @@
       const data = await readJsonResponse(r);
       if (!Array.isArray(data.addresses)) throw new Error('Saved addresses could not be read. Please retry.');
       addresses = uniqueAddresses(data.addresses); addressLoadError = ''; guestAddressMode = false;
+      // Once an account session is available, never carry a previous guest's
+      // temporary address into the account address book or later guest session.
+      clearGuestAddressDraft();
       const selectionChangedWhileLoading = selectionRevision !== revisionAtStart;
       const currentId = selectionChangedWhileLoading && activeAddress ? Number(activeAddress.id) : previousId;
       const restoredSelection = currentId == null ? null : addresses.find(function (address) { return Number(address.id) === Number(currentId); }) || null;
@@ -906,6 +965,7 @@
       address.id = null;
       address.isDefault = false;
       activeAddress = normalizeAddress(address);
+      persistGuestAddressDraft(activeAddress);
       renderDisplays();
       hideModal();
       toast('Delivery location set for this visit. Sign in to save it for next time.');

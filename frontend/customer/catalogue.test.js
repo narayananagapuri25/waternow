@@ -46,7 +46,16 @@ assert.match(source,/async function load\(\{reviewChange=false/,'automatic catal
 assert.match(source,/if\(waitForAddress\)/);
 assert.match(source,/waitForAddress=bootAddressResolutionPending/,'every refresh during initial hydration waits for the saved address');
 assert.match(source,/if\(bootAddressResolutionPending&&bootAddressResolutionPromise&&!forceRefresh\)return bootAddressResolutionPromise/,'page-resume refreshes share the single initial store resolution');
-assert.match(source,/bootAddressResolutionPromise=load\(\{reviewChange:false,waitForAddress:true\}\)/,'the initial address-aware request is shared until it completes');
+assert.match(source,/bootAddressResolutionPromise=trackedLoad\(\{reviewChange:false,waitForAddress:true\}\)/,'the initial address-aware request is shared until it completes');
+
+assert.match(source,/let storeResolutionPromise=null/,'cart quotes must be able to await address-driven store resolution');
+assert.match(source,/let lastStoreResolutionAddressKey=null/,'a completed negative address lookup must not be repeated for every cart render');
+assert.match(source,/lastStoreResolutionAddressKey!==currentAddressKey/,'store lookup retries only when the selected address or map pin changes');
+assert.match(source,/function trackedLoad\(options\)/,'initial and user-selected address lookups must share a tracked promise');
+assert.match(source,/async function ensureSelectedStore\(\)[\s\S]*?await pending[\s\S]*?if\(selectedStore\?\.id\)return selectedStore/,'cart quotes must wait until the selected delivery store is actually resolved');
+assert.match(source,/ensureSelectedStore\}\);/,'the customer quote module must use the address-aware store resolver rather than a stale storage id');
+assert.match(source,/window\.FreshWayAddressSystem\?\.getSelectedAddress\?\.\(\)/,'store retries must use the currently selected address and map pin');
+
 assert.match(source,/if\(initial&&bootAddressResolutionPending\)return/);
 assert.match(source,/if\(token!==loadToken\)return false/);
 assert.match(addressSystem,/get ready\(\) \{ return initialAddressLoadPromise; \}/);
@@ -83,11 +92,11 @@ assert.match(app,/customerOrderData\.stop\(\)/);
 
 const serviceWorker=fs.readFileSync('sw.js','utf8');
 const customerHtml=fs.readFileSync('index.html','utf8');
-for(const asset of ['app.js?v=108','frontend/customer/product-view.js?v=20261110-browse-only-v1','frontend/customer/catalogue.js?v=20261110-address-hydration-v7']){
+for(const asset of ['app.js?v=108','frontend/customer/product-view.js?v=20261110-browse-only-v1','frontend/customer/catalogue.js?v=20261110-guest-store-restore-v1']){
   assert.ok(customerHtml.includes(asset),'customer HTML must reference the updated immutable asset URL: '+asset);
   assert.ok(serviceWorker.includes('/'+asset),'customer service worker must precache the same updated asset URL: '+asset);
 }
-assert.match(serviceWorker,/const CACHE = 'waternow-customer-v9'/);
+assert.match(serviceWorker,/const CACHE = 'waternow-customer-v10'/);
 assert.match(serviceWorker,/const REQUIRED_SHELL\s*=\s*\[\s*'\/'\s*,\s*'\/index\.html'\s*\]/);
 assert.doesNotMatch(serviceWorker,/index\.html\?v=20261007-seo-v1/);
 console.log('PWA service worker install contract OK');

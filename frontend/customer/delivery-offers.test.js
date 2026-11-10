@@ -15,7 +15,7 @@ assert.ok(deliveryOffersScript,
   'HTML must load the updated delivery-offers module');
 assert.ok(worker.includes('/'+deliveryOffersScript),
   'service worker must cache the exact delivery-offers module URL loaded by HTML');
-assert.match(worker,/const CACHE = 'freshway-v129'/,
+assert.match(worker,/const CACHE = 'waternow-customer-v10'/,
   'the service-worker cache version must match the current customer shell');
 const deliveryBookingScript=index.split('<script src="')
   .map(part=>part.split('"')[0])
@@ -27,13 +27,15 @@ assert.ok(worker.includes('/'+deliveryBookingScript),
 const customerCatalogueScript=index.split('<script src="')
   .map(part=>part.split('"')[0])
   .find(path=>path.startsWith('frontend/customer/catalogue.js?v='));
-assert.equal(customerCatalogueScript,'frontend/customer/catalogue.js?v=20261106-out-of-area-contact-v1',
+assert.equal(customerCatalogueScript,'frontend/customer/catalogue.js?v=20261110-guest-store-restore-v1',
   'HTML must load the cache-busted out-of-area customer catalogue');
 assert.ok(worker.includes('/'+customerCatalogueScript),
   'service worker must cache the exact out-of-area customer catalogue URL loaded by HTML');
 const deliveryBookingStyles=index.match(/<link rel="stylesheet" href="([^"]*delivery-booking\.css\?v=[^"]+)">/);
 assert.ok(deliveryBookingStyles,'HTML must load delivery-picker styles');
 assert.ok(worker.includes('/'+deliveryBookingStyles[1]),'service worker must cache delivery-picker styles');
+assert.match(source,/ensureSelectedStore/,'checkout and cart quotes must wait for the address-aware store resolver');
+assert.match(source,/error.code = 'STORE_REQUIRED'/,'missing location must be distinct from an out-of-stock quote');
 assert.match(source,/function isCouponEligibilityError\(error\)/,
   'only a server-confirmed coupon eligibility error may clear an applied coupon');
 assert.match(source,/!appliedCode \|\| !isCouponEligibilityError\(error\)/,
@@ -52,7 +54,7 @@ function pricingFor(code) {
     items:[{id:'p1',name:'Product one',unit:'each',qty:1,price:100,lineTotal:100}]
   };
 }
-function createHarness(request, savedCode='') {
+function createHarness(request, savedCode='', ensureSelectedStore=async()=>({id:'store-test'})) {
   const elements={
     '#fwCouponCode':{value:''},
     '#fwCouponStatus':{textContent:'',dataset:{}},
@@ -71,7 +73,7 @@ function createHarness(request, savedCode='') {
   const storage=new Map();
   if(savedCode)storage.set('freshway-applied-fixed-coupon',savedCode);
   const context={
-    window:{FreshWayCustomerAPI:{request},FreshWayCustomerStoreCatalogue:{selectedStoreId:()=> 'store-test'},CSS:{escape:value=>String(value)}},
+    window:{FreshWayCustomerAPI:{request},FreshWayCustomerStoreCatalogue:{selectedStoreId:()=> 'store-test',selectedStore:()=>null,ensureSelectedStore},CSS:{escape:value=>String(value)}},
     document,
     CSS:{escape:value=>String(value)},
     sessionStorage:{
@@ -98,6 +100,24 @@ function createHarness(request, savedCode='') {
 }
 const items=[{product:{id:'p1'},qty:1,lineTotal:100}];
 (async()=>{
+
+  {
+    let quoteCalls=0;
+    const request=async(path)=>{
+      if(path==='/api/checkout/quote'){quoteCalls++;throw new Error('A quote must not be requested without a resolved store.');}
+      if(path==='/api/coupons/available')return {coupons:[]};
+      throw new Error('Unexpected mocked request: '+path);
+    };
+    const h=createHarness(request,'',async()=>null);
+    await h.module.renderCart({items,total:100});
+    assert.equal(quoteCalls,0,'the cart must not quote against central stock while no fulfilment store is resolved');
+    assert.equal(h.module.getDisplayedTotal(),null,'a missing store must not create a misleading total');
+    assert.match(h.elements['#fwDeliveryPricing'].innerHTML,/Confirm your delivery location/);
+    assert.doesNotMatch(h.elements['#fwDeliveryPricing'].innerHTML,/Not enough stock/i,
+      'a missing delivery location must never be reported as an inventory shortage');
+    assert.match(h.elements['#fwCouponStatus'].textContent,/Confirm your delivery location/);
+  }
+
   {
     let quoteStoreId='';
     const request=async(path,options={})=>{

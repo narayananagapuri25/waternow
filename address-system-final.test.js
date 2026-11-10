@@ -111,7 +111,7 @@ assert.ok(index.includes('address-book.css?v=20261027-checkout-ux-v2'), 'HTML mu
 assert.ok(sw.includes('/frontend/customer/address-book.css?v=20261027-checkout-ux-v2'), 'service worker must cache the current address CSS');
 assert.ok(index.includes('notifications.js?v=notif2'), 'HTML must load the notification permission-state module');
 assert.ok(sw.includes('/notifications.js?v=notif2'), 'service worker must cache the notification permission-state module');
-assert.match(sw, /const CACHE = 'freshway-v129'/);
+assert.match(sw, /const CACHE = 'waternow-customer-v10'/);
 assert.match(css, /#toast\s*\{[^}]*white-space:\s*normal/s);
 assert.match(css, /\.fw-address-incomplete\s*\{/);
 assert.ok(
@@ -121,4 +121,22 @@ assert.ok(
   source.includes('enterGuestAddressMode(options);'),
   'guest visits must reuse shared auth state before requesting saved addresses'
 );
+
+assert.match(source, /const GUEST_ADDRESS_SESSION_KEY = 'waternow-guest-address-session-v1'/,
+  'a temporary guest address must use a tab-scoped session key, not long-lived account storage');
+assert.match(source, /const GUEST_ADDRESS_SESSION_TTL_MS = 12 \* 60 \* 60 \* 1000/,
+  'temporary guest address data must expire after 12 hours');
+assert.match(source, /function readGuestAddressDraft\(\)[\s\S]*?window\.sessionStorage\.getItem\(GUEST_ADDRESS_SESSION_KEY\)[\s\S]*?Number\(saved\.expiresAt\) <= Date\.now\(\)[\s\S]*?validCoords\(address\.latitude, address\.longitude\)/,
+  'only a current, complete, verified guest address can be restored after reload');
+assert.match(source, /function persistGuestAddressDraft\(address\)[\s\S]*?window\.sessionStorage\.setItem\(GUEST_ADDRESS_SESSION_KEY/,
+  'saving a guest address must persist it only for this browser tab');
+assert.match(source, /function enterGuestAddressMode\(options\)[\s\S]*?activeAddress = readGuestAddressDraft\(\)/,
+  'guest-mode startup must restore the current tab address before resolving the delivery store');
+assert.match(source, /activeAddress = normalizeAddress\(address\);\s*persistGuestAddressDraft\(activeAddress\);/,
+  'the selected guest address must be saved after successful validation');
+assert.match(source, /addresses = uniqueAddresses\(data\.addresses\); addressLoadError = ''; guestAddressMode = false;[\s\S]*?clearGuestAddressDraft\(\)/,
+  'an authenticated saved-address session must clear any temporary guest address');
+assert.match(source, /if \(activeAddress && activeAddress\.id != null\) clearGuestAddressDraft\(\)/,
+  'selecting a saved address must clear a guest draft from the previous visit');
+
 console.log('checkout address completion, geocoding preservation, error feedback, accessibility and asset cache tests passed');

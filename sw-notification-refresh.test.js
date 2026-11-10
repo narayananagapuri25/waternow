@@ -90,13 +90,13 @@ async function dispatchPush(payload) {
   assert.ok(index.includes('frontend/customer/navigation.js?v=20261107-history-back-v1'), 'customer HTML must load the deterministic history module');
   assert.ok(index.includes('frontend/customer/delivery-booking.js?v=20261109-direct-delivery-coverage-v2'), 'customer HTML must load the current WaterNow delivery help copy');
   assert.ok(index.includes('frontend/customer/order-actions.js?v=20261109-waternow-order-actions-v1'), 'customer HTML must load the current WaterNow order actions copy');
-  assert.match(sw, /const CACHE = 'waternow-customer-v9'/, 'customer service worker must publish the current history-fix cache version');
+  assert.match(sw, /const CACHE = 'waternow-customer-v10'/, 'customer service worker must publish the current history-fix cache version');
   assert.ok(sw.includes('/app.js?v=108'), 'service worker must precache the same cache-busted customer app asset');
   assert.ok(index.includes('frontend/customer/product-view.js?v=20261110-browse-only-v1'), 'customer HTML must request the browse-only renderer release');
-  assert.ok(index.includes('frontend/customer/catalogue.js?v=20261110-address-hydration-v7'), 'customer HTML must request the browse-only catalogue release');
+  assert.ok(index.includes('frontend/customer/catalogue.js?v=20261110-guest-store-restore-v1'), 'customer HTML must request the browse-only catalogue release');
   assert.ok(sw.includes('/frontend/customer/product-view.js?v=20261110-browse-only-v1'), 'service worker must precache the browse-only renderer release');
-  assert.ok(sw.includes('/frontend/customer/catalogue.js?v=20261110-address-hydration-v7'), 'service worker must precache the browse-only catalogue release');
-  assert.ok(sw.includes('/address-system-final.js?v=20261110-address-hydration-v3'), 'service worker must precache address hydration v3');
+  assert.ok(sw.includes('/frontend/customer/catalogue.js?v=20261110-guest-store-restore-v1'), 'service worker must precache the browse-only catalogue release');
+  assert.ok(sw.includes('/address-system-final.js?v=20261110-guest-session-v1'), 'service worker must precache address hydration v3');
   assert.ok(sw.includes('/frontend/customer/navigation.js?v=20261107-history-back-v1'), 'service worker must precache the exact history-fix module loaded by HTML');
   assert.ok(sw.includes('/frontend/customer/delivery-booking.js?v=20261109-direct-delivery-coverage-v2'), 'service worker must precache the updated WaterNow delivery help module');
   assert.ok(sw.includes('/frontend/customer/order-actions.js?v=20261109-waternow-order-actions-v1'), 'service worker must precache the updated WaterNow order actions module');
@@ -106,8 +106,8 @@ async function dispatchPush(payload) {
   assert.match(index, /frontend\/customer\/messages\.js\?v=msg1/);
   assert.match(index, /frontend\/customer\/store-info\.js\?v=msg1/);
   assert.match(index, /frontend\/customer\/cart-bar\.js\?v=20261029-cartbar-v2/);
-  assert.match(index, /frontend\/customer\/delivery-offers\.js\?v=20261103-store-pricing-v1/);
-  assert.ok(fs.readFileSync('sw.js', 'utf8').includes('/frontend/customer/delivery-offers.js?v=20261103-store-pricing-v1'), 'service worker must precache the exact store-aware delivery-offers asset URL loaded by HTML');
+  assert.match(index, /frontend\/customer\/delivery-offers\.js\?v=20261110-await-store-v1/);
+  assert.ok(fs.readFileSync('sw.js', 'utf8').includes('/frontend/customer/delivery-offers.js?v=20261110-await-store-v1'), 'service worker must precache the exact store-aware delivery-offers asset URL loaded by HTML');
   const assetUrl = 'https://waternow.pages.dev/frontend/customer/navigation.js?v=20261107-history-back-v1';
   const oldResponse = { ok: true, body: 'legacy', clone() { return { ...this }; } };
   const freshResponse = { ok: true, body: 'current', clone() { return { ...this }; } };

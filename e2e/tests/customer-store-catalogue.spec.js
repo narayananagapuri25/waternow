@@ -121,3 +121,174 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   await expect(page.locator('#cartItems')).toContainText('₹189');
   expect(pageErrors).toEqual([]);
 });
+
+
+test('guest delivery address and store survive a reload so restored cart quotes the Boduppal store', async ({ page }) => {
+  const guestAddress = {
+    id: null,
+    label: 'Home',
+    recipientName: 'WaterNow QA Test',
+    deliveryPhone: '9000000001',
+    houseFlat: 'QA Test 1',
+    building: '',
+    floor: '',
+    street: '',
+    area: 'Srinivasa Nagar Colony',
+    locality: '',
+    city: 'Boduppal',
+    district: 'Medchal–Malkajgiri',
+    state: 'Telangana',
+    pincode: '500092',
+    landmark: '',
+    note: '',
+    latitude: 17.415,
+    longitude: 78.585,
+    accuracyMeters: null,
+    locationSource: 'Search',
+    placeId: 'waternow-qa-boduppal',
+    locationUpdatedAt: '2026-11-10T10:00:00.000Z',
+    isDefault: false
+  };
+  const products = [
+    { id: 'water-20l', name: '20L Drinking Water Can', unit: 'can', price: 30, emoji: '💧', active: 1, category_id: 'water-20l', category_name: '20L Water Can', category_slug: '20l-water-can', stock_status: 'in_stock' },
+    { id: 'p-mw99d1uv-vx6mg', name: '10L Drinking Water Can', unit: 'can', price: 20, emoji: '🚰', active: 1, category_id: 'water-10l', category_name: '10L Water Can', category_slug: '10l-water-can', stock_status: 'in_stock' }
+  ];
+  const quotePayloads = [];
+  const resolvedAddresses = [];
+  const storeProductQueries = [];
+  const pageErrors = [];
+
+  await page.addInitScript(address => {
+    sessionStorage.setItem('waternow-guest-address-session-v1', JSON.stringify({
+      version: 1,
+      expiresAt: Date.now() + 60 * 60 * 1000,
+      address
+    }));
+  }, guestAddress);
+
+  await page.route('**/api/**', async route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const method = request.method();
+    const send = (data, status = 200) => route.fulfill({
+      status,
+      contentType: 'application/json',
+      body: JSON.stringify(data)
+    });
+
+    if (url.pathname === '/api/auth/session' && method === 'GET') return send({});
+    if (url.pathname === '/api/addresses' && method === 'GET') return send({ error: 'Sign in required.' }, 401);
+
+    if (url.pathname === '/api/delivery/store' && method === 'POST') {
+      const address = request.postDataJSON()?.address || {};
+      resolvedAddresses.push(address);
+      if (Number(address.latitude) !== guestAddress.latitude || Number(address.longitude) !== guestAddress.longitude) {
+        return send({ available: false, code: 'LOCATION_REQUIRED', message: 'Confirm your delivery pin.' });
+      }
+      return send({
+        available: true,
+        code: 'AVAILABLE',
+        store: { id: 'waternow-boduppal', name: 'WaterNow Boduppal', distanceKm: 0 }
+      });
+    }
+
+    if (url.pathname === '/api/products' && method === 'GET') {
+      storeProductQueries.push(url.searchParams.get('storeId') || '');
+      return send({ products });
+    }
+
+    if (url.pathname === '/api/checkout/quote' && method === 'POST') {
+      const payload = request.postDataJSON() || {};
+      quotePayloads.push(payload);
+      if (payload.storeId !== 'waternow-boduppal') {
+        return send({ error: 'Not enough stock for 10L Drinking Water Can. Please reduce the quantity and try again.' }, 400);
+      }
+      const lines = (payload.items || []).map(item => {
+        const product = products.find(candidate => candidate.id === item.id);
+        return { id: product.id, name: product.name, unit: product.unit, qty: item.qty, price: product.price, lineTotal: product.price * item.qty };
+      });
+      const subtotal = lines.reduce((sum, item) => sum + item.lineTotal, 0);
+      return send({ pricing: {
+        storeId: payload.storeId,
+        items: lines,
+        itemsSubtotal: subtotal,
+        freeDeliveryEnabled: true,
+        freeDeliveryThreshold: 800,
+        qualifiesForFreeDelivery: subtotal >= 800,
+        amountToFreeDelivery: Math.max(0, 800 - subtotal),
+        standardDeliveryFee: 30,
+        deliveryFee: subtotal >= 800 ? 0 : 30,
+        couponDiscount: 0,
+        finalTotal: subtotal + (subtotal >= 800 ? 0 : 30),
+        couponCode: null,
+        coupon: null
+      } });
+    }
+
+    if (url.pathname === '/api/coupons/available' && method === 'GET') return send({ coupons: [] });
+    if (url.pathname === '/api/delivery/availability' && method === 'POST') return send({
+      available: true,
+      code: 'AVAILABLE',
+      message: 'Good news! We deliver to your area from WaterNow Boduppal.',
+      store: { id: 'waternow-boduppal', name: 'WaterNow Boduppal', distanceKm: 0 }
+    });
+    if (url.pathname === '/api/push/public-key' && method === 'GET') return send({ publicKey: null });
+    return send({});
+  });
+
+  page.on('pageerror', error => pageErrors.push(error.message));
+  const response = await page.goto('/');
+  expect(response?.status()).toBe(200);
+
+  await page.evaluate(async () => {
+    await window.FreshWayAddressSystem?.ready;
+    await window.FreshWayCustomerStoreCatalogue?.ensureSelectedStore?.();
+  });
+  await expect.poll(() => page.evaluate(() => window.FreshWayCustomerStoreCatalogue?.selectedStore()?.id || '')).toBe('waternow-boduppal');
+  await expect(page.locator('#homeAddress')).toContainText('Srinivasa Nagar Colony');
+  await expect(page.locator('#productGrid .product-card')).toHaveCount(2);
+
+  for (const id of ['water-20l', 'p-mw99d1uv-vx6mg']) {
+    await page.locator('#productGrid [data-add="' + id + '"]').click();
+    for (let i = 0; i < 4; i++) await page.locator('#productGrid [data-plus="' + id + '"]').click();
+  }
+  expect(await page.evaluate(() => window.state.cart)).toEqual({
+    'water-20l': 5,
+    'p-mw99d1uv-vx6mg': 5
+  });
+
+  await page.evaluate(() => window.setView('cart'));
+  await expect(page.locator('#cartItems')).toContainText('5 × can');
+  await expect(page.locator('#cartItems')).toContainText('₹150');
+  await expect(page.locator('#cartItems')).toContainText('₹100');
+  await expect.poll(() => quotePayloads.length).toBeGreaterThan(0);
+  expect(quotePayloads.every(payload => payload.storeId === 'waternow-boduppal'),
+    'every cart quote must use the resolved Boduppal store, never central stock');
+  await expect(page.locator('#cartSummary')).toContainText('₹250');
+  await expect(page.locator('#cartSummary')).toContainText('₹280');
+  await expect(page.locator('#cartSummary')).not.toContainText('Not enough stock');
+
+  const quotesBeforeReload = quotePayloads.length;
+  await page.reload();
+  await page.evaluate(async () => {
+    await window.FreshWayAddressSystem?.ready;
+    await window.FreshWayCustomerStoreCatalogue?.ensureSelectedStore?.();
+  });
+  await expect.poll(() => page.evaluate(() => window.FreshWayAddressSystem?.getSelectedAddress?.()?.city || '')).toBe('Boduppal');
+  await expect.poll(() => page.evaluate(() => window.FreshWayCustomerStoreCatalogue?.selectedStore()?.id || '')).toBe('waternow-boduppal');
+
+  await page.evaluate(() => window.setView('cart'));
+  await expect(page.locator('#cartItems')).toContainText('20L Drinking Water Can');
+  await expect(page.locator('#cartItems')).toContainText('10L Drinking Water Can');
+  await expect(page.locator('#cartItems')).toContainText('5 × can');
+  await expect.poll(() => quotePayloads.length).toBeGreaterThan(quotesBeforeReload);
+  expect(quotePayloads.slice(quotesBeforeReload).every(payload => payload.storeId === 'waternow-boduppal'),
+    'after reload the restored cart must quote against the restored Boduppal store');
+  await expect(page.locator('#cartSummary')).toContainText('₹250');
+  await expect(page.locator('#cartSummary')).toContainText('₹280');
+  await expect(page.locator('#cartSummary')).not.toContainText('Not enough stock');
+  expect(resolvedAddresses.length).toBeGreaterThan(0);
+  expect(resolvedAddresses.every(address => Number(address.latitude) === guestAddress.latitude && Number(address.longitude) === guestAddress.longitude));
+  expect(storeProductQueries).toContain('waternow-boduppal');
+  expect(pageErrors).toEqual([]);
+});

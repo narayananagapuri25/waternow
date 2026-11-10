@@ -3,6 +3,8 @@
   'use strict';
   const CODE_KEY = 'freshway-applied-fixed-coupon';
   const money = value => '₹' + Math.max(0, Math.trunc(Number(value) || 0)).toLocaleString('en-IN');
+  const STORE_REQUIRED_MESSAGE = 'Confirm your delivery location to check store stock and delivery pricing.';
+  const storeRequiredError = () => { const error = new Error(STORE_REQUIRED_MESSAGE); error.code = 'STORE_REQUIRED'; return error; };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
   const api = () => window.FreshWayCustomerAPI?.request;
   let appliedCode = '';
@@ -24,9 +26,17 @@
   async function fetchQuote(items, code = appliedCode) {
     const request = api();
     if (!request) throw new Error('Pricing service is unavailable. Refresh and try again.');
+    const storeCatalogue = window.FreshWayCustomerStoreCatalogue;
+    // Wait for the address-aware store lookup. A missing storeId makes the API
+    // fall back to legacy central stock and can falsely reject a store basket.
+    const selectedStore = typeof storeCatalogue?.ensureSelectedStore === 'function'
+      ? await storeCatalogue.ensureSelectedStore()
+      : storeCatalogue?.selectedStore?.();
+    const storeId = String(selectedStore?.id || '');
+    if (!storeId) throw storeRequiredError();
     const result = await request('/api/checkout/quote', {
       method: 'POST',
-      body: JSON.stringify({ items: itemsForQuote(items), couponCode: code || '', storeId: window.FreshWayCustomerStoreCatalogue?.selectedStoreId?.() || '' })
+      body: JSON.stringify({ items: itemsForQuote(items), couponCode: code || '', storeId })
     });
     if (!result?.pricing) throw new Error('Could not calculate your order total.');
     const pricing = result.pricing;
@@ -212,8 +222,11 @@
       if (version !== renderVersion) return;
       if (pricingRoot) pricingRoot.innerHTML =
         '<div class="summary-line"><span>Items subtotal</span><strong>' + lastMoney(total) + '</strong></div>' +
-        '<p class="fw-offer-error">Could not refresh delivery pricing. Please retry before checkout.</p>';
-      message(error.message || 'Could not refresh pricing.', true);
+        (error?.code === 'STORE_REQUIRED'
+          ? '<p class="fw-offer-error" role="status">' + esc(STORE_REQUIRED_MESSAGE) + ' Return to Home and select your delivery location, or add an address at checkout.</p>'
+          : '<p class="fw-offer-error">Could not refresh delivery pricing. Please retry before checkout.</p>');
+      if (error?.code === 'STORE_REQUIRED') updateDisplayedTotals('Confirm location');
+      message(error.message || 'Could not refresh pricing.', error?.code !== 'STORE_REQUIRED');
     }
   }
   async function removeAppliedCoupon() {
@@ -242,9 +255,11 @@
     } catch (error) {
       if (version !== renderVersion) return;
       if (pricingRoot) pricingRoot.innerHTML = '<p class="fw-offer-error">Could not refresh delivery pricing. Please retry before checkout.</p>';
-      if (checkoutRoot) checkoutRoot.innerHTML = '<p class="fw-offer-error">Could not refresh delivery pricing. Please retry before checkout.</p>';
-      updateDisplayedTotals('Check total');
-      message(error.message || 'Could not refresh pricing.', true);
+      if (checkoutRoot) checkoutRoot.innerHTML = error?.code === 'STORE_REQUIRED'
+        ? '<p class="fw-offer-error" role="status">' + esc(STORE_REQUIRED_MESSAGE) + '</p>'
+        : '<p class="fw-offer-error">Could not refresh delivery pricing. Please retry before checkout.</p>';
+      updateDisplayedTotals(error?.code === 'STORE_REQUIRED' ? 'Confirm location' : 'Check total');
+      message(error.message || 'Could not refresh pricing.', error?.code !== 'STORE_REQUIRED');
     }
   }
   function renderCheckoutQuote(pricing, moneyFn = lastMoney) {
@@ -294,9 +309,11 @@
       if (version !== renderVersion) return null;
       lastQuote = null;
       updateDisplayedTotals('Total unavailable');
-      if (checkoutRoot) checkoutRoot.innerHTML = '<p class="fw-offer-error">Could not refresh your order total. Check your connection and reopen checkout.</p>';
-      if (button) { button.disabled = true; button.textContent = 'Total unavailable — retry checkout'; }
-      message(error.message || 'Could not refresh pricing.', true);
+      if (checkoutRoot) checkoutRoot.innerHTML = error?.code === 'STORE_REQUIRED'
+        ? '<p class="fw-offer-error" role="status">' + esc(STORE_REQUIRED_MESSAGE) + '</p>'
+        : '<p class="fw-offer-error">Could not refresh your order total. Check your connection and reopen checkout.</p>';
+      if (button) { button.disabled = true; button.textContent = error?.code === 'STORE_REQUIRED' ? 'Confirm delivery location' : 'Total unavailable — retry checkout'; }
+      message(error.message || 'Could not refresh pricing.', error?.code !== 'STORE_REQUIRED');
       return null;
     }
   }
