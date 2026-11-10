@@ -224,6 +224,7 @@ test('customer push payload uses the Android-safe WaterNow PNG notification icon
     });
     assert.deepEqual(result, { status: 'sent', sent: 1, failed: 0 });
     assert.equal(sentPayload.icon, '/icons/icon-192-brand-v2.png');
+    assert.deepEqual(sentOptions, { TTL: 86400, urgency: 'high' }, 'transactional push should request prompt delivery and a 24-hour retention window');
   } finally {
     webpush.setVapidDetails = originalSetVapidDetails;
     webpush.sendNotification = originalSendNotification;
