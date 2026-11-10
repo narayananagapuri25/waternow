@@ -7,7 +7,7 @@ const FreshWayNotifications=(()=>{const CUSTOMER_KEY='freshway-customer-id',STAT
   el.setAttribute('role','dialog');
   el.setAttribute('aria-modal','true');
   el.innerHTML='<div class="modal-sheet">'+
-    '<div class="modal-head"><div><span class="eyebrow">FRESHWAY ACCOUNT</span><h2>Mobile login</h2></div><button id="passcodeCancel" class="icon-btn" aria-label="Close">×</button></div>'+
+    '<div class="modal-head"><div><span class="eyebrow">WATERNOW ACCOUNT</span><h2>Mobile login</h2></div><button id="passcodeCancel" class="icon-btn" aria-label="Close">×</button></div>'+
     '<p id="passcodeHint" class="muted">Use your registered mobile number and 6-digit passcode.</p>'+
     '<label id="passcodeNameWrap" class="hidden">Your name<input id="passcodeName" maxlength="120" autocomplete="name" placeholder="Enter your name"></label>'+
     '<label>Registered mobile number<input id="passcodePhone" inputmode="tel" maxlength="15" pattern="[0-9]{10}" autocomplete="tel"></label>'+
