@@ -44,7 +44,9 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   });
 
   const pageErrors=[];
+  const unexpectedDialogs=[];
   page.on('pageerror',error=>pageErrors.push(error.message));
+  page.on('dialog',async dialog=>{unexpectedDialogs.push(dialog.message());await dialog.dismiss();});
   const response=await page.goto('/');
   expect(response?.status()).toBe(200);
   await expect(page.locator('#searchInput')).toHaveCount(0);
@@ -64,5 +66,13 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   await expect(page.locator('#cartItems')).toContainText('20L Drinking Water Can');
   await expect(page.locator('#cartItems')).toContainText('₹189');
   await expect.poll(()=>quoteStoreIds.some(id=>id==='store-a')).toBe(true);
+  await page.evaluate(()=>localStorage.setItem('waternow-selected-store-v1','legacy-store-id'));
+  await page.reload();
+  await expect(page.locator('#productGrid .product-card')).toHaveCount(3,{timeout:20000});
+  await expect.poll(()=>page.evaluate(()=>window.FreshWayCustomerStoreCatalogue?.selectedStore()?.name)).toBe('Store A');
+  expect(unexpectedDialogs).toEqual([],'refreshing the same address must not prompt for a store change');
+  await page.locator('#viewCartBtn').click();
+  await expect(page.locator('#cartItems')).toContainText('20L Drinking Water Can');
+  await expect(page.locator('#cartItems')).toContainText('₹189');
   expect(pageErrors).toEqual([]);
 });
