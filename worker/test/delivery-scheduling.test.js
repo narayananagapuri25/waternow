@@ -218,9 +218,9 @@ test('Owner delivery UI edits dates directly on orders without a separate reques
   assert.ok(ownerHtml.includes('frontend/admin/delivery-management.js?v=20261106-store-reconciliation-v1'));
   assert.ok(ownerHtml.includes('admin.css?v=waternow-v1'));
   assert.ok(!ownerHtml.includes('delivery-management.js?v=20261026-date-only-v2'));
-  assert.ok(ownerSw.includes("const CACHE = 'waternow-owner-v3';"),'the updated Owner shell must invalidate the previous cache');
-  assert.ok(ownerHtml.includes('frontend/admin/store-management.js?v=20261110-store-active-direct-v1'));
-  assert.ok(ownerSw.includes('/admin/frontend/admin/store-management.js?v=20261110-store-active-direct-v1'));
+  assert.ok(ownerSw.includes("const CACHE = 'waternow-owner-v4';"),'the updated Owner shell must invalidate the previous cache');
+  assert.ok(ownerHtml.includes('frontend/admin/store-management.js?v=20261110-store-active-direct-v2'));
+  assert.ok(ownerSw.includes('/admin/frontend/admin/store-management.js?v=20261110-store-active-direct-v2'));
   assert.ok(ownerSw.includes(deliveryAsset) && ownerSw.includes(cssAsset));
   assert.ok(!ownerHtml.includes('frontend/admin/water-network.js?v=waternow-v1'),'the direct WaterNow Owner app must not load supplier onboarding');
   assert.ok(!ownerSw.includes('/admin/frontend/admin/water-network.js?v=waternow-v1'),'the Owner app shell must not require the removed supplier module');

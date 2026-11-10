@@ -184,8 +184,11 @@
     } catch (_) {}
   }
 
+  // Startup restoration is not a customer-requested address change.
+  let initialAddressLoadPending = true;
+  let initialAddressLoadPromise = Promise.resolve(false);
   let lastStoreAddressSignature = null;
-  function renderDisplays() {
+  function renderDisplays({ initial = initialAddressLoadPending } = {}) {
     const preferred = activeAddress || defaultAddress();
     const signature = preferred ? JSON.stringify([
       preferred.id ?? null,preferred.latitude ?? null,preferred.longitude ?? null,
@@ -193,7 +196,7 @@
     ]) : '';
     if (signature !== lastStoreAddressSignature) {
       lastStoreAddressSignature = signature;
-      window.dispatchEvent(new CustomEvent('freshway:address-changed',{detail:{address:preferred||null}}));
+      window.dispatchEvent(new CustomEvent('freshway:address-changed',{detail:{address:preferred||null,initial:initial===true}}));
     }
     const home = $('#homeAddress');
     const profile = $('#profileAddressText');
@@ -206,7 +209,8 @@
     selectionRevision += 1;
     activeAddress = address ? normalizeAddress(address) : null;
     persistAddressSelection(activeAddress);
-    renderDisplays();
+    initialAddressLoadPending = false;
+    renderDisplays({initial:false});
   }
 
   async function readJsonResponse(response) {
@@ -287,6 +291,8 @@
       renderDisplays();
       if ($('#addressModal') && !$('#addressModal').classList.contains('hidden') && !(options && options.deferRender)) renderManager();
       return false;
+    } finally {
+      initialAddressLoadPending = false;
     }
   }
   function ensureCheckoutSummary() {
@@ -1212,7 +1218,7 @@
     interceptOrderAddress();
     ensureCheckoutSummary();
     renderDisplays();
-    loadSaved({ preserveSelection: true, showError: false });
+    initialAddressLoadPromise = loadSaved({ preserveSelection: true, showError: false });
     const checkoutView = $('#checkoutView');
     if (checkoutView && window.MutationObserver) {
       const observer = new MutationObserver(function () {
@@ -1227,7 +1233,9 @@
     refresh: loadSaved,
     renderDisplays: renderDisplays,
     syncCheckout: syncCheckout,
-    getSelectedAddress: function () { return activeAddress || defaultAddress(); }
+    getSelectedAddress: function () { return activeAddress || defaultAddress(); },
+    // Catalogue startup waits for address restoration before resolving a store.
+    get ready() { return initialAddressLoadPromise; }
   });
 
   // This script is loaded after the address modal markup and before app.js.

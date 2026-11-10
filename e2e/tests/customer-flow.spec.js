@@ -29,7 +29,14 @@ const products = [{
 }];
 
 test.beforeEach(async ({ page }) => {
-  savedAddresses = [];
+  // Most purchase/checkout journeys represent an existing customer with a
+  // verified saved delivery pin. First-time/empty-address tests opt out below.
+  savedAddresses = [{
+    id: 1, label: 'Home', recipientName: 'E2E Customer', deliveryPhone: '9876543210',
+    houseFlat: '12', street: 'Example Street', area: 'Test Colony', city: 'Hyderabad',
+    state: 'Telangana', pincode: '500001', latitude: 17.385044, longitude: 78.486671,
+    locationSource: 'GPS', isDefault: true
+  }];
   deliveryAvailabilityOverride = null;
   deliveryAvailabilityCalls = [];
   await page.addInitScript(() => {
@@ -324,7 +331,28 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('customer can browse, add a product, checkout, and receive confirmation', async ({ page }) => {
+  // Exercise a genuine first-order flow: no address means no ordering until
+  // the customer saves a complete address and confirms the map pin.
+  savedAddresses = [];
   await page.goto('/');
+  await page.locator('#addressBtn').click();
+  await expect(page.locator('#fwAddressManagerNew')).toBeVisible();
+  await page.locator('#fwAddressManagerNew').click();
+  await page.locator('#fwAddrName').fill('E2E Customer');
+  await page.locator('#fwAddrPhone').fill('9876543210');
+  await page.locator('#fwAddrHouse').fill('12');
+  await page.locator('#fwAddrArea').fill('Test Street');
+  await page.locator('#fwAddrCity').fill('Hyderabad');
+  await page.locator('#fwAddrPincode').fill('500001');
+  await page.locator('#fwAddressGps').click();
+  await expect(page.locator('#fwAddressLocationStatus')).toContainText('Delivery pin selected');
+  await page.locator('#fwAddressSave').click();
+  await expect(page.locator('#homeAddress')).toContainText('New Colony');
+  // Saving returns to the address manager list; the customer closes it to continue.
+  await page.locator('#addressModal [data-close-modal]').click();
+  await expect(page.locator('#addressModal')).toHaveClass(/hidden/);
+  // Close the animated address sheet before tapping the product grid.
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 
   await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
   await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
@@ -332,7 +360,7 @@ test('customer can browse, add a product, checkout, and receive confirmation', a
   await expect(page.locator('#productGrid')).toBeVisible();
   await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
 
-  await page.locator('#productGrid [data-add="water-20l"]').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click({force:true});
   await expect(page.locator('#cartCount')).toHaveText('1 item');
   await expect(page.locator('#cartTotal')).toHaveText('₹120');
 
@@ -373,25 +401,10 @@ test('customer can browse, add a product, checkout, and receive confirmation', a
   await expect(page.locator('#fwAvailableCoupons')).toContainText('TEST50');
   await page.locator('#checkoutBtn').click();
 
-  // New customers manage their first address from the dedicated address
-  // editor; the checkout fields are not exposed as a second address form.
-  await expect(page.locator('#fwCheckoutAddAddress')).toBeVisible();
-  await page.locator('#fwCheckoutAddAddress').click();
-  await expect(page.locator('#fwAddressManagerNew')).toBeVisible();
-  await page.locator('#fwAddressManagerNew').click();
-  await expect(page.locator('#fwAddrName')).toBeVisible();
-  await page.locator('#fwAddrName').fill('E2E Customer');
-  await page.locator('#fwAddrPhone').fill('9876543210');
-  await page.locator('#fwAddrHouse').fill('12');
-  await page.locator('#fwAddrArea').fill('Test Street');
-  await page.locator('#fwAddrCity').fill('Hyderabad');
-  await page.locator('#fwAddrPincode').fill('500001');
-  await page.locator('#fwAddressGps').click();
-  await expect(page.locator('#fwAddressLocationStatus')).toContainText('Delivery pin selected');
-  await page.locator('#fwAddressSave').click();
-  // Saving from checkout returns directly to checkout with the new address selected.
+  // The verified address chosen before adding to the cart is the one used for
+  // checkout; checkout does not show a duplicate address-entry form.
   await expect(page.locator('#fwCheckoutAddressSummary')).toContainText('E2E Customer');
-  await expect(page.locator('#fwCheckoutAddressSummary')).toContainText('New Road');
+  await expect(page.locator('#fwCheckoutAddressSummary')).toContainText('New Colony');
 
   await page.locator('#checkoutForm button[type="submit"]').click();
 
@@ -653,6 +666,7 @@ test('selected delivery day survives checkout page refresh', async ({ page }) =>
 });
 
 test('new address defaults to registered name/mobile but lets the customer edit both', async ({ page }) => {
+  savedAddresses = [];
   let sessionCalls = 0;
   let registrationDetailsAvailable = false;
   await page.route('**/api/auth/session', async route => {

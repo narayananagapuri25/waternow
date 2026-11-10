@@ -79,3 +79,22 @@ test('authenticated Owner delivery-store list reaches the delivery-scheduling ha
     assert.equal(response.headers.get('access-control-allow-origin'), 'https://waternow.test');
   } finally { sqlite.close(); }
 });
+
+
+test('Owner can activate an inactive store without stock rows or inventory checks', async () => {
+  const { sqlite, env } = setup();
+  try {
+    sqlite.prepare("INSERT INTO delivery_stores (id,name,address,latitude,longitude,service_radius_km,is_active) VALUES (?,?,?,?,?,?,0)")
+      .run('store-no-stock','Store Without Stock','Boduppal, Hyderabad',17.4,78.5,5);
+    const response = await call(env, '/api/admin/delivery/stores/store-no-stock', {
+      cookie: await sessionCookie(), method: 'PATCH', body: { isActive: true }
+    });
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.store.is_active, 1);
+    assert.equal(result.activationBlocked, null);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS count FROM delivery_store_inventory WHERE store_id='store-no-stock'").get().count, 0,
+      'the store can be activated without inventory rows being present');
+    assert.equal(sqlite.prepare("SELECT is_active FROM delivery_stores WHERE id='store-no-stock'").get().is_active, 1);
+  } finally { sqlite.close(); }
+});
