@@ -94,6 +94,8 @@ jobs:
         run: node frontend/customer/catalogue.test.js
       - name: Run guest address and delivery quote regression tests
         run: node address-system-final.test.js && node frontend/customer/delivery-offers.test.js
+      - name: Run all Customer and Owner frontend module regression tests
+        run: node --test frontend/customer/*.test.js frontend/admin/*.test.js frontend/phone-display.test.js functions/*.test.mjs
       - name: Install Playwright dependencies
         working-directory: e2e
         run: npm ci
