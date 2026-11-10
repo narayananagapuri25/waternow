@@ -22,6 +22,8 @@ function database() {
     CREATE TABLE delivery_store_catalogue(store_id TEXT NOT NULL REFERENCES delivery_stores(id),product_id TEXT NOT NULL REFERENCES products(id),is_available INTEGER NOT NULL DEFAULT 1,price_override INTEGER,PRIMARY KEY(store_id,product_id));
     CREATE TABLE delivery_store_inventory(store_id TEXT NOT NULL REFERENCES delivery_stores(id),product_id TEXT NOT NULL REFERENCES products(id),stock_quantity INTEGER NOT NULL DEFAULT 0 CHECK(stock_quantity>=0),PRIMARY KEY(store_id,product_id));
     CREATE TABLE water_supplier_products(supplier_id TEXT NOT NULL,product_id TEXT NOT NULL,stock_quantity INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE store_profile(id INTEGER PRIMARY KEY,share_description TEXT NOT NULL DEFAULT '',updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+    INSERT INTO store_profile(id,share_description) VALUES(1,'Order 20L drinking water cans or packs of two 10L cans from local suppliers with convenient home delivery.');
     INSERT INTO categories(id,name,slug,icon,description,display_order,active) VALUES('water-20l','20L Water Can','20l-water-can','💧','20 litre can',1,1);
     INSERT INTO categories(id,name,slug,icon,description,display_order,active) VALUES('water-10l-pair','2 × 10L Water Cans','two-10l-water-cans','🚰','Two 10 litre cans',2,1);
     INSERT INTO products(id,name,unit,price,emoji,active,category_id,display_order,stock_managed,stock_quantity) VALUES
@@ -137,6 +139,7 @@ test('0059 normalizes the live 20L unit to can without changing prices, availabi
     assert.equal(category.name,'20L Water Can');
     assert.equal(category.slug,'20l-water-can');
     assert.equal(category.active,1);
+    assert.equal(db.prepare('SELECT share_description FROM store_profile WHERE id=1').get().share_description,'Order 20L and 10L drinking water cans directly from WaterNow with convenient home delivery.','known old share copy is corrected');
 
     const storeCatalogue = db.prepare("SELECT is_available,price_override FROM delivery_store_catalogue WHERE store_id='waternow-boduppal' AND product_id='water-20l'").get();
     assert.equal(storeCatalogue.is_available,0,'existing per-store availability is preserved');
@@ -151,11 +154,13 @@ test('0059 normalizes the live 20L unit to can without changing prices, availabi
     assert.equal(history.line_total,30);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
 
+    db.prepare("UPDATE store_profile SET share_description='Owner custom description' WHERE id=1").run();
     db.exec(m59);
     const after = db.prepare("SELECT price,unit FROM products WHERE id='water-20l'").get();
     assert.equal(after.price,before.price,'migration 0059 is idempotent and never rewrites prices');
     assert.equal(after.unit,'can');
     assert.equal(db.prepare("SELECT COUNT(*) count FROM products WHERE active=1").get().count,2);
+    assert.equal(db.prepare('SELECT share_description FROM store_profile WHERE id=1').get().share_description,'Owner custom description','owner-edited share copy is preserved');
   } finally { db.close(); }
 });
 
