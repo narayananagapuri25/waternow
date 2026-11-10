@@ -6,6 +6,7 @@ on:
       - qa/production-lifecycle-20261110
     paths:
       - e2e/scripts/production-lifecycle.mjs
+      - e2e/scripts/ensure-production-coupon.mjs
       - .github/workflows/production-acceptance.yml
   workflow_dispatch:
 
@@ -17,10 +18,46 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare-production-coupon:
+    name: Provision and verify fixed ₹30 QA coupon
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Validate pinned WaterNow production D1 credentials
+        shell: bash
+        run: |
+          set +x
+          test "${CLOUDFLARE_ACCOUNT_ID}" = "17f1561ed0052cf9d484cb4becbf8810" || {
+            echo "::error::Cloudflare account secret is missing or does not match WaterNow production."
+            exit 1
+          }
+          test -n "${CLOUDFLARE_API_TOKEN}" || {
+            echo "::error::CLOUDFLARE_API_TOKEN Actions secret is missing."
+            exit 1
+          }
+
+      - name: Install Wrangler dependencies
+        working-directory: worker
+        run: npm ci --no-audit --no-fund
+
+      - name: Create or verify production fixed ₹30 coupon
+        run: node e2e/scripts/ensure-production-coupon.mjs
+
   production-lifecycle:
     name: Real production customer and Owner lifecycle
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs:
+      - prepare-production-coupon
     env:
       WATERNOW_APP_ORIGIN: https://waternow.pages.dev
       WATERNOW_ADMIN_TOKEN: ${{ secrets.WATERNOW_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
@@ -38,7 +75,7 @@ jobs:
         run: |
           set +x
           test -n "${WATERNOW_ADMIN_TOKEN}" || {
-            echo "::error::Add the current WaterNow Owner test code as the WATERNOW_ADMIN_TOKEN Actions secret (or ADMIN_TOKEN). No production data was changed."
+            echo "::error::Add the current Owner test code as WATERNOW_ADMIN_TOKEN in repository Actions secrets. No orders are created before Owner authentication."
             exit 1
           }
 
