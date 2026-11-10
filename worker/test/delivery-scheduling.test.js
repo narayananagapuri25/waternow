@@ -27,6 +27,7 @@ function envWithSettings(settings) {
               return { results: products.filter(product => args.includes(product.id)) };
             }
             if (sql.includes('FROM delivery_stores WHERE is_active=1')) return { results: stores };
+            if (sql.includes('SELECT DISTINCT sc.store_id FROM delivery_store_catalogue sc')) return { results: [{ store_id: 'store-1' }] };
             if (sql.includes('FROM delivery_store_inventory i LEFT JOIN')) return { results: inventory };
             if (sql.includes('FROM delivery_store_catalogue sc JOIN products p')) return { results: [{
               store_id:'store-1',product_id:'rice',is_available:1,active:1,category_active:1,stock_managed:1,on_hand:10,reserved_qty:0
@@ -40,6 +41,23 @@ function envWithSettings(settings) {
     }
   };
 }
+
+test('customer store lookup uses WaterNow brand copy for an available local store', async () => {
+  const env = envWithSettings({ id: 1, enabled: 1, booking_horizon_days: 7, same_day_cutoff_minutes: 120, timezone: 'Asia/Kolkata' });
+  const request = new Request('https://waternow.example/api/delivery/store', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address: { latitude: 17.385, longitude: 78.4867 } })
+  });
+  const response = await handleCustomerDeliveryRequest(request, env, '');
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.available, true);
+  assert.equal(body.store.name, 'Test Store');
+  assert.match(body.message, /WaterNow/);
+  assert.doesNotMatch(body.message, /FreshWay/);
+});
+
 test('time windows parse strict 24-hour times and reject malformed values', () => {
   assert.equal(parseTimeMinutes('00:00'), 0);
   assert.equal(parseTimeMinutes('09:30'), 570);
