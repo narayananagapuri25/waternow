@@ -1,6 +1,6 @@
 # WaterNow
 
-WaterNow is a customer ordering PWA and a simple Owner app for selling drinking water directly. It supports a 20L water can and a pack of two 10L cans. WaterNow manages its own catalogue, selling prices, store stock, delivery locations, orders, customer contacts, payments and delivery schedules. There is no supplier onboarding or supplier approval step in the normal order flow.
+WaterNow is a customer ordering PWA and a simple Owner app for selling drinking water directly. It supports exactly one 20L water can and one 10L water can. WaterNow manages its own catalogue, selling prices, store stock, delivery locations, orders, customer contacts, payments and delivery schedules. There is no supplier onboarding or supplier approval step in the normal order flow.
 
 ## Safety and deployment
 - Treat this repository as a development snapshot until its Cloudflare configuration, operational details and live smoke tests have been verified.
@@ -22,8 +22,8 @@ WaterNow is a customer ordering PWA and a simple Owner app for selling drinking 
 Imported from nagapurinarayana-ship-it/freshway, branch main, during 2026-11-07. This is a snapshot, not a fork; future changes do not synchronize automatically.
 
 ## WaterNow product and order flow
-- The customer home presents the two WaterNow packs together: 20L Drinking Water Can and 2 × 10L Drinking Water Cans.
-- The WaterNow central catalogue prices are ₹30 for the 20L can and ₹20 for the two-can 10L pack. Migration `0054_waternow_owner_managed_pack_prices.sql` applies these exact owner-provided prices.
+- The customer home presents exactly two WaterNow products: 20L Drinking Water Can and 10L Drinking Water Can.
+- The existing WaterNow central catalogue prices are ₹30 for the 20L can and ₹20 for the 10L can. These saved prices are retained; catalogue migrations normalize product names and units without changing them.
 - The Owner app manages product visibility, store-specific price overrides, on-hand inventory, delivery radius, customer orders, delivery dates, payment status and cancellations.
 - No supplier account, supplier pricing approval, delivery partner record or supplier link is required to accept a normal WaterNow order.
 - A product is orderable only when it is active, available at the selected store, has a positive selling price, and has sufficient available stock at that store.
