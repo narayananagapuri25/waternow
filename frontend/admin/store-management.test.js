@@ -193,6 +193,7 @@ async function run() {
   assert.ok(root.innerHTML.includes('data-manage-store="store-two"'));
   assert.ok(root.innerHTML.includes('data-store-id="store-two"'));
   assert.ok(root.innerHTML.includes('data-activate-store="store-no-stock"'), 'inactive stores must have a direct Activate action');
+  const click = root.listeners.get('click');
   const activationButton = { dataset: { activateStore: 'store-no-stock' }, disabled: false };
   await click({ target: { closest: selector => selector.includes('[data-activate-store]') ? activationButton : null } });
   assert.ok(calls.some(call => call.url === '/api/admin/delivery/stores/store-no-stock' && call.method === 'PATCH' && JSON.stringify(call.body) === '{"isActive":true}'),
@@ -202,7 +203,6 @@ async function run() {
   assert.match(storeStatus.textContent, /is Active/);
   assert.ok(!calls.some(call => call.url.includes('/store-no-stock/inventory')), 'activating a store must not load or validate inventory');
   assert.doesNotMatch(root.innerHTML, /data-edit-inventory=|data-edit-catalogue=/);
-  const click = root.listeners.get('click');
 
   // If an editing form is missing during a render edge, fail safely rather
   // than assuming the draft is clean and dropping it.
