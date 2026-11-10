@@ -77,6 +77,8 @@ jobs:
           node-version: 22
       - name: Run Owner navigation, orders and performance contracts
         run: node --test admin-navigation.test.js admin-orders.test.js admin-performance.test.js
+      - name: Run Owner store management regression tests
+        run: node frontend/admin/store-management.test.js
 
   browser-tests:
     name: Customer browser and Playwright tests
