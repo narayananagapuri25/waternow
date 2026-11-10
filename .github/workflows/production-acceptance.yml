@@ -1,5 +1,9 @@
 name: WaterNow Production Lifecycle Acceptance
 
+# Re-run authenticated production acceptance after Owner Actions secret configuration.
+
+name: WaterNow Production Lifecycle Acceptance
+
 on:
   push:
     branches:
