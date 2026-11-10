@@ -110,7 +110,7 @@ jobs:
             echo "::notice::Owner lifecycle tests are safely skipped. Configure WATERNOW_ADMIN_TOKEN as a repository Actions secret to enable authenticated production testing."
             {
               echo "### Owner lifecycle tests skipped"
-              echo "No production orders were created. Configure the Owner test credential as the private repository secret `WATERNOW_ADMIN_TOKEN` to enable authenticated lifecycle tests."
+              echo "No production orders were created. Configure the Owner test credential as the private repository secret WATERNOW_ADMIN_TOKEN to enable authenticated lifecycle tests."
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
