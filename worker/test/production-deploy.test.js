@@ -40,13 +40,14 @@ test('production Worker is pinned to the isolated WaterNow account and D1 databa
   assert.equal(productionConfig.vars.WATERNOW_ENVIRONMENT, 'production');
 });
 
-test('production smoke verifies exact WaterNow prices without activating an unverified placeholder store', () => {
+test('production smoke verifies one 10L can and one 20L can while preserving saved prices', () => {
   const smokeIndex = workflow.indexOf('Verify Worker API and exact WaterNow catalogue prices');
   assert.ok(smokeIndex >= 0, 'production deploy must smoke-test the Worker and Pages catalogues');
   const smoke = workflow.slice(smokeIndex);
-  assert.match(smoke, /Number\(p\.price\) === 30/);
-  assert.match(smoke, /Number\(p\.price\) === 20/);
-  assert.match(smoke, /p\.unit === 'pack'/);
+  assert.match(smoke, /one 20L can and one 10L can/);
+  assert.match(smoke, /Number\.isSafeInteger\(Number\(product\.price\)\)/);
+  assert.match(smoke, /workerPrices\.twentyLPrice !== pagesPrices\.twentyLPrice/);
+  assert.doesNotMatch(smoke, /two 10L cans|p\.unit === 'pack'/);
   assert.doesNotMatch(smoke, /waternow-boduppal|17\.415|17\.4151|api\/delivery\/store/,
     'production smoke must not assume the approximate Boduppal placeholder is active or use its centre pin');
 });
