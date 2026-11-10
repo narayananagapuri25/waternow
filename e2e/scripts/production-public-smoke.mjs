@@ -187,6 +187,27 @@ async function main() {
   });
   pass('Unauthenticated customer cannot create an order');
 
+  await request('/api/auth/register', {
+    method: 'POST',
+    body: { name: 'Invalid QA', phone: '123', passcode: '1234', whatsappOptIn: false },
+    expected: [400]
+  });
+  pass('Invalid customer registration is rejected');
+
+  await request('/api/auth/login', {
+    method: 'POST',
+    body: { phone: '123', passcode: '1234' },
+    expected: [400]
+  });
+  pass('Invalid customer login is rejected');
+
+  await request('/api/admin/login', {
+    method: 'POST',
+    body: {},
+    expected: [401]
+  });
+  pass('Empty Owner login is rejected');
+
   console.log(JSON.stringify({ passed: checks.length, failed: 0, checks }, null, 2));
 }
 
