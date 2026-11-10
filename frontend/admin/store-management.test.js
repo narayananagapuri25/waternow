@@ -4,6 +4,14 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync('frontend/admin/store-management.js', 'utf8');
 const mapPickerSource = fs.readFileSync('frontend/admin/store-map-picker.js', 'utf8');
+const ownerHtml = fs.readFileSync('admin.html', 'utf8');
+const ownerServiceWorker = fs.readFileSync('admin/sw.js', 'utf8');
+assert.ok(ownerHtml.includes('frontend/admin/store-management.js?v=20261110-store-active-direct-v2'),
+  'Owner HTML must load the cache-busted activation module');
+assert.ok(ownerServiceWorker.includes("const CACHE = 'waternow-owner-v4';"),
+  'Owner PWA shell cache must advance so installed apps fetch the updated store manager');
+assert.ok(ownerServiceWorker.includes('/admin/frontend/admin/store-management.js?v=20261110-store-active-direct-v2'),
+  'Owner service worker must precache the same activation module as Owner HTML');
 assert.ok(source.includes('data-waternow-store-map-picker'),'store forms include an interactive map selector');
 assert.ok(source.includes('data-store-map-canvas'),'store forms render the map canvas');
 assert.ok(source.includes('data-map-current-location'),'the owner can use current location to set the shop pin');
