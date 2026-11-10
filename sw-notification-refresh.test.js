@@ -65,6 +65,8 @@ async function dispatchPush(payload) {
     data: { audience: 'customer', orderId: 'WN-1', eventType: 'payment_changed' }
   });
   assert.equal(sentNotifications.length, 1, 'push still displays the notification');
+  assert.equal(sentNotifications[0].options.icon, '/icons/icon-192-brand-v2.png', 'customer push uses a PNG icon supported by mobile notification renderers');
+  assert.equal(sentNotifications[0].options.badge, '/icons/icon-192-brand-v2.png', 'customer push uses a PNG badge supported by mobile notification renderers');
   assert.equal(messages.length, 1, 'only customer app tabs on this origin receive refresh messages');
   assert.equal(messages[0].page, 'customer');
   assert.deepEqual(JSON.parse(JSON.stringify(messages[0].value)), {
