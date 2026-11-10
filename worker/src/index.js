@@ -342,7 +342,11 @@ async function broadcastPush(env,payload){
   await Promise.all(valid.map(async row=>{
     try{
       const endpoint=validatePushEndpoint(row.endpoint);
-      await webpush.sendNotification({endpoint,keys:{p256dh:row.p256dh,auth:row.auth}},message);
+      await webpush.sendNotification(
+        {endpoint,keys:{p256dh:row.p256dh,auth:row.auth}},
+        message,
+        {TTL:86400,urgency:'high'}
+      );
       success++;
     }catch(error){
       failure++;
