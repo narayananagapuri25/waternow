@@ -110,6 +110,7 @@ export async function dispatchOrderAlert(env, alert) {
     title, body, url,
     tag: eventKey,
     icon: audience === 'owner' ? '/admin/icons/icon-192.svg' : '/icons/icon-192-brand-v2.png',
+    badge: audience === 'owner' ? undefined : '/icons/icon-192-brand-v2.png',
     data: { audience, orderId, eventType }
   });
   try {
