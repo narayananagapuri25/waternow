@@ -52,7 +52,7 @@ function pricingFor(code) {
     items:[{id:'p1',name:'Product one',unit:'each',qty:1,price:100,lineTotal:100}]
   };
 }
-function createHarness(request, savedCode='') {
+function createHarness(request, savedCode='', ensureSelectedStore=async()=>({id:'store-test'})) {
   const elements={
     '#fwCouponCode':{value:''},
     '#fwCouponStatus':{textContent:'',dataset:{}},
@@ -71,7 +71,7 @@ function createHarness(request, savedCode='') {
   const storage=new Map();
   if(savedCode)storage.set('freshway-applied-fixed-coupon',savedCode);
   const context={
-    window:{FreshWayCustomerAPI:{request},FreshWayCustomerStoreCatalogue:{selectedStoreId:()=> 'store-test'},CSS:{escape:value=>String(value)}},
+    window:{FreshWayCustomerAPI:{request},FreshWayCustomerStoreCatalogue:{selectedStoreId:()=> 'store-test',selectedStore:()=>null,ensureSelectedStore},CSS:{escape:value=>String(value)}},
     document,
     CSS:{escape:value=>String(value)},
     sessionStorage:{
@@ -98,6 +98,24 @@ function createHarness(request, savedCode='') {
 }
 const items=[{product:{id:'p1'},qty:1,lineTotal:100}];
 (async()=>{
+
+  {
+    let quoteCalls=0;
+    const request=async(path)=>{
+      if(path==='/api/checkout/quote'){quoteCalls++;throw new Error('A quote must not be requested without a resolved store.');}
+      if(path==='/api/coupons/available')return {coupons:[]};
+      throw new Error('Unexpected mocked request: '+path);
+    };
+    const h=createHarness(request,'',async()=>null);
+    await h.module.renderCart({items,total:100});
+    assert.equal(quoteCalls,0,'the cart must not quote against central stock while no fulfilment store is resolved');
+    assert.equal(h.module.getDisplayedTotal(),null,'a missing store must not create a misleading total');
+    assert.match(h.elements['#fwDeliveryPricing'].innerHTML,/Confirm your delivery location/);
+    assert.doesNotMatch(h.elements['#fwDeliveryPricing'].innerHTML,/Not enough stock/i,
+      'a missing delivery location must never be reported as an inventory shortage');
+    assert.match(h.elements['#fwCouponStatus'].textContent,/Confirm your delivery location/);
+  }
+
   {
     let quoteStoreId='';
     const request=async(path,options={})=>{
