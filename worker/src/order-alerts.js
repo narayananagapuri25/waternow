@@ -109,8 +109,8 @@ export async function dispatchOrderAlert(env, alert) {
   const payload = JSON.stringify({
     title, body, url,
     tag: eventKey,
-    icon: audience === 'owner' ? '/admin/icons/icon-192.svg' : '/icons/icon-192-brand-v2.png',
-    badge: audience === 'owner' ? undefined : '/icons/icon-192-brand-v2.png',
+    icon: audience === 'owner' ? '/admin/icons/icon-192.svg' : '/icons/waternow-notification-192.png',
+    badge: audience === 'owner' ? undefined : '/icons/waternow-notification-badge-96.png',
     data: { audience, orderId, eventType }
   });
   try {

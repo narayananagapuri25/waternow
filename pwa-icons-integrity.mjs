@@ -89,7 +89,9 @@ for (const [path, size] of [
   ['icons/icon-192-brand-v2.png', 192],
   ['icons/icon-512-brand-v2.png', 512],
   ['icons/icon-512-maskable-v2.png', 512],
+  ['icons/waternow-notification-192.png', 192],
+  ['icons/waternow-notification-badge-96.png', 96],
 ]) {
   assertValidPng(readFileSync(resolve(root, path)), { width: size, height: size, label: path });
 }
-console.log('FreshWay Android-packaging raster integrity passed: PNG chunks, checksums, compressed pixels and dimensions are valid.');
+console.log('PWA raster integrity passed: PNG chunks, checksums, compressed pixels and dimensions are valid.');

@@ -337,8 +337,8 @@ async function broadcastPush(env,payload){
     try{validatePushEndpoint(row.endpoint);valid.push(row)}
     catch(_){dead.add(row.endpoint);failure++}
   }
-  const notificationIcon=payload.icon||'/icons/icon-192-brand-v2.png';
-  const message=JSON.stringify({title:payload.title||'WaterNow',body:payload.body||'You have a new WaterNow update.',icon:notificationIcon,badge:payload.badge||notificationIcon,url:payload.url||'/',tag:payload.tag||`waternow-${Date.now()}`});
+  const notificationIcon=payload.icon||'/icons/waternow-notification-192.png';
+  const message=JSON.stringify({title:payload.title||'WaterNow',body:payload.body||'You have a new WaterNow update.',icon:notificationIcon,badge:payload.badge||'/icons/waternow-notification-badge-96.png',url:payload.url||'/',tag:payload.tag||`waternow-${Date.now()}`});
   await Promise.all(valid.map(async row=>{
     try{
       const endpoint=validatePushEndpoint(row.endpoint);
