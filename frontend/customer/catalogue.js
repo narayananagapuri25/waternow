@@ -184,10 +184,13 @@
     document.addEventListener('click',e=>{if(e.target.closest('[data-fw-delivery-contact]')){e.preventDefault();window.setView?.('contact');return}if(e.target.closest('#fwCatalogueRetry')){e.preventDefault();load();return}if(e.target.closest('[data-fw-needs-location]')){e.preventDefault();e.stopImmediatePropagation();$('#addressBtn')?.click();return}},true);
   }
   window.FreshWayCustomerStoreCatalogue=Object.freeze({selectedStoreId:()=>selectedStore?.id||selectedStoreIdValue||'',selectedStore:()=>selectedStore,canOrder:()=>!orderBlocked&&!!selectedStore?.id,switchToStore,refresh:load});
-  window.addEventListener('freshway:address-changed',()=>{void load({reviewChange:true,preserveExisting:false})});
+  window.addEventListener('freshway:address-changed',event=>{
+    const initial=event.detail?.initial===true;
+    void load({reviewChange:!initial,preserveExisting:false});
+  });
   window.freshWayCustomerCatalogueRefresh=load;
   window.freshWayCustomerCatalogueGoHome=()=>setMode(null,{history:'none'});
   window.addEventListener('popstate',event=>{if(event.state?.__freshwayCustomer&&event.state.view==='home')setMode(null,{history:'none'})});
-  install();load();
+  install();load({reviewChange:false});
 })();
 const fwPushDestinationLoader=document.createElement('script');fwPushDestinationLoader.src='frontend/customer/push-destination.js?v=20260908-push-destination-v1';fwPushDestinationLoader.async=false;document.head.appendChild(fwPushDestinationLoader);
