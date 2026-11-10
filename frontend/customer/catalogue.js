@@ -95,7 +95,7 @@
     renderHome();setMode(null,{history:'none'});applyMode();
     return true;
   }
-  async function load({reviewChange=true,preserveExisting=true,waitForAddress=false}={}){
+  async function load({reviewChange=true,preserveExisting=true,waitForAddress=bootAddressResolutionPending}={}){
     const token=++loadToken;
     const hadData=!!preserveExisting&&ready&&products.length>0;
     const request=window.FreshWayCustomerAPI?.request;
