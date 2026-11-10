@@ -11,6 +11,7 @@ on:
       - e2e/scripts/production-public-smoke.mjs
       - e2e/scripts/production-browser-smoke.mjs
       - e2e/scripts/ensure-production-coupon.mjs
+      - e2e/scripts/inspect-customer-push.mjs
       - .github/workflows/production-acceptance.yml
   workflow_dispatch:
 
@@ -60,6 +61,9 @@ jobs:
 
       - name: Create or verify production fixed ₹30 coupon
         run: node e2e/scripts/ensure-production-coupon.mjs
+
+      - name: Verify customer push subscriptions and delivery history (read-only)
+        run: node e2e/scripts/inspect-customer-push.mjs
 
   public-production-smoke:
     name: Public production smoke tests (no orders)
