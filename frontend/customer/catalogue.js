@@ -96,7 +96,7 @@
     renderHome();setMode(null,{history:'none'});applyMode();
     return true;
   }
-  async function load({reviewChange=true,preserveExisting=true,waitForAddress=bootAddressResolutionPending,forceRefresh=false}={}){
+  async function load({reviewChange=false,preserveExisting=true,waitForAddress=bootAddressResolutionPending,forceRefresh=false}={}){
     // Page-resume/visibility refreshes share the first address-aware request.
     // They must not invalidate it or race a second store lookup against startup.
     if(bootAddressResolutionPending&&bootAddressResolutionPromise&&!forceRefresh)return bootAddressResolutionPromise;
