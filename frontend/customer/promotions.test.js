@@ -27,5 +27,5 @@ assert.doesNotMatch(source, /data:'\+esc\(p\.image_mime_type\)/, 'public carouse
 assert.ok(index.includes('frontend/customer/promotions.js?v=20261030-lazy-promo-images-v1'), 'index must reference the full-image-fit customer banner asset');
 assert.ok(sw.includes('/frontend/customer/promotions.js?v=20261030-lazy-promo-images-v1'), 'service worker must cache the full-image-fit customer banner asset');
 
-assert.match(sw, /const CACHE = 'freshway-v[0-9]+'/);
+assert.match(sw, /const CACHE = 'waternow-customer-v[0-9]+'/);
 console.log('customer promotion carousel: intrinsic-ratio responsive frame and complete promotional artwork OK');

@@ -100,11 +100,10 @@ console.log('customer checkout delivery-day persistence tests passed');
   const unavailableArea=await areaBooking.checkAvailability();
   assert.equal(unavailableArea.code,'AREA_UNAVAILABLE');
   assert.match(areaContainer.innerHTML,/Outside our current delivery area\?/);
-  assert.match(areaContainer.innerHTML,/nearby RTC bus stand/);
-  assert.match(areaContainer.innerHTML,/postal delivery/);
+  assert.match(areaContainer.innerHTML,/WaterNow does not currently serve this map pin/);
   assert.match(areaContainer.innerHTML,/data-fw-delivery-contact/);
   areaContainer.fireContact();
-  assert.equal(openedView,'contact','Contact FreshWay opens the existing Contact Us page');
+  assert.equal(openedView,'contact','Contact WaterNow opens the existing Contact Us page');
 
   const stockContainer=makeContainer();
   const stockBooking=create({
