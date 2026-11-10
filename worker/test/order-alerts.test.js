@@ -223,8 +223,8 @@ test('customer push uses the WaterNow PNG icon and requests urgent 24-hour deliv
       title: 'WaterNow customer test', body: 'This is a customer push test.', url: '/#profile'
     });
     assert.deepEqual(result, { status: 'sent', sent: 1, failed: 0 });
-    assert.equal(sentPayload.icon, '/icons/icon-192-brand-v2.png');
-    assert.equal(sentPayload.badge, '/icons/icon-192-brand-v2.png');
+    assert.equal(sentPayload.icon, '/icons/waternow-notification-192.png');
+    assert.equal(sentPayload.badge, '/icons/waternow-notification-badge-96.png');
     assert.deepEqual(sentOptions, { TTL: 86400, urgency: 'high' });
   } finally {
     webpush.setVapidDetails = originalSetVapidDetails;
