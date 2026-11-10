@@ -239,7 +239,7 @@ async function resolveStoreForAddress(env, address = {}) {
   const availableStoreIds=await storesWithAvailableProducts(env,nearby.map(store=>store.id));
   for (const store of nearby) {
     if (availableStoreIds.has(String(store.id))) {
-      return { available:true, code:'AVAILABLE', message:'FreshWay delivers to your area from ' + store.name + '.', store:{id:store.id,name:store.name,distanceKm:Math.round(store.distance_km*10)/10} };
+      return { available:true, code:'AVAILABLE', message:'WaterNow delivers to your area from ' + store.name + '.', store:{id:store.id,name:store.name,distanceKm:Math.round(store.distance_km*10)/10} };
     }
   }
   return {available:false,code:'NO_STORE_CATALOGUE',message:'There are no products available for delivery in your area right now.'};
