@@ -4,6 +4,8 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   const quoteStoreIds=[];
   const addressRequests=[];
   const resolvedStoreAddresses=[];
+  const storeResolveResponses=[];
+  const storeProductQueries=[];
   const apiRouteCalls=[];
   const products=[
     {id:'water-20l',name:'20L Drinking Water Can',unit:'can',price:189,emoji:'💧',active:1,category_id:'water-20l',category_name:'20L Water Can',category_slug:'20l-water-can',stock_status:'in_stock'},
@@ -25,9 +27,14 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
     }
     if(url.pathname==='/api/delivery/store'&&method==='POST'){
       resolvedStoreAddresses.push(request.postDataJSON()?.address||{});
-      return send({available:true,code:'AVAILABLE',store:{id:'store-a',name:'Store A',distanceKm:1}});
+      const resolution={available:true,code:'AVAILABLE',store:{id:'store-a',name:'Store A',distanceKm:1}};
+      storeResolveResponses.push(resolution);
+      return send(resolution);
     }
-    if(url.pathname==='/api/products'&&method==='GET')return send({products});
+    if(url.pathname==='/api/products'&&method==='GET'){
+      storeProductQueries.push(url.search);
+      return send({products});
+    }
     if(url.pathname==='/api/delivery-offers'&&method==='GET')return send({settings:{
       freeDeliveryEnabled:true,freeDeliveryThreshold:800,standardDeliveryFee:30
     }});
@@ -95,8 +102,10 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   }));
   console.log('WaterNow reload diagnostics',JSON.stringify({
     reloadDiagnostics,addressRequests:addressRequests.length,
-    resolvedStoreAddresses:resolvedStoreAddresses.slice(-3),apiRouteCalls:apiRouteCalls.slice(-12),
-    pageErrors
+    resolvedStoreAddresses:resolvedStoreAddresses.slice(-3),
+    storeResolveResponses:storeResolveResponses.slice(-3),
+    storeProductQueries:storeProductQueries.slice(-5),
+    apiRouteCalls:apiRouteCalls.slice(-16),pageErrors
   }));
   expect(resolvedStoreAddresses.every(address=>address.latitude===17.385044&&address.longitude===78.486671),
     'reload must never resolve a store using an empty startup address');
