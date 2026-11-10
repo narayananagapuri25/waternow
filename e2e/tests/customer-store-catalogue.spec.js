@@ -112,7 +112,11 @@ test('WaterNow storefront resolves a local supplier and displays its water-pack 
   await expect(page.locator('#productGrid .product-card')).toHaveCount(3,{timeout:20000});
   await expect.poll(()=>page.evaluate(()=>window.FreshWayCustomerStoreCatalogue?.selectedStore()?.name)).toBe('Store A');
   expect(unexpectedDialogs).toEqual([],'refreshing the same address must not prompt for a store change');
-  await page.locator('#viewCartBtn').click();
+  // The customer view-state module restores Cart after reload. Avoid clicking
+  // the floating cart button when the Cart screen is already active.
+  const cartAlreadyRestored=await page.locator('#cartView').evaluate(element=>element.classList.contains('active-view'));
+  if(!cartAlreadyRestored)await page.locator('#viewCartBtn').click();
+  await expect(page.locator('#cartView')).toHaveClass(/active-view/);
   await expect(page.locator('#cartItems')).toContainText('20L Drinking Water Can');
   await expect(page.locator('#cartItems')).toContainText('₹189');
   expect(pageErrors).toEqual([]);
