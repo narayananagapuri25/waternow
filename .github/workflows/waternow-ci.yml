@@ -503,7 +503,7 @@ jobs:
               ]);
               verifyProducts(workerProducts, 'Worker catalogue');
               verifyProducts(pagesProducts, 'Pages catalogue');
-              console.log('Production smoke passed: Worker and Pages return exactly the two WaterNow products at the approved prices (20L ₹30; two 10L cans ₹20). Store activation remains owner-controlled until its exact pin and physical stock are verified.');
+              console.log('Production smoke passed: Worker and Pages return exactly the two WaterNow products at the approved prices (20L ₹30; two 10L cans ₹20). Store Active/Inactive status is independent of inventory; checkout enforces the selected store’s available stock.');
               process.exit(0);
             } catch (error) {
               lastError = error;
