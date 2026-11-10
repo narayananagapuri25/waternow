@@ -65,6 +65,8 @@ async function dispatchPush(payload) {
     data: { audience: 'customer', orderId: 'WN-1', eventType: 'payment_changed' }
   });
   assert.equal(sentNotifications.length, 1, 'push still displays the notification');
+  assert.equal(sentNotifications[0].options.icon, '/icons/icon-192-brand-v2.png', 'customer push uses the PNG notification icon');
+  assert.equal(sentNotifications[0].options.badge, '/icons/icon-192-brand-v2.png', 'customer push uses the PNG notification badge');
   assert.equal(messages.length, 1, 'only customer app tabs on this origin receive refresh messages');
   assert.equal(messages[0].page, 'customer');
   assert.deepEqual(JSON.parse(JSON.stringify(messages[0].value)), {
@@ -93,7 +95,8 @@ async function dispatchPush(payload) {
   assert.ok(index.includes('frontend/customer/navigation.js?v=20261107-history-back-v1'), 'customer HTML must load the deterministic history module');
   assert.ok(index.includes('frontend/customer/delivery-booking.js?v=20261109-direct-delivery-coverage-v2'), 'customer HTML must load the current WaterNow delivery help copy');
   assert.ok(index.includes('frontend/customer/order-actions.js?v=20261109-waternow-order-actions-v1'), 'customer HTML must load the current WaterNow order actions copy');
-  assert.match(sw, /const CACHE = 'waternow-customer-v12'/, 'customer service worker must publish the current history-fix cache version');
+  assert.match(sw, /const CACHE = 'waternow-customer-v13'/, 'customer service worker must publish the push-icon refresh cache version');
+  assert.ok(sw.includes("'/icons/icon-192-brand-v2.png'"), 'customer service worker must precache the PNG notification icon');
   assert.ok(sw.includes('/app.js?v=108'), 'service worker must precache the same cache-busted customer app asset');
   assert.ok(index.includes('frontend/customer/product-view.js?v=20261110-browse-only-v1'), 'customer HTML must request the browse-only renderer release');
   assert.ok(index.includes('frontend/customer/catalogue.js?v=20261110-guest-store-restore-v1'), 'customer HTML must request the browse-only catalogue release');

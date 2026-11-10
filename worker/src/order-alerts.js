@@ -109,7 +109,8 @@ export async function dispatchOrderAlert(env, alert) {
   const payload = JSON.stringify({
     title, body, url,
     tag: eventKey,
-    icon: audience === 'owner' ? '/admin/icons/icon-192.svg' : '/icon.svg',
+    icon: audience === 'owner' ? '/admin/icons/icon-192.svg' : '/icons/icon-192-brand-v2.png',
+    badge: audience === 'owner' ? undefined : '/icons/icon-192-brand-v2.png',
     data: { audience, orderId, eventType }
   });
   try {
@@ -119,7 +120,8 @@ export async function dispatchOrderAlert(env, alert) {
         const endpoint = validatePushEndpoint(subscription.endpoint);
         await webpush.sendNotification(
           { endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
-          payload
+          payload,
+          { TTL: 86400, urgency: 'high' }
         );
         sent++;
       } catch (error) {

@@ -337,11 +337,16 @@ async function broadcastPush(env,payload){
     try{validatePushEndpoint(row.endpoint);valid.push(row)}
     catch(_){dead.add(row.endpoint);failure++}
   }
-  const message=JSON.stringify({title:payload.title||'WaterNow',body:payload.body||'You have a new WaterNow update.',url:payload.url||'/',tag:payload.tag||`waternow-${Date.now()}`});
+  const notificationIcon=payload.icon||'/icons/icon-192-brand-v2.png';
+  const message=JSON.stringify({title:payload.title||'WaterNow',body:payload.body||'You have a new WaterNow update.',icon:notificationIcon,badge:payload.badge||notificationIcon,url:payload.url||'/',tag:payload.tag||`waternow-${Date.now()}`});
   await Promise.all(valid.map(async row=>{
     try{
       const endpoint=validatePushEndpoint(row.endpoint);
-      await webpush.sendNotification({endpoint,keys:{p256dh:row.p256dh,auth:row.auth}},message);
+      await webpush.sendNotification(
+        {endpoint,keys:{p256dh:row.p256dh,auth:row.auth}},
+        message,
+        {TTL:86400,urgency:'high'}
+      );
       success++;
     }catch(error){
       failure++;
