@@ -6,6 +6,7 @@
   let selectedStoreIdValue=readStoreId(),selectedStore=null,pendingStore=null;
   let categories=[],products=[],selected=null,ready=false,loading=true,errorMessage='',errorCode='',loadToken=0,orderBlocked=false,browseMessage='';
   let bootAddressResolutionPending=true;
+  let bootAddressResolutionPromise=null;
   const media=window.WaterNowCatalogueMedia;
   const style=document.createElement('style');
   style.textContent='.fw-home-catalogue{margin-top:2px}.fw-cat-heading{display:flex;justify-content:space-between;align-items:end;margin:0 0 12px}.fw-cat-heading h2{margin:3px 0 0;font-size:22px}.fw-category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.fw-category-card{border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px;box-shadow:var(--shadow);text-align:left;cursor:pointer;height:128px;min-height:128px;display:flex;flex-direction:column;justify-content:space-between}.fw-category-card:active{transform:scale(.99)}.fw-category-icon{width:54px;height:54px;border-radius:15px;background:var(--mint);display:grid;place-items:center;font-size:29px}.fw-category-card strong{font-size:14px;margin-top:8px}.fw-category-card small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.fw-category-card .fw-cat-arrow{color:var(--green);font-weight:900;float:right}.fw-category-empty,.fw-category-loading,.fw-category-error{background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px 20px;text-align:center;color:var(--muted);font-size:11px;line-height:1.5}.fw-category-empty{border-style:dashed}.fw-category-loading::before{content:"↻";display:block;font-size:26px;color:var(--green);margin-bottom:6px}.fw-category-error{border-color:#f0d5d5}.fw-category-error strong{display:block;color:var(--ink);margin-bottom:5px}.fw-catalogue-retry{margin-top:14px;border:0;background:var(--green);color:#fff;border-radius:11px;padding:10px 16px;font-size:11px;font-weight:900}.fw-category-back{display:flex;align-items:center;gap:8px;margin:0 0 12px}.fw-category-back button{border:1px solid var(--line);background:#fff;width:38px;height:38px;border-radius:12px;font-size:22px}.fw-category-back strong{font-size:18px}.fw-category-back small{display:block;color:var(--muted);font-size:9px;margin-top:2px}.fw-category-home-hidden{display:none!important}@media(max-width:380px){.fw-category-grid{gap:8px}.fw-category-card{height:108px;padding:8px;min-height:108px}}';
@@ -95,7 +96,10 @@
     renderHome();setMode(null,{history:'none'});applyMode();
     return true;
   }
-  async function load({reviewChange=true,preserveExisting=true,waitForAddress=bootAddressResolutionPending}={}){
+  async function load({reviewChange=true,preserveExisting=true,waitForAddress=bootAddressResolutionPending,forceRefresh=false}={}){
+    // Page-resume/visibility refreshes share the first address-aware request.
+    // They must not invalidate it or race a second store lookup against startup.
+    if(bootAddressResolutionPending&&bootAddressResolutionPromise&&!forceRefresh)return bootAddressResolutionPromise;
     const token=++loadToken;
     const hadData=!!preserveExisting&&ready&&products.length>0;
     const request=window.FreshWayCustomerAPI?.request;
@@ -204,12 +208,15 @@
     const initial=event.detail?.initial===true;
     // The boot request is waiting for hydration; ignore its duplicate startup event.
     if(initial&&bootAddressResolutionPending)return;
-    void load({reviewChange:!initial,preserveExisting:false});
+    void load({reviewChange:!initial,preserveExisting:false,forceRefresh:!initial});
   });
   window.freshWayCustomerCatalogueRefresh=load;
   window.freshWayCustomerCatalogueGoHome=()=>setMode(null,{history:'none'});
   window.addEventListener('popstate',event=>{if(event.state?.__freshwayCustomer&&event.state.view==='home')setMode(null,{history:'none'})});
   install();
-  void load({reviewChange:false,waitForAddress:true}).finally(()=>{bootAddressResolutionPending=false;});
+  bootAddressResolutionPromise=load({reviewChange:false,waitForAddress:true}).finally(()=>{
+    bootAddressResolutionPending=false;
+    bootAddressResolutionPromise=null;
+  });
 })();
 const fwPushDestinationLoader=document.createElement('script');fwPushDestinationLoader.src='frontend/customer/push-destination.js?v=20260908-push-destination-v1';fwPushDestinationLoader.async=false;document.head.appendChild(fwPushDestinationLoader);
