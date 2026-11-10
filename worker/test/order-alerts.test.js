@@ -179,6 +179,53 @@ test('stored unsupported push endpoints are never contacted and are removed', as
   }
 });
 
+test('customer push payload uses the Android-safe WaterNow PNG notification icon', async () => {
+  const originalSetVapidDetails = webpush.setVapidDetails;
+  const originalSendNotification = webpush.sendNotification;
+  let sentPayload = null;
+  webpush.setVapidDetails = () => {};
+  webpush.sendNotification = async (_subscription, payload) => { sentPayload = JSON.parse(payload); };
+  const env = {
+    VAPID_PUBLIC_KEY: 'test-public-key',
+    VAPID_PRIVATE_KEY: 'test-private-key',
+    VAPID_SUBJECT: 'mailto:ops@example.test',
+    DB: {
+      prepare(sql) {
+        let args = [];
+        return {
+          bind(...values) { args = values; return this; },
+          async run() {
+            if (sql.includes('INSERT INTO notification_events') || sql.startsWith('UPDATE notification_events')) return { meta: { changes: 1 } };
+            throw new Error('Unexpected run(): ' + sql);
+          },
+          async first() {
+            if (sql.includes('SELECT id FROM notification_events')) return { id: 52 };
+            throw new Error('Unexpected first(): ' + sql);
+          },
+          async all() {
+            if (sql.includes('SELECT endpoint,p256dh,auth FROM push_subscriptions')) {
+              return { results: [{ endpoint: 'https://fcm.googleapis.com/fcm/send/customer-test-token', p256dh: 'p256dh', auth: 'auth' }] };
+            }
+            throw new Error('Unexpected all(): ' + sql);
+          }
+        };
+      }
+    }
+  };
+  try {
+    const result = await dispatchOrderAlert(env, {
+      audience: 'customer', customerId: 'customer-1', orderId: 'WN-TEST-1',
+      eventType: 'push_test', eventKey: 'customer-png-icon-test',
+      title: 'WaterNow customer test', body: 'This is a customer push test.', url: '/#profile'
+    });
+    assert.deepEqual(result, { status: 'sent', sent: 1, failed: 0 });
+    assert.equal(sentPayload.icon, '/icons/icon-192-brand-v2.png');
+  } finally {
+    webpush.setVapidDetails = originalSetVapidDetails;
+    webpush.sendNotification = originalSendNotification;
+  }
+});
+
 test('Owner push subscription writes are scoped to the Owner partition and validate secure endpoints', async () => {
   const statements = [];
   const env = { DB: { prepare(sql) { return { bind(...args) { statements.push({ sql, args }); return this; }, async run() { return { meta: { changes: 1 } }; } }; } } };
