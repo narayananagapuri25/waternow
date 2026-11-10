@@ -292,6 +292,18 @@ async function main() {
   ownerPush = await subscribePush(ownerPage, 'owner', '');
   record('Owner push subscription saved', { endpointHost: ownerPush.endpointHost });
 
+  const inventoryRead = await request('/api/admin/delivery/stores/' + encodeURIComponent(STORE_ID) + '/inventory', {
+    cookie: adminCookie
+  });
+  inventorySnapshot = (inventoryRead.data.inventory || []).map(row => ({
+    productId: row.id,
+    initialOnHand: Number(row.on_hand || 0),
+    initialReserved: Number(row.reserved_qty || 0)
+  }));
+  requireData(inventorySnapshot.some(row => row.productId === 'water-20l') &&
+    inventorySnapshot.some(row => row.productId === 'p-mw99d1uv-vx6mg'),
+    'Boduppal inventory is missing one or both WaterNow products.');
+
   const store = await request('/api/delivery/store', {
     method: 'POST', body: { address: STORE_ADDRESS }
   });
@@ -361,6 +373,14 @@ async function main() {
     date: tomorrow,
     expectedTotal: 280
   });
+  const ownerLiveOrders = await request('/api/admin/orders?search=' + encodeURIComponent(lifecycleOrder.id) + '&limit=5', { cookie: adminCookie });
+  requireData((ownerLiveOrders.data.orders || []).some(item => item.id === lifecycleOrder.id && item.isTestOrder === false),
+    'The new production order did not appear in the Owner live-order list.');
+  const customerLiveOrders = await request('/api/orders?customerId=' + encodeURIComponent(customerId), { cookie: customerCookie });
+  const customerLifecycleOrder = (customerLiveOrders.data.orders || []).find(item => item.id === lifecycleOrder.id);
+  requireData(customerLifecycleOrder && Number(customerLifecycleOrder.total) === 280 && customerLifecycleOrder.status === 'New',
+    'The new production order did not appear in the signed-in customer order history.');
+  record('Customer and Owner live order views reflect the production order', { orderId: lifecycleOrder.id });
 
   // Customer and Owner date changes are intentionally date-only; no slot endpoints are used.
   const customerDate = istDate(2);
@@ -370,6 +390,9 @@ async function main() {
   });
   requireData(customerReschedule.data.scheduledDelivery?.date === customerDate,
     'Customer date-only reschedule did not persist.');
+  const afterCustomerDate = await request('/api/orders?customerId=' + encodeURIComponent(customerId), { cookie: customerCookie });
+  requireData((afterCustomerDate.data.orders || []).find(item => item.id === lifecycleOrder.id)?.scheduledDelivery?.date === customerDate,
+    'Customer order history did not reflect the new delivery date.');
   const ownerDate = istDate(3);
   const ownerReschedule = await request('/api/admin/delivery/orders/' + encodeURIComponent(lifecycleOrder.id) + '/schedule', {
     method: 'PATCH', cookie: adminCookie,
@@ -377,16 +400,33 @@ async function main() {
   });
   requireData(ownerReschedule.data.scheduledDelivery?.date === ownerDate,
     'Owner date-only reschedule did not persist.');
+  const afterOwnerDate = await request('/api/orders?customerId=' + encodeURIComponent(customerId), { cookie: customerCookie });
+  requireData((afterOwnerDate.data.orders || []).find(item => item.id === lifecycleOrder.id)?.scheduledDelivery?.date === ownerDate,
+    'Customer order history did not reflect the Owner delivery date change.');
   record('Customer and Owner date-only rescheduling', { customerDate, ownerDate });
 
   // Exercise the full supported status path and payment transitions in production.
   for (const status of ['Confirmed', 'Processing', 'Ready', 'Out for Delivery', 'Delivered']) {
     const saved = await ownerPatch(lifecycleOrder.id, { status });
     requireData(saved.data.status === status, 'Order status failed to persist: ' + status);
+    if (status === 'Delivered') lifecycleStockConsumed = true;
     record('Owner order status → ' + status, { orderId: lifecycleOrder.id });
   }
+  const deliveredCustomerView = await request('/api/orders?customerId=' + encodeURIComponent(customerId), { cookie: customerCookie });
+  requireData((deliveredCustomerView.data.orders || []).find(item => item.id === lifecycleOrder.id)?.status === 'Delivered',
+    'Customer order history did not reflect Delivered status.');
+  await restoreDeliveredQaStock();
+
   const collected = await ownerPatch(lifecycleOrder.id, { payment: 'Collected' });
   requireData(collected.data.payment === 'Collected', 'Collected payment state did not persist.');
+  const collectedReport = await request('/api/admin/reports?range=custom&from=' + today + '&to=' + today, { cookie: adminCookie });
+  requireData(Number(collectedReport.data.cashCollected || 0) >= Number(beforeReports.data.cashCollected || 0) + 280 &&
+    Number(collectedReport.data.cashCollectedOrders || 0) >= Number(beforeReports.data.cashCollectedOrders || 0) + 1,
+    'Reports did not reflect the newly collected ₹280 cash payment.');
+  record('Reports reflect collected cash payment', {
+    cashCollected: collectedReport.data.cashCollected,
+    cashCollectedOrders: collectedReport.data.cashCollectedOrders
+  });
   const refunded = await ownerPatch(lifecycleOrder.id, { payment: 'Refunded' });
   requireData(refunded.data.payment === 'Refunded', 'Refunded payment state did not persist.');
   record('Owner payment transitions: Not Collected → Collected → Refunded', { orderId: lifecycleOrder.id });
@@ -444,11 +484,19 @@ async function main() {
   // Order and notification history is inspected before classifying the orders as tests.
   const ownerAlerts = await request('/api/admin/order-alerts?limit=100', { cookie: adminCookie });
   const relevantAlerts = (ownerAlerts.data.alerts || []).filter(item =>
-    createdOrderIds.some(id => String(item.order_id || item.orderId || '').includes(id))
+    createdOrderIds.includes(String(item.order_id || item.orderId || ''))
   );
-  record('Owner notification event history inspected', {
+  const eventTypes = new Set(relevantAlerts.map(item => String(item.event_type || item.eventType || '')));
+  requireData(eventTypes.has('new_order'), 'Owner notification history is missing the new-order event.');
+  requireData(eventTypes.has('status_changed'), 'Owner notification history is missing order status-change events.');
+  requireData(eventTypes.has('payment_changed'), 'Owner notification history is missing order payment-change events.');
+  requireData(eventTypes.has('delivery_date_changed'), 'Owner notification history is missing delivery-date-change events.');
+  requireData(relevantAlerts.every(item => !['failed', 'log_failed'].includes(String(item.status || ''))),
+    'At least one QA Owner notification was not logged successfully.');
+  record('Owner notification event history verified', {
     totalOwnerAlerts: (ownerAlerts.data.alerts || []).length,
-    qaOrderAlerts: relevantAlerts.length
+    qaOrderAlerts: relevantAlerts.length,
+    eventTypes: [...eventTypes]
   });
 
   // Mark every created order as a QA order so live order views and reports exclude it.
@@ -499,6 +547,8 @@ async function main() {
     pushTestSent: Number(pushTest.data.sent || 0)
   });
 
+  await restoreDeliveredQaStock();
+
   const summary = {
     result: 'completed',
     createdOrderIds,
@@ -530,6 +580,38 @@ async function main() {
 
 let customerPush = null;
 let ownerPush = null;
+let inventorySnapshot = null;
+let lifecycleStockConsumed = false;
+const DELIVERED_QA_QUANTITIES = new Map([
+  ['water-20l', 5],
+  ['p-mw99d1uv-vx6mg', 5]
+]);
+
+async function restoreDeliveredQaStock() {
+  if (!adminCookie || !lifecycleStockConsumed) return;
+  const current = await request('/api/admin/delivery/stores/' + encodeURIComponent(STORE_ID) + '/inventory', {
+    cookie: adminCookie
+  });
+  const rows = current.data.inventory || [];
+  requireData(rows.length > 0, 'Could not read store inventory for QA stock restoration.');
+  const items = rows.map(row => ({
+    productId: row.id,
+    stockQuantity: Number(row.on_hand || 0) + Number(DELIVERED_QA_QUANTITIES.get(row.id) || 0)
+  }));
+  const restored = await request('/api/admin/delivery/stores/' + encodeURIComponent(STORE_ID) + '/inventory', {
+    method: 'PATCH',
+    body: { items },
+    cookie: adminCookie
+  });
+  for (const row of restored.data.inventory || []) {
+    const expected = Number(items.find(item => item.productId === row.id)?.stockQuantity);
+    requireData(Number(row.on_hand) === expected, 'Could not restore QA stock for ' + row.id + '.');
+  }
+  lifecycleStockConsumed = false;
+  record('Restored delivered QA quantities to Boduppal inventory', {
+    products: [...DELIVERED_QA_QUANTITIES.keys()]
+  });
+}
 try {
   await main();
 } catch (error) {
@@ -538,12 +620,27 @@ try {
   if (adminCookie && createdOrderIds.length) {
     for (const id of createdOrderIds) {
       try {
+        const normal = await request('/api/admin/orders?search=' + encodeURIComponent(id) + '&limit=5', { cookie: adminCookie });
+        const test = normal.data.orders?.[0] || (await request('/api/admin/orders?testOrders=1&search=' + encodeURIComponent(id) + '&limit=5', { cookie: adminCookie })).data.orders?.[0];
+        if (test && !['Delivered', 'Cancelled'].includes(String(test.status))) {
+          try { await ownerPatch(id, { status: 'Cancelled' }); } catch (cancelError) {
+            console.error('QA order cancellation cleanup failed for ' + id + ': ' + cancelError.message);
+          }
+        }
+        if (test && test.payment === 'Collected') {
+          try { await ownerPatch(id, { payment: 'Refunded' }); } catch (refundError) {
+            console.error('QA payment cleanup failed for ' + id + ': ' + refundError.message);
+          }
+        }
         const result = await ownerPatch(id, { isTestOrder: true });
         console.log('QA order isolated after interrupted test:', id, result.data?.isTestOrder);
+        if (String(test?.status) === 'Delivered') lifecycleStockConsumed = true;
       } catch (classificationError) {
         console.error('CRITICAL: Could not classify partial QA order ' + id + ': ' + classificationError.message);
       }
     }
+    try { await restoreDeliveredQaStock(); }
+    catch (restoreError) { console.error('CRITICAL: Could not restore delivered QA inventory: ' + restoreError.message); }
   }
   process.exitCode = 1;
 } finally {
