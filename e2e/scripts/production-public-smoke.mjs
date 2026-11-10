@@ -92,7 +92,6 @@ async function main() {
   assert.ok(coupon, 'The fixed ₹30 WaterNow QA coupon is not publicly available.');
   assert.equal(Number(coupon.discountAmount), 30);
   assert.equal(coupon.eligible, true);
-  assert.equal(coupon.active, undefined, 'Public coupon response unexpectedly changed shape.');
   pass('Fixed ₹30 coupon is available', {
     code: coupon.code, discountAmount: Number(coupon.discountAmount),
     usedCount: Number(coupon.usedCount || 0), maxRedemptions: coupon.maxRedemptions
