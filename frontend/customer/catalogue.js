@@ -116,6 +116,13 @@
         if(token!==loadToken)return;
       }
       const address=window.FreshWayAddressSystem?.getSelectedAddress?.()||{};
+      // Do not resolve against a transient empty address while the customer
+      // session/address is restoring or has just expired. Keep browsing open,
+      // but require a confirmed delivery pin before enabling store ordering.
+      if(!address||typeof address!=='object'||Object.keys(address).length===0){
+        await showBrowseOnlyCatalogue(request,'LOCATION_REQUIRED','Confirm your delivery pin to see which WaterNow store can fulfil your order.',token);
+        return;
+      }
       const resolved=await request('/api/delivery/store',{method:'POST',body:JSON.stringify({address})});
       if(token!==loadToken)return;
       if(resolved?.available!==true||!resolved?.store?.id){
