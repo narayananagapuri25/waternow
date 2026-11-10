@@ -1,0 +1,40 @@
+name: WaterNow Customer Push Verification
+
+on:
+  push:
+    branches:
+      - qa/production-lifecycle-20261110
+    paths:
+      - e2e/scripts/send-customer-push-test.mjs
+      - .github/workflows/customer-push-verification.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: waternow-customer-push-verification
+  cancel-in-progress: false
+
+jobs:
+  send-customer-test-push:
+    name: Send one customer-device test push
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      WATERNOW_ADMIN_TOKEN: ${{ secrets.WATERNOW_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install pinned Worker tooling
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+
+      - name: Verify target is one subscribed customer device and send test push
+        run: node e2e/scripts/send-customer-push-test.mjs
