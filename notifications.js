@@ -13,14 +13,10 @@ const FreshWayNotifications=(()=>{const CUSTOMER_KEY='freshway-customer-id',STAT
     '<label>Registered mobile number<input id="passcodePhone" inputmode="tel" maxlength="15" pattern="[0-9]{10}" autocomplete="tel"></label>'+
     '<label id="passcodeValueWrap">6-digit passcode<input id="passcodeValue" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="current-password" type="password" placeholder="6 digits"></label>'+
     '<label id="passcodeConfirmWrap" class="hidden">Confirm passcode<input id="passcodeConfirm" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" type="password" autocomplete="new-password" placeholder="Enter again"></label>'+
-    '<label id="passcodeResetCodeWrap" class="hidden">SMS verification code<input id="passcodeResetCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" placeholder="6-digit code"></label>'+
-    '<label id="passcodeResetNewWrap" class="hidden">New 6-digit passcode<input id="passcodeResetNew" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="new-password" type="password" placeholder="Choose a new passcode"></label>'+
-    '<label id="passcodeResetConfirmWrap" class="hidden">Confirm new passcode<input id="passcodeResetConfirm" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="new-password" type="password" placeholder="Enter it again"></label>'+
     '<div id="passcodeError" class="otp-error hidden" role="alert"></div>'+
     '<button id="passcodeSubmit" class="primary-btn full" type="button">Login</button>'+
-    '<button id="passcodeForgot" class="secondary-btn full" type="button">Forgot passcode?</button>'+
     '<button id="passcodeMode" class="secondary-btn full" type="button">New customer? Create account</button>'+
-    '<p class="otp-footnote">Your passcode is protected. Your account mobile identifies your orders; the delivery contact can be different for each order.</p>'+
+    '<p class="otp-footnote">Use your 6-digit passcode to sign in. For passcode help, contact WaterNow from Profile → Contact Us. Your delivery contact can be different for each order.</p>'+
     '</div>';
   document.body.appendChild(el);
   return el;
@@ -34,40 +30,26 @@ function openAuth(phone){
   const passWrap=el.querySelector('#passcodeValueWrap');
   const confirmEl=el.querySelector('#passcodeConfirm');
   const confirmWrap=el.querySelector('#passcodeConfirmWrap');
-  const resetCode=el.querySelector('#passcodeResetCode');
-  const resetCodeWrap=el.querySelector('#passcodeResetCodeWrap');
-  const resetNew=el.querySelector('#passcodeResetNew');
-  const resetNewWrap=el.querySelector('#passcodeResetNewWrap');
-  const resetConfirm=el.querySelector('#passcodeResetConfirm');
-  const resetConfirmWrap=el.querySelector('#passcodeResetConfirmWrap');
   const submit=el.querySelector('#passcodeSubmit');
   const modeButton=el.querySelector('#passcodeMode');
-  const forgotButton=el.querySelector('#passcodeForgot');
   const cancel=el.querySelector('#passcodeCancel');
   const hint=el.querySelector('#passcodeHint');
   const err=el.querySelector('#passcodeError');
-  let mode='login',codeSent=false,settled=false;
+  let mode='login',settled=false;
   phoneEl.value=normalizeAuthPhone(phone);
-  nameEl.value='';passEl.value='';confirmEl.value='';resetCode.value='';resetNew.value='';resetConfirm.value='';
-  registeredPhoneValue=registeredPhoneValue||'';
+  nameEl.value='';passEl.value='';confirmEl.value='';
   const showError=message=>{err.textContent=message||'';err.classList.toggle('hidden',!message)};
   const render=()=>{
-    const registerMode=mode==='register',resetMode=mode==='forgot';
+    const registerMode=mode==='register';
     nameWrap.classList.toggle('hidden',!registerMode);
     confirmWrap.classList.toggle('hidden',!registerMode);
-    passWrap.classList.toggle('hidden',resetMode);
-    resetCodeWrap.classList.toggle('hidden',!resetMode||!codeSent);
-    resetNewWrap.classList.toggle('hidden',!resetMode||!codeSent);
-    resetConfirmWrap.classList.toggle('hidden',!resetMode||!codeSent);
-    forgotButton.classList.toggle('hidden',mode!=='login');
-    modeButton.textContent=registerMode?'Already registered? Login':resetMode?'Back to login':'New customer? Create account';
-    modeButton.textContent=resetMode?'Back to login':modeButton.textContent;
-    
-    submit.textContent=resetMode?(codeSent?'Reset passcode':'Send verification code'):registerMode?'Create account':'Login';
-    hint.textContent=resetMode
-      ? (codeSent?'Enter the SMS code and choose a new 6-digit passcode.':'We will send a verification code to your registered mobile if the account exists.')
-      : registerMode?'Create one account with your mobile number and a personal 6-digit passcode.':'Use the mobile number you registered with WaterNow.';
-    phoneEl.disabled=resetMode&&codeSent;
+    passWrap.classList.remove('hidden');
+    modeButton.textContent=registerMode?'Already registered? Login':'New customer? Create account';
+    submit.textContent=registerMode?'Create account':'Login';
+    hint.textContent=registerMode
+      ?'Create your WaterNow account with your mobile number and a personal 6-digit passcode.'
+      :'Use your registered mobile number and 6-digit passcode to log in.';
+    phoneEl.disabled=false;
   };
   render();
   el.classList.remove('hidden');
@@ -75,26 +57,18 @@ function openAuth(phone){
     const cleanup=()=>{
       submit.removeEventListener('click',go);
       modeButton.removeEventListener('click',toggle);
-      forgotButton.removeEventListener('click',forgot);
       cancel.removeEventListener('click',close);
       phoneEl.removeEventListener('blur',normalizePhoneOnBlur);
       el.classList.add('hidden');
-      phoneEl.disabled=false;
     };
     const finish=(ok,value)=>{if(settled)return;settled=true;cleanup();ok?resolve(value):reject(value)};
     const normalizePhoneOnBlur=()=>{phoneEl.value=normalizeAuthPhone(phoneEl.value)};
     const toggle=()=>{
       showError('');
-      codeSent=false;
-      phoneEl.disabled=false;
-      mode=mode==='register'||mode==='forgot'?'login':'register';
-      passEl.value='';confirmEl.value='';resetCode.value='';resetNew.value='';resetConfirm.value='';
-      render();passEl.focus();
-    };
-    const forgot=()=>{
-      showError('');
-      mode='forgot';codeSent=false;passEl.value='';confirmEl.value='';resetCode.value='';resetNew.value='';resetConfirm.value='';
-      render();phoneEl.focus();
+      mode=mode==='register'?'login':'register';
+      passEl.value='';confirmEl.value='';
+      render();
+      (mode==='register'?nameEl:passEl).focus();
     };
     const close=()=>finish(false,new Error('Account sign-in was cancelled.'));
     const go=async()=>{
@@ -102,37 +76,6 @@ function openAuth(phone){
       const name=nameEl.value.trim(),p=normalizeAuthPhone(phoneEl.value),pass=passEl.value;
       phoneEl.value=p;
       if(!/^\d{10}$/.test(p)){showError('Enter a valid 10-digit mobile number.');phoneEl.focus();return}
-      if(mode==='forgot'){
-        if(!codeSent){
-          busy=true;submit.disabled=true;showError('');
-          try{
-            await api('/api/auth/passcode-reset/start',{method:'POST',body:JSON.stringify({phone:p})});
-            codeSent=true;render();
-            showError('');
-            hint.textContent='If this mobile is registered, a verification code has been sent. Check SMS.';
-            resetCode.focus();
-          }catch(error){showError(error.message||'Could not start passcode recovery. Please try again.')}
-          finally{busy=false;submit.disabled=false}
-          return;
-        }
-        const code=resetCode.value.trim(),newPass=resetNew.value,newConfirm=resetConfirm.value;
-        if(!/^\d{6}$/.test(code)){showError('Enter the 6-digit SMS verification code.');resetCode.focus();return}
-        if(!/^\d{6}$/.test(newPass)){showError('Your new passcode must be exactly 6 digits.');resetNew.focus();return}
-        if(newConfirm!==newPass){showError('The new passcodes do not match.');resetConfirm.focus();return}
-        busy=true;submit.disabled=true;showError('');
-        try{
-          const result=await api('/api/auth/passcode-reset/complete',{method:'POST',body:JSON.stringify({phone:p,code,passcode:newPass})});
-          if(!result.customerId)throw new Error('Could not restore your customer session.');
-          registeredPhoneValue=normalizeAuthPhone(result.registeredPhone||p);
-          registeredNameValue=String(result.name||'').trim();
-          setCustomerId(result.customerId);
-          clearSessionCache();
-          finish(true,result.customerId);
-          document.dispatchEvent(new CustomEvent('freshway:session'));
-        }catch(error){showError(error.message||'Could not reset your passcode. Please try again.')}
-        finally{busy=false;submit.disabled=false}
-        return;
-      }
       if(mode==='register'&&!name){showError('Enter your name.');nameEl.focus();return}
       if(!/^\d{6}$/.test(pass)){showError('Passcode must be exactly 6 digits.');passEl.focus();return}
       if(mode==='register'&&confirmEl.value!==pass){showError('Passcodes do not match.');confirmEl.focus();return}
@@ -151,7 +94,7 @@ function openAuth(phone){
         document.dispatchEvent(new CustomEvent('freshway:session'));
       }catch(error){
         if(mode==='register'&&error.status===409){
-          mode='login';render();showError('This mobile is already registered. Log in with your existing passcode, or use Forgot passcode.');
+          mode='login';render();showError('This mobile is already registered. Log in with your existing 6-digit passcode.');
           passEl.value='';passEl.focus();
         }else if(mode==='login'&&error.status===404){
           mode='register';render();showError('This mobile is not registered. Create your account with your name and a 6-digit passcode.');
@@ -163,7 +106,6 @@ function openAuth(phone){
     };
     submit.addEventListener('click',go);
     modeButton.addEventListener('click',toggle);
-    forgotButton.addEventListener('click',forgot);
     cancel.addEventListener('click',close);
     phoneEl.addEventListener('blur',normalizePhoneOnBlur);
     setTimeout(()=>mode==='register'&&nameEl.value===''?nameEl.focus():phoneEl.value?passEl.focus():phoneEl.focus(),30);
