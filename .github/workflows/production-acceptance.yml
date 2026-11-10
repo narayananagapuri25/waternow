@@ -6,6 +6,7 @@ on:
       - qa/production-lifecycle-20261110
     paths:
       - e2e/scripts/production-lifecycle.mjs
+      - e2e/scripts/production-public-smoke.mjs
       - e2e/scripts/ensure-production-coupon.mjs
       - .github/workflows/production-acceptance.yml
   workflow_dispatch:
@@ -56,6 +57,27 @@ jobs:
 
       - name: Create or verify production fixed ₹30 coupon
         run: node e2e/scripts/ensure-production-coupon.mjs
+
+  public-production-smoke:
+    name: Public production smoke tests (no orders)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - prepare-production-coupon
+    env:
+      WATERNOW_APP_ORIGIN: https://waternow.pages.dev
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Syntax-check public production smoke runner
+        run: node --check e2e/scripts/production-public-smoke.mjs
+
+      - name: Verify live customer, catalogue, delivery, pricing and protected Owner APIs
+        run: node e2e/scripts/production-public-smoke.mjs
 
   production-lifecycle:
     name: Real production customer and Owner lifecycle
