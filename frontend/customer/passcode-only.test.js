@@ -22,5 +22,5 @@ assert.ok(!authUi.includes('/api/auth/passcode-reset/complete'));
 assert.ok(page.includes('notifications.js?v=20261110-passcode-only-v1'),'customer HTML must load the immutable passcode-only auth asset');
 assert.ok(worker.includes('/notifications.js?v=20261110-passcode-only-v1'),'customer service worker must precache the exact passcode-only auth asset');
 assert.doesNotMatch(page, /id="otpModal"|id="otpCode"|id="otpVerify"|id="otpResend"/, 'the customer shell must not include an unused SMS/OTP form');
-assert.match(worker,/const CACHE = 'waternow-customer-v12'/,'customer cache must refresh when the account modal changes');
+assert.match(worker,/const CACHE = 'waternow-customer-v13'/,'customer cache must refresh when the account modal changes or notification assets change');
 console.log('WaterNow customer passcode-only account UI contract OK');
