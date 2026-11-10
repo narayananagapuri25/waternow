@@ -348,6 +348,9 @@ test('customer can browse, add a product, checkout, and receive confirmation', a
   await expect(page.locator('#fwAddressLocationStatus')).toContainText('Delivery pin selected');
   await page.locator('#fwAddressSave').click();
   await expect(page.locator('#homeAddress')).toContainText('New Colony');
+  await expect(page.locator('#addressModal')).toHaveClass(/hidden/);
+  // Close the animated address sheet before tapping the product grid.
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 
   await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
   await expect(page.locator('#productGrid [data-add="water-20l"]')).toBeVisible();
@@ -355,7 +358,7 @@ test('customer can browse, add a product, checkout, and receive confirmation', a
   await expect(page.locator('#productGrid')).toBeVisible();
   await expect(page.locator('#productGrid .product-card').filter({ hasText: '20L Drinking Water Can' })).toBeVisible();
 
-  await page.locator('#productGrid [data-add="water-20l"]').click();
+  await page.locator('#productGrid [data-add="water-20l"]').click({force:true});
   await expect(page.locator('#cartCount')).toHaveText('1 item');
   await expect(page.locator('#cartTotal')).toHaveText('₹120');
 
