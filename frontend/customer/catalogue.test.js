@@ -53,7 +53,7 @@ assert.match(source,/let lastStoreResolutionAddressKey=null/,'a completed negati
 assert.match(source,/lastStoreResolutionAddressKey!==currentAddressKey/,'store lookup retries only when the selected address or map pin changes');
 assert.match(source,/function trackedLoad\(options\)/,'initial and user-selected address lookups must share a tracked promise');
 assert.match(source,/async function ensureSelectedStore\(\)[\s\S]*?await pending[\s\S]*?if\(selectedStore\?\.id\)return selectedStore/,'cart quotes must wait until the selected delivery store is actually resolved');
-assert.match(source,/ensureSelectedStore\});/,'the customer quote module must use the address-aware store resolver rather than a stale storage id');
+assert.match(source,/ensureSelectedStore\}\);/,'the customer quote module must use the address-aware store resolver rather than a stale storage id');
 assert.match(source,/window\.FreshWayAddressSystem\?\.getSelectedAddress\?\.\(\)/,'store retries must use the currently selected address and map pin');
 
 assert.match(source,/if\(initial&&bootAddressResolutionPending\)return/);
