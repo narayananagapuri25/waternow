@@ -183,8 +183,12 @@ test('customer push payload uses the Android-safe WaterNow PNG notification icon
   const originalSetVapidDetails = webpush.setVapidDetails;
   const originalSendNotification = webpush.sendNotification;
   let sentPayload = null;
+  let sentOptions = null;
   webpush.setVapidDetails = () => {};
-  webpush.sendNotification = async (_subscription, payload) => { sentPayload = JSON.parse(payload); };
+  webpush.sendNotification = async (_subscription, payload, options) => {
+    sentPayload = JSON.parse(payload);
+    sentOptions = options;
+  };
   const env = {
     VAPID_PUBLIC_KEY: 'test-public-key',
     VAPID_PRIVATE_KEY: 'test-private-key',
