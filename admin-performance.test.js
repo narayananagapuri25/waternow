@@ -56,7 +56,7 @@ assert.match(auth,/SameSite=Lax/);
 assert.match(response,/SameSite=Lax/);
 
 assert.match(ownerSw,/const CACHE = 'waternow-owner-v4'/,'changing the Owner app shell must invalidate the previous cache');
-assert.match(ownerSw,/store-management\.js\?v=20261110-store-active-direct-v1/,'Owner shell must cache the current store activation UI');
+assert.match(ownerSw,/store-management\.js\?v=20261110-store-active-direct-v2/,'Owner shell must cache the current store activation UI');
 assert.match(ownerSw,/delivery-management\.js\?v=20261106-store-reconciliation-v1/);
 assert.match(ownerSw,/admin\.css\?v=waternow-v1/);
 assert.ok(!ownerSw.includes('water-network.js?v=waternow-v1'),'the Owner shell must not precache the removed supplier onboarding module');
