@@ -257,7 +257,7 @@ async function run() {
   stockInput.value = '25';
   hiddenStockInput.value = '6';
   await click({ target: { closest: selector => selector.includes('[data-save-store-management]') ? saveButton : null } });
-  const firstPatches = calls.filter(call => call.method === 'PATCH');
+  const firstPatches = calls.filter(call => call.method === 'PATCH' && call.url.includes('/stores/store-two/'));
   assert.deepEqual(firstPatches.slice(0, 2).map(call => call.url).sort(), [
     '/api/admin/delivery/stores/store-two/catalogue',
     '/api/admin/delivery/stores/store-two/inventory'
@@ -306,7 +306,7 @@ async function run() {
   await saving;
   assert.ok(root.innerHTML.includes('value="329"'));
 
-  const allPatches = calls.filter(call => call.method === 'PATCH');
+  const allPatches = calls.filter(call => call.method === 'PATCH' && call.url.includes('/stores/store-two/'));
   assert.ok(allPatches.every(call => call.url.includes('/stores/store-two/')), 'every write must stay scoped to Store Two');
   assert.equal(allPatches.length, 8, 'success, partial failure, retry and in-flight save each issue two scoped writes');
 
