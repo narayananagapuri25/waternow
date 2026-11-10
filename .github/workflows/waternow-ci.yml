@@ -92,6 +92,8 @@ jobs:
         run: node sw-notification-refresh.test.js
       - name: Run customer catalogue display regression tests
         run: node frontend/customer/catalogue.test.js
+      - name: Run guest address and delivery quote regression tests
+        run: node address-system-final.test.js && node frontend/customer/delivery-offers.test.js
       - name: Install Playwright dependencies
         working-directory: e2e
         run: npm ci
