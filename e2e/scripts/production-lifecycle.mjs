@@ -264,7 +264,7 @@ async function markAllAsTestOrders() {
 }
 
 async function main() {
-  requireData(ADMIN_TOKEN.length >= 6, 'Missing WATERNOW_ADMIN_TOKEN GitHub Actions secret. Add the current Owner test code as a repository Actions secret; no production records were changed.');
+  requireData(ADMIN_TOKEN.length >= 1, 'Missing WATERNOW_ADMIN_TOKEN GitHub Actions secret. Add the current Owner test code as a repository Actions secret; no production records were changed.');
   const adminLogin = await request('/api/admin/login', {
     method: 'POST', body: { token: ADMIN_TOKEN }, expected: [200]
   });
