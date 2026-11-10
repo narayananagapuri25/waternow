@@ -45,6 +45,11 @@ jobs:
             exit 1
           }
 
+      - name: Syntax-check production QA runners
+        run: |
+          node --check e2e/scripts/ensure-production-coupon.mjs
+          node --check e2e/scripts/production-lifecycle.mjs
+
       - name: Install Wrangler dependencies
         working-directory: worker
         run: npm install --no-audit --no-fund
